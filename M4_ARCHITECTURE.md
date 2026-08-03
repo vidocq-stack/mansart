@@ -649,38 +649,49 @@ reusing existing Mansart Data components to minimize duplication.
 ```
 New Module: mansart-data-query/
 ├── ast/                                  # JPQL AST
-│   ├── JpqlAst.java                     # Sealed hierarchy of JPQL nodes
-│   │   ├── SelectStmt.java              # SELECT statement
-│   │   ├── FromClause.java              # FROM clause with joins
-│   │   ├── WhereClause.java             # WHERE clause with predicates
-│   │   ├── SelectClause.java            # SELECT clause with projections
-│   │   ├── Expression.java (sealed)     # All JPQL expressions
-│   │   │   ├── PathExpression.java     # e.g., "b.author.name"
-│   │   │   ├── LiteralExpression.java  # e.g., "'John'", 42
-│   │   │   ├── FunctionExpression.java  # e.g., "COUNT(b)", "UPPER(b.title)"
-│   │   │   ├── BinaryExpression.java    # e.g., "b.price > 100"
-│   │   │   ├── UnaryExpression.java     # e.g., "NOT b.active"
-│   │   │   └── ...
-│   │   └── Predicate.java (sealed)      # WHERE conditions
-│   │       ├── ComparisonPredicate.java # =, <>, <, <=, >, >=, IS NULL, etc.
-│   │       ├── LikePredicate.java       # LIKE
-│   │       ├── InPredicate.java         # IN
-│   │       ├── BetweenPredicate.java    # BETWEEN
-│   │       ├── AndPredicate.java        # AND
-│   │       ├── OrPredicate.java         # OR
-│   │       └── NotPredicate.java         # NOT
-│   ├── JpqlParser.java                  # Parses JPQL string → JpqlAst
-│   └── JpqlVisitor.java                 # Visitor to generate SQL from AST
-├── criteria/                             # Criteria API
+│   ├── JpqlNode.java                    # Sealed hierarchy root
+│   ├── JpqlStmt.java                    # Statement types
+│   │   ├── JpqlSelectStmt.java          # SELECT statement
+│   │   ├── JpqlUpdateStmt.java          # UPDATE statement
+│   │   └── JpqlDeleteStmt.java          # DELETE statement
+│   ├── JpqlClause.java                  # Clause types
+│   │   ├── JpqlSelectClause.java        # SELECT clause with projections
+│   │   ├── JpqlFromClause.java          # FROM clause with joins
+│   │   ├── JpqlWhereClause.java         # WHERE clause with predicates
+│   │   ├── JpqlGroupByClause.java       # GROUP BY clause
+│   │   ├── JpqlHavingClause.java        # HAVING clause
+│   │   └── JpqlOrderByClause.java       # ORDER BY clause
+│   ├── JpqlExpr.java (sealed)           # All JPQL expressions
+│   │   ├── JpqlPathExpr.java            # e.g., "b.author.name"
+│   │   ├── JpqlLiteralExpr.java         # Literals: strings, numbers, booleans, dates, null
+│   │   ├── JpqlFunctionExpr.java        # e.g., "COUNT(b)", "UPPER(b.title)"
+│   │   ├── JpqlBinaryExpr.java          # Arithmetic: +, -, *, /, ||
+│   │   ├── JpqlUnaryExpr.java           # e.g., "-b.price", "+b.value"
+│   │   ├── JpqlCaseExpr.java            # CASE expressions
+│   │   ├── JpqlTypeExpr.java            # TYPE expressions
+│   │   └── JpqlParameterExpr.java       # Named (:name) and positional (?1) parameters
+│   ├── JpqlPredicate.java (sealed)      # WHERE conditions
+│   │   ├── JpqlComparisonPredicate.java # =, <>, <, <=, >, >=, IS NULL, IS NOT NULL
+│   │   ├── JpqlLikePredicate.java       # LIKE pattern matching
+│   │   ├── JpqlInPredicate.java         # IN expression
+│   │   ├── JpqlBetweenPredicate.java    # BETWEEN expression
+│   │   ├── JpqlExistsPredicate.java     # EXISTS subquery
+│   │   ├── JpqlAllAnySomePredicate.java  # ALL/ANY/SOME subquery
+│   │   ├── JpqlAndPredicate.java        # AND
+│   │   ├── JpqlOrPredicate.java         # OR
+│   │   └── JpqlNotPredicate.java        # NOT
+│   ├── JpqlVisitor.java                 # Visitor pattern for AST traversal
+│   ├── JpqlParser.java                  # Parses JPQL string → JpqlStmt
+│   └── JoinType.java                    # JOIN type enum
+├── criteria/                             # Criteria API (TODO)
 │   ├── MansartCriteriaBuilder.java     # Implements CriteriaBuilder
 │   ├── MansartCriteriaQuery.java       # Implements CriteriaQuery
 │   ├── MansartRoot.java                 # Implements Root<X>
 │   ├── MansartPath.java                 # Implements Path<X>
 │   ├── MansartPredicate.java           # Implements Predicate
-│   ├── MansartExpression.java          # Base for all Criteria expressions
-│   └── ...
-├── MansartQuery.java                    # Implements Query (JPQL)
-├── MansartTypedQuery.java              # Implements TypedQuery<T> (JPQL)
+│   └── MansartExpression.java          # Base for all Criteria expressions
+├── MansartQuery.java                    # Implements Query (JPQL) (TODO)
+├── MansartTypedQuery.java              # Implements TypedQuery<T> (JPQL) (TODO)
 └── package-info.java
 ```
 
@@ -945,6 +956,29 @@ public final class MansartQuery implements Query {
 - [ ] Support for native queries
 - [ ] Support for result streaming
 - [ ] Support for tuple queries and result transformations
+
+### Current Status (2026-08-03)
+
+**Completed:**
+- Created `mansart-data-query` module with complete structure
+- Implemented JPQL AST hierarchy (JpqlNode, JpqlStmt, JpqlExpr, JpqlPredicate)
+- Implemented recursive descent parser with tokenizer
+- Fixed critical compilation errors
+- Extended Dialect SPI with `renderJpql()` and `renderCriteria()` methods
+- Added 36 unit tests in JpqlParserTest
+- Module compiles successfully
+- Updated architecture documentation
+
+**In Progress:**
+- Parser improvements for edge cases (EXISTS, functions, JOIN semantics)
+
+**Remaining M5 Tasks:**
+- Implement Criteria API (MansartCriteriaBuilder, MansartCriteriaQuery, etc.)
+- Implement JpqlVisitor for SQL generation
+- Implement MansartQuery and MansartTypedQuery
+- Integrate with RepositoryRuntime for query execution
+- Complete JOIN FETCH support
+- Add support for named queries
 
 ### Reuse Summary
 
