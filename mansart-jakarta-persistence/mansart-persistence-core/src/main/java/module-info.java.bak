@@ -1,0 +1,42 @@
+/*
+ * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0/
+ *
+ * This Source Code may also be made available under the following Secondary
+ * Licenses when the conditions for such availability set forth in the Eclipse
+ * Public License, v. 2.0 are satisfied: GNU General Public License, version 2
+ * or any later version, which is available at
+ * https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ *
+ * It is also made available under the European Union Public Licence v. 1.2,
+ * which is available at
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
+ */
+/**
+ * Mansart Jakarta Persistence Core module.
+ * Core runtime implementation of Jakarta Persistence 3.2.
+ */
+module io.vidocq.mansart.persistence.core {
+    requires transitive io.vidocq.mansart.persistence.api;
+    requires transitive io.vidocq.mansart.persistence.spi;
+    requires transitive io.vidocq.mansart.data.core;
+    requires transitive io.vidocq.mansart.data.dialect.spi;
+    requires transitive jakarta.transaction;
+
+    exports io.vidocq.mansart.persistence.core.bootstrap;
+    exports io.vidocq.mansart.persistence.core.runtime;
+    exports io.vidocq.mansart.persistence.core.query;
+    exports io.vidocq.mansart.persistence.core.mapping;
+    exports io.vidocq.mansart.persistence.core.lifecycle;
+    exports io.vidocq.mansart.persistence.core.cache;
+    exports io.vidocq.mansart.persistence.core.transaction;
+    exports io.vidocq.mansart.persistence.core.util;
+
+    provides jakarta.persistence.spi.PersistenceProvider 
+        with io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider;
+}
