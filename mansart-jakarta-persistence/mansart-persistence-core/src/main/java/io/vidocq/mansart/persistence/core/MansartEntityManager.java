@@ -368,7 +368,7 @@ public class MansartEntityManager implements EntityManager {
         }
     }
 
-    private static class EntityCacheKey {
+    static class EntityCacheKey {
         private final Class<?> entityClass;
         private final Object id;
         private final int hashCode;
