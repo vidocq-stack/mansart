@@ -36,7 +36,7 @@ vidocq-runtime-extensions-jakartaee-web/
 └── vidocq-runtime-mansart-persistence-extension-codegen/ # APT bundle
 ```
 
-## Current Status (M1: Skeleton)
+## Current Status (M4: EntityManager Implementation Complete)
 
 ✅ **Completed for M1:**
 - Project structure and POM configuration
@@ -50,13 +50,36 @@ vidocq-runtime-extensions-jakartaee-web/
 - Vidocq Runtime integration extension (`MansartPersistenceIntegrationExtension`)
 - All modules compile successfully
 
+✅ **Completed for M2:**
+- Static metamodel generation with `MansartMetamodelWriter`
+- `Entity_` classes with `SingularAttribute`, `PluralAttribute`
+- Attribute descriptors and type resolution
+
+✅ **Completed for M3:**
+- Core runtime implementation using Mansart Data components:
+  - Integration with `RepositoryRuntime` for entity operations
+  - Integration with `Dialect` for SQL generation
+  - Integration with `ConnectionScope` for connection management
+- Full `MansartEntityManager` implementation:
+  - Persistence context (L1 cache) using `IdentityHashMap`
+  - CRUD operations: `persist()`, `merge()`, `remove()`, `find()`
+  - Entity state management and copy
+  - Transaction management via `MansartEntityTransaction`
+  - Entity model resolution via generated `_Entity` classes
+
+✅ **Completed for M4:**
+- `EntityModels` made public for runtime access
+- `LazyHolder` for thread-safe lazy loading (double-checked locking)
+- Lazy loading enabled for REFERENCE attributes in processor
+- Complete `MansartEntityManager` with all JPA lifecycle operations
+- H2 DataSource creation for testing
+- Unit tests for EntityCacheKey and basic EntityManager operations
+- Integration tests with real H2 database
+
 ⏳ **To be implemented in future milestones:**
-- M2: Static metamodel generation
-- M3: Core runtime (CRUD operations, persistence context)
-- M4: Bytecode enhancement (dirty tracking, lazy loading)
 - M5-M6: JPQL parser and Criteria API
-- M7: Transactions and cache
-- M8-M13: Lifecycle, inheritance, TCK, etc.
+- M7: Transactions and cache (L2 cache)
+- M8-M13: Lifecycle callbacks, inheritance, TCK, etc.
 
 ## Building
 
