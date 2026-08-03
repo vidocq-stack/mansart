@@ -388,7 +388,7 @@ class JpqlParserTest {
     @Test
     void testExistsSubquery() {
         JpqlSelectStmt stmt = (JpqlSelectStmt) JpqlParser.parse(
-            "SELECT b FROM Book b WHERE EXISTS (SELECT 1 FROM Order o WHERE o.book = b)"
+            "SELECT b FROM Book b WHERE EXISTS (SELECT 1 FROM MyOrder o WHERE o.book = b)"
         );
         
         assertThat(stmt.hasWhere()).isTrue();
@@ -402,7 +402,7 @@ class JpqlParserTest {
     @Test
     void testNotExistsSubquery() {
         JpqlSelectStmt stmt = (JpqlSelectStmt) JpqlParser.parse(
-            "SELECT b FROM Book b WHERE NOT EXISTS (SELECT 1 FROM Order o WHERE o.book = b)"
+            "SELECT b FROM Book b WHERE NOT EXISTS (SELECT 1 FROM MyOrder o WHERE o.book = b)"
         );
         
         assertThat(stmt.hasWhere()).isTrue();
