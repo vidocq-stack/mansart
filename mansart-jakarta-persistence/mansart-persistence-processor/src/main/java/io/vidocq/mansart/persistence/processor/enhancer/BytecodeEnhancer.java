@@ -13,7 +13,7 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
@@ -498,7 +498,7 @@ public class BytecodeEnhancer {
         builder.append(" *\n");
         builder.append(" * It is also made available under the European Union Public Licence v. 1.2,\n");
         builder.append(" * which is available at\n");
-        builder.append(" * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12\n");
+        builder.append(" * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2\n");
         builder.append(" *\n");
         builder.append(" * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later\n");
         builder.append(" */\n");
