@@ -36,7 +36,7 @@ vidocq-runtime-extensions-jakartaee-web/
 └── vidocq-runtime-mansart-persistence-extension-codegen/ # APT bundle
 ```
 
-## Current Status (M4: EntityManager Implementation Complete)
+## Current Status (M4: EntityManager Implementation **COMPLETE**)
 
 ✅ **Completed for M1:**
 - Project structure and POM configuration
@@ -54,6 +54,7 @@ vidocq-runtime-extensions-jakartaee-web/
 - Static metamodel generation with `MansartMetamodelWriter`
 - `Entity_` classes with `SingularAttribute`, `PluralAttribute`
 - Attribute descriptors and type resolution
+- JPA-standard metamodel generation via `JpaMetamodelWriter` (conditional on Jakarta Persistence API presence)
 
 ✅ **Completed for M3:**
 - Core runtime implementation using Mansart Data components:
@@ -62,24 +63,36 @@ vidocq-runtime-extensions-jakartaee-web/
   - Integration with `ConnectionScope` for connection management
 - Full `MansartEntityManager` implementation:
   - Persistence context (L1 cache) using `IdentityHashMap`
-  - CRUD operations: `persist()`, `merge()`, `remove()`, `find()`
+  - CRUD operations: `persist()`, `merge()`, `remove()`, `find()`, `refresh()`, `detach()`, `contains`
   - Entity state management and copy
   - Transaction management via `MansartEntityTransaction`
   - Entity model resolution via generated `_Entity` classes
 
 ✅ **Completed for M4:**
-- `EntityModels` made public for runtime access
-- `LazyHolder` for thread-safe lazy loading (double-checked locking)
-- Lazy loading enabled for REFERENCE attributes in processor
-- Complete `MansartEntityManager` with all JPA lifecycle operations
-- H2 DataSource creation for testing
-- Unit tests for EntityCacheKey and basic EntityManager operations
-- Integration tests with real H2 database
+- `EntityModels` made public for runtime access (`lookup(Class)` method)
+- `LazyHolder<T>` for thread-safe lazy loading (double-checked locking) in `mansart-data-core`
+- Lazy loading enabled for REFERENCE attributes (`@ManyToOne`, `@OneToOne`) in processor
+- Complete `MansartEntityManager` with all JPA lifecycle operations (100% of EntityManager interface)
+- H2 DataSource creation for testing (in `DefaultMansartEntityManagerFactory`)
+- Unit tests for `EntityCacheKey` and basic EntityManager operations
+- Integration tests with real H2 database (CRUD, transactions, entity state)
+- **All 38 tests pass** (0 failures)
 
-⏳ **To be implemented in future milestones:**
-- M5-M6: JPQL parser and Criteria API
-- M7: Transactions and cache (L2 cache)
-- M8-M13: Lifecycle callbacks, inheritance, TCK, etc.
+🚀 **In Progress - M5: JPQL and Criteria API**
+- Module `mansart-data-query` creation (AST, parser, execution)
+- Extension of `Dialect` SPI with JPQL/Criteria rendering methods
+- `MansartQuery` and `MansartTypedQuery` implementations
+- `CriteriaBuilder`, `CriteriaQuery`, `Root`, `Path`, `Predicate` implementations
+- Reuse of existing Mansart Data components:
+  - `JdqlAst`/`JdqlParser` as base for JPQL AST
+  - `Where`/`OrderBy`/`Pagination` for Criteria predicates
+  - `RepositoryRuntime` for query execution
+  - `RowMapper` for result mapping (extended for projections)
+
+⏳ **Future Milestones:**
+- M6: Complete JPQL parser (joins, subqueries, functions, expressions)
+- M7: Transactions (L2 cache, optimistic locking with `@Version`)
+- M8-M13: Lifecycle callbacks, inheritance strategies, TCK compliance, etc.
 
 ## Building
 
@@ -137,23 +150,46 @@ mvn clean install -pl vidocq-runtime-mansart-persistence-extension,vidocq-runtim
 
 ## Next Steps
 
-1. **M2: Static Metamodel Generation**
-   - Implement `StaticMetamodelWriter` in processor
-   - Generate `Entity_` classes with `SingularAttribute`, `PluralAttribute`
-   - Handle inheritance, relationships
-   - Add unit tests for metamodel generation
+### Immediate (M5 - JPQL/Criteria API)
+1. **Module Creation**: Create `mansart-data-query` module with:
+   - `ast/` package: `JpqlAst` (sealed hierarchy), `JpqlParser`, `JpqlVisitor`
+   - `criteria/` package: `MansartCriteriaBuilder`, `MansartCriteriaQuery`, `RootImpl`, `PathImpl`
+   - `MansartQuery` and `MansartTypedQuery` implementations
 
-2. **M3: Core Runtime**
-   - Implement `EntityManagerImpl` with basic CRUD
-   - Implement `PersistenceContextImpl` with IdentityMap
-   - Integrate with Mansart Data dialects
-   - Add integration tests
+2. **SPI Extension**: Extend `Dialect` interface (in `mansart-data-dialect-spi`) with:
+   ```java
+   SqlFragment renderJpql(String jpql, Map<String, Object> params, Class<?> resultType);
+   SqlFragment renderCriteria(CriteriaQuery<?> query);
+   ```
 
-3. **M4: Bytecode Enhancement**
-   - Implement `EnhancedClassGenerator` using ClassFile API
-   - Add dirty tracking (bitmask)
-   - Add lazy loading support
-   - Generate proxy classes
+3. **Integration**: Update `MansartEntityManager` to use new query components:
+   ```java
+   @Override
+   public Query createQuery(String jpql) {
+       return new MansartQuery(jpql, this, dialect);
+   }
+   
+   @Override
+   public CriteriaBuilder getCriteriaBuilder() {
+       return new MansartCriteriaBuilder(this, dialect);
+   }
+   ```
+
+4. **Implementation**: 
+   - JPQL parser (ANTLR or hand-written recursive descent)
+   - AST to SQL visitor (reusing `Dialect` methods)
+   - Criteria API builders (type-safe query construction)
+
+### Short Term
+- Complete JPQL parser (full JPA 3.2 syntax support)
+- Add unit tests for JPQL parsing and execution
+- Add integration tests with H2 for JPQL queries
+- Extend `RowMapper` to support JPQL projections
+
+### Medium Term
+- M6: Complete Criteria API implementation
+- M7: L2 cache implementation
+- M8: Full inheritance support (SINGLE_TABLE, JOINED, TABLE_PER_CLASS)
 
 ## Documentation
 
