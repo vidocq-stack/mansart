@@ -137,7 +137,7 @@ final class MansartMetamodelWriter {
             case REFERENCE -> w.println("    public static final ReferenceAttribute<" + entityRef + ", " + boxed + "> "
                     + a.name() + " = new ReferenceAttribute<>(\"" + a.name() + "\", \"" + a.columnName() + "\", "
                     + boxed + ".class, " + entityRef + ".class, " + a.nullable() + ", " + a.unique()
-                    + ", false, \"" + a.referencedColumn() + "\", " + getterMh + ", " + setterMh + ");");
+                    + ", " + a.lazy() + ", \"" + a.referencedColumn() + "\", " + getterMh + ", " + setterMh + ");");
             case ENUM -> w.println("    @SuppressWarnings({\"rawtypes\", \"unchecked\"})\n"
                     + "    public static final EnumAttribute " + a.name() + " = new EnumAttribute(\""
                     + a.name() + "\", \"" + a.columnName() + "\", " + boxed + ".class, "

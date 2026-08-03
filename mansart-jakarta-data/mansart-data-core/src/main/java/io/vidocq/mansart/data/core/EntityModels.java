@@ -39,13 +39,13 @@ import java.util.concurrent.ConcurrentMap;
  *
  * <p>Cached per-class. Thread-safe.
  */
-final class EntityModels {
+public final class EntityModels {
 
     private EntityModels() {}
 
     private static final ConcurrentMap<Class<?>, EntityModel<?>> CACHE = new ConcurrentHashMap<>();
 
-    static EntityModel<?> lookup(Class<?> entityType) {
+    public static EntityModel<?> lookup(Class<?> entityType) {
         return CACHE.computeIfAbsent(entityType, EntityModels::resolve);
     }
 

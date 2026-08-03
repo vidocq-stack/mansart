@@ -159,8 +159,11 @@ final class EntityScanner {
             if (!rc.isEmpty()) referencedColumn = rc;
         }
 
+        // Lazy loading for REFERENCE attributes - enabled by default for JPA relationships
+        boolean lazy = kind == AttributeKind.REFERENCE;
+
         return new AttributeDescriptor(field, name, columnName, javaTypeFqn, kind,
-                nullable, unique, length, generated, referencedColumn);
+                nullable, unique, length, generated, referencedColumn, lazy);
     }
 
     /* ----- helpers ---- */
@@ -270,7 +273,9 @@ final class EntityScanner {
             int length,
             boolean generated,
             // M8-3 — for REFERENCE attributes only: PK column on the target entity (defaults "id").
-            String referencedColumn
+            String referencedColumn,
+            // Lazy loading flag for REFERENCE attributes
+            boolean lazy
     ) {}
 
     record EntityDescriptor(
