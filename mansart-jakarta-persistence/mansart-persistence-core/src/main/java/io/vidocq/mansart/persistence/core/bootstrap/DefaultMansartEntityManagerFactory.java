@@ -23,6 +23,10 @@
  */
 package io.vidocq.mansart.persistence.core.bootstrap;
 
+import io.vidocq.mansart.data.core.MansartData;
+import io.vidocq.mansart.data.core.RepositoryRuntime;
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.persistence.core.MansartEntityManager;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.PersistenceUnitUtil;
@@ -37,6 +41,7 @@ import jakarta.persistence.TypedQueryReference;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Consumer;
+import javax.sql.DataSource;
 
 /**
  * Default concrete implementation of MansartEntityManagerFactory.
@@ -46,6 +51,13 @@ import java.util.function.Consumer;
 public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFactory {
 
     /**
+     * Mansart Data components for entity operations.
+     */
+    private final RepositoryRuntime repositoryRuntime;
+    private final Dialect dialect;
+    private final DataSource dataSource;
+
+    /**
      * Creates a new DefaultMansartEntityManagerFactory.
      *
      * @param persistenceUnitName the name of the persistence unit
@@ -53,50 +65,60 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     public DefaultMansartEntityManagerFactory(String persistenceUnitName, Map properties) {
         super(persistenceUnitName, properties);
+        // Initialize Mansart Data components
+        this.dataSource = createDataSource();
+        MansartData mansartData = MansartData.builder()
+                .dataSource(dataSource)
+                .build();
+        this.repositoryRuntime = mansartData.runtime();
+        this.dialect = mansartData.dialect();
     }
 
     /**
-     * Creates a new application-managed EntityManager.
-     *
-     * @return a new EntityManager instance
+     * Creates a DataSource from the persistence unit properties.
+     * For M4, this creates an in-memory H2 DataSource for testing.
+     * In a real implementation, this would come from the persistence.xml or properties.
      */
+    private DataSource createDataSource() {
+        // For M4, create a default in-memory H2 DataSource
+        // In production, this would be configured via persistence.xml properties
+        try {
+            Class<?> jdbcDataSourceClass = Class.forName("org.h2.jdbcx.JdbcDataSource");
+            Object dataSource = jdbcDataSourceClass.getDeclaredConstructor().newInstance();
+            
+            // Set default H2 URL - can be overridden via properties
+            String url = (String) getProperties().getOrDefault("jakarta.persistence.jdbc.url", 
+                "jdbc:h2:mem:mansart-persistence;DB_CLOSE_DELAY=-1");
+            jdbcDataSourceClass.getMethod("setURL", String.class).invoke(dataSource, url);
+            jdbcDataSourceClass.getMethod("setUser", String.class).invoke(dataSource, 
+                getProperties().getOrDefault("jakarta.persistence.jdbc.user", "sa"));
+            jdbcDataSourceClass.getMethod("setPassword", String.class).invoke(dataSource, 
+                getProperties().getOrDefault("jakarta.persistence.jdbc.password", ""));
+            
+            return (DataSource) dataSource;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create DataSource", e);
+        }
+    }
+
     @Override
     public EntityManager createEntityManager() {
-        throw new UnsupportedOperationException("createEntityManager not yet implemented");
+        return createEntityManager((Map) null);
     }
 
-    /**
-     * Creates a new application-managed EntityManager with the specified properties.
-     *
-     * @param map properties for the EntityManager
-     * @return a new EntityManager instance
-     */
     @Override
     public EntityManager createEntityManager(Map map) {
-        throw new UnsupportedOperationException("createEntityManager(Map) not yet implemented");
+        return createEntityManager(SynchronizationType.SYNCHRONIZED, map);
     }
 
-    /**
-     * Creates a new application-managed EntityManager with the specified synchronization type.
-     *
-     * @param synchronizationType the synchronization type
-     * @return a new EntityManager instance
-     */
     @Override
     public EntityManager createEntityManager(SynchronizationType synchronizationType) {
-        throw new UnsupportedOperationException("createEntityManager(SynchronizationType) not yet implemented");
+        return createEntityManager(synchronizationType, (Map) null);
     }
 
-    /**
-     * Creates a new application-managed EntityManager with the specified synchronization type and properties.
-     *
-     * @param synchronizationType the synchronization type
-     * @param map properties for the EntityManager
-     * @return a new EntityManager instance
-     */
     @Override
     public EntityManager createEntityManager(SynchronizationType synchronizationType, Map map) {
-        throw new UnsupportedOperationException("createEntityManager(SynchronizationType, Map) not yet implemented");
+        return new MansartEntityManager(repositoryRuntime, dialect, dataSource, this);
     }
 
     /**
@@ -154,7 +176,7 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public Map<String, Object> getProperties() {
-        return getProperties();
+        return super.getProperties();
     }
 
     /**
