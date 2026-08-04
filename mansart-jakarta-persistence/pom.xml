@@ -189,8 +189,8 @@
             <plugin>
                 <groupId>com.mycila</groupId>
                 <artifactId>license-maven-plugin</artifactId>
+                <version>5.1.1</version>
                 <configuration>
-                    <useQDox>false</useQDox>
                     <licenseSets>
                         <licenseSet>
                             <header>file://${project.basedir}/etc/license-header.txt</header>

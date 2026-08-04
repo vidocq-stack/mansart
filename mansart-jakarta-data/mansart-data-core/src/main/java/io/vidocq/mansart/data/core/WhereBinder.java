@@ -144,8 +144,15 @@ final class WhereBinder {
             case Where.IsNull ignored    -> psIdx;
             case Where.IsNotNull ignored -> psIdx;
             case Where.Not w             -> bindFuncWithType(dialect, ps, w.child(), args, psIdx, argCursor, overrideType);
-            default -> throw new IllegalArgumentException(
-                    "Func wraps Eq/NotEq/Lt/Lte/Gt/Gte/Like/Between/In/IsNull/IsNotNull/Not only, got: " + inner);
+            case Where.IgnoreCase w      -> bindFuncWithType(dialect, ps, w.inner(), args, psIdx, argCursor, overrideType);
+            case Where.Exists ignored    -> psIdx;
+            case Where.AlwaysTrue ignored -> psIdx;
+            case Where.AlwaysFalse ignored -> psIdx;
+            case Where.And ignored      -> throw new IllegalArgumentException(
+                    "Func cannot wrap And, got: " + inner);
+            case Where.Or ignored       -> throw new IllegalArgumentException(
+                    "Func cannot wrap Or, got: " + inner);
+            case Where.Func w           -> bindFuncWithType(dialect, ps, w.inner(), args, psIdx, argCursor, overrideType);
         };
     }
 }
