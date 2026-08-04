@@ -235,16 +235,13 @@ public class MansartEntityManager implements EntityManager {
         throw new IllegalArgumentException("Named query not found: " + name);
     }
     @Override public Query createNativeQuery(String sqlString) {
-        // TODO: Implement native queries
-        throw new UnsupportedOperationException("Native queries not yet implemented");
+        return new MansartNativeQuery(sqlString, this);
     }
     @Override public Query createNativeQuery(String sqlString, Class resultClass) {
-        // TODO: Implement native queries
-        throw new UnsupportedOperationException("Native queries not yet implemented");
+        return new MansartNativeQuery(sqlString, resultClass, this);
     }
     @Override public Query createNativeQuery(String sqlString, String resultSetMapping) {
-        // TODO: Implement native queries
-        throw new UnsupportedOperationException("Native queries not yet implemented");
+        return new MansartNativeQuery(sqlString, resultSetMapping, this);
     }
     @Override public jakarta.persistence.StoredProcedureQuery createNamedStoredProcedureQuery(String name) { throw new UnsupportedOperationException("Stored procedures not yet implemented"); }
     @Override public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName) { throw new UnsupportedOperationException("Stored procedures not yet implemented"); }

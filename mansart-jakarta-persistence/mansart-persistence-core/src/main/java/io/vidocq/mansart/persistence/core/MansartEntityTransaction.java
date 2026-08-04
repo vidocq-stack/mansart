@@ -88,6 +88,7 @@ public class MansartEntityTransaction implements EntityTransaction {
             throw new RollbackException("Transaction commit failed", e);
         } finally {
             cleanupConnection();
+            state = TransactionState.INACTIVE;
         }
     }
 
@@ -107,6 +108,7 @@ public class MansartEntityTransaction implements EntityTransaction {
             throw new IllegalStateException("Transaction rollback failed", e);
         } finally {
             cleanupConnection();
+            state = TransactionState.INACTIVE;
         }
     }
 

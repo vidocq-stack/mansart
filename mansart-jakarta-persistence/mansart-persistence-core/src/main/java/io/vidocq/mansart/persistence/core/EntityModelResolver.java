@@ -20,6 +20,7 @@
 
 package io.vidocq.mansart.persistence.core;
 
+import io.vidocq.mansart.data.core.RuntimeEntityModelBuilder;
 import io.vidocq.mansart.data.dialect.EntityModel;
 
 import java.lang.reflect.Field;
@@ -30,7 +31,9 @@ import java.util.concurrent.ConcurrentMap;
  * Utility class for resolving EntityModel instances for entity classes.
  * 
  * <p>M4 — Resolves EntityModel by looking up the generated _<EntityName> class
- * and accessing its $MODEL static field.
+ * and accessing its $MODEL static field. Falls back to runtime model building
+ * via {@link RuntimeEntityModelBuilder} for entities without generated metamodel
+ * (e.g., TCK entities).
  */
 public final class EntityModelResolver {
 
@@ -42,12 +45,13 @@ public final class EntityModelResolver {
      * Resolves the EntityModel for the given entity class.
      * 
      * <p>First checks the cache, then tries to find the generated _<EntityName> class
-     * and access its $MODEL field.
+     * and access its $MODEL field. If the generated metamodel is not found,
+     * falls back to runtime model building using {@link RuntimeEntityModelBuilder}.
      *
      * @param entityClass the entity class
      * @param <T> the entity type
      * @return the EntityModel for the entity class
-     * @throws IllegalArgumentException if no EntityModel can be found
+     * @throws IllegalArgumentException if no EntityModel can be found or built
      */
     @SuppressWarnings("unchecked")
     public static <T> EntityModel<T> resolve(Class<T> entityClass) {
@@ -66,10 +70,15 @@ public final class EntityModelResolver {
                 throw new IllegalArgumentException(
                     "Generated metamodel class " + generatedName + " has $MODEL field with wrong type: " + model.getClass().getName());
             } catch (ClassNotFoundException e) {
-                // Generated metamodel class not found
-                throw new IllegalArgumentException(
-                    "No generated metamodel found for entity " + clazz.getName() + 
-                    ". Expected class: " + generatedName, e);
+                // Generated metamodel class not found - try runtime building
+                try {
+                    return RuntimeEntityModelBuilder.build(clazz);
+                } catch (Exception ex) {
+                    throw new IllegalArgumentException(
+                        "No generated metamodel found for entity " + clazz.getName() + 
+                        ". Expected class: " + generatedName + 
+                        ". Also failed to build runtime model: " + ex.getMessage(), e);
+                }
             } catch (NoSuchFieldException | IllegalAccessException e) {
                 throw new IllegalArgumentException(
                     "Generated metamodel class " + generatedName + " has no public static $MODEL field", e);

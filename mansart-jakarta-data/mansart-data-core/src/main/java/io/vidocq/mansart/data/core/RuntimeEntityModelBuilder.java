@@ -87,11 +87,14 @@ public final class RuntimeEntityModelBuilder {
             String schema    = readSchema(entityClass);
 
             List<Field> persistedFields = new ArrayList<>();
-            for (Field field : entityClass.getDeclaredFields()) {
-                int mods = field.getModifiers();
-                if (Modifier.isStatic(mods) || Modifier.isTransient(mods)) continue;
-                if (hasAnnotation(field, "jakarta.persistence.Transient")) continue;
-                persistedFields.add(field);
+            // Get all fields including inherited ones
+            for (Class<?> clazz = entityClass; clazz != null && clazz != Object.class; clazz = clazz.getSuperclass()) {
+                for (Field field : clazz.getDeclaredFields()) {
+                    int mods = field.getModifiers();
+                    if (Modifier.isStatic(mods) || Modifier.isTransient(mods)) continue;
+                    if (hasAnnotation(field, "jakarta.persistence.Transient")) continue;
+                    persistedFields.add(field);
+                }
             }
 
             // M7-5 — pick the implicit id field BEFORE iterating attributes so describeField
@@ -129,7 +132,8 @@ public final class RuntimeEntityModelBuilder {
     }
 
     private static boolean isExplicitId(Field field) {
-        return hasAnnotation(field, "jakarta.persistence.Id");
+        return hasAnnotation(field, "jakarta.persistence.Id") 
+                || hasAnnotation(field, "jakarta.persistence.EmbeddedId");
     }
 
     /**
@@ -188,26 +192,126 @@ public final class RuntimeEntityModelBuilder {
                                                      boolean implicitId) {
         String name = field.getName();
         Class<?> type = boxed(field.getType());
+        Class<?> declaringClass = field.getDeclaringClass();
 
-        boolean isId        = implicitId || hasAnnotation(field, "jakarta.persistence.Id");
-        boolean isVersion   = hasAnnotation(field, "jakarta.persistence.Version");
-        boolean isManyToOne = hasAnnotation(field, "jakarta.persistence.ManyToOne");
-        boolean isOneToOne  = hasAnnotation(field, "jakarta.persistence.OneToOne");
-        boolean isReference = isManyToOne || isOneToOne;
-        boolean generated   = hasAnnotation(field, "jakarta.persistence.GeneratedValue");
-
-        String columnName = readColumnName(field, isReference);
-        boolean nullable  = readBooleanColumnAttr(field, "nullable", true);
-        boolean unique    = readBooleanColumnAttr(field, "unique",   false);
-        int     length    = (int) readIntColumnAttr(field, "length", 255);
-
+        // Check for annotations on getter as well as field (JPA allows both)
         MethodHandle getter, setter;
+        Method getterMethod = null;
         try {
-            getter = lookup.findGetter(entityClass, name, field.getType());
-            setter = lookup.findSetter(entityClass, name, field.getType());
+            // Find getter method by scanning all methods
+            // JPA allows annotations on getters, and getter names may not follow exact field name conventions
+            Method foundGetter = null;
+            Method foundSetter = null;
+            
+            for (Method m : declaringClass.getDeclaredMethods()) {
+                String methodName = m.getName();
+                Class<?> returnType = m.getReturnType();
+                Class<?>[] paramTypes = m.getParameterTypes();
+                
+                // Check for getter: method name starts with "get" or "is", no params, return type matches
+                if (paramTypes.length == 0 && returnType.equals(field.getType())) {
+                    if (methodName.startsWith("get") && methodName.length() > 3) {
+                        String fieldNameFromGetter = methodName.substring(3);
+                        // Simple check: field name matches (case-insensitive first char) or exact match
+                        if (methodName.substring(3).equalsIgnoreCase(name) || 
+                            methodName.substring(3).equals(name) ||
+                            name.equalsIgnoreCase(methodName.substring(3))) {
+                            foundGetter = m;
+                        }
+                    } else if (methodName.startsWith("is") && methodName.length() > 2 &&
+                               (field.getType() == boolean.class || field.getType() == Boolean.class)) {
+                        String fieldNameFromGetter = methodName.substring(2);
+                        if (methodName.substring(2).equalsIgnoreCase(name) || 
+                            methodName.substring(2).equals(name) ||
+                            name.equalsIgnoreCase(methodName.substring(2))) {
+                            foundGetter = m;
+                        }
+                    }
+                }
+                
+                // Check for setter: method name starts with "set", one param, return type void
+                if (methodName.startsWith("set") && methodName.length() > 3 && 
+                    paramTypes.length == 1 && m.getReturnType() == void.class &&
+                    paramTypes[0].equals(field.getType())) {
+                    String fieldNameFromSetter = methodName.substring(3);
+                    if (methodName.substring(3).equalsIgnoreCase(name) || 
+                        methodName.substring(3).equals(name) ||
+                        name.equalsIgnoreCase(methodName.substring(3))) {
+                        foundSetter = m;
+                    }
+                }
+            }
+            
+            if (foundGetter != null) {
+                getterMethod = foundGetter;
+                // Try to create MethodHandles
+                MethodHandles.Lookup fieldLookup;
+                try {
+                    fieldLookup = MethodHandles.privateLookupIn(declaringClass, MethodHandles.lookup());
+                } catch (IllegalAccessException e) {
+                    fieldLookup = MethodHandles.lookup();
+                }
+                try {
+                    getter = fieldLookup.unreflect(foundGetter);
+                } catch (IllegalAccessException e) {
+                    // Try with accessible
+                    foundGetter.setAccessible(true);
+                    getter = fieldLookup.unreflect(foundGetter);
+                }
+                if (foundSetter != null) {
+                    try {
+                        setter = fieldLookup.unreflect(foundSetter);
+                    } catch (IllegalAccessException e) {
+                        foundSetter.setAccessible(true);
+                        setter = fieldLookup.unreflect(foundSetter);
+                    }
+                } else {
+                    setter = fieldLookup.findSetter(declaringClass, name, field.getType());
+                }
+            } else {
+                // Fallback to findGetter/findSetter
+                MethodHandles.Lookup fieldLookup;
+                try {
+                    fieldLookup = MethodHandles.privateLookupIn(declaringClass, MethodHandles.lookup());
+                } catch (IllegalAccessException e) {
+                    fieldLookup = MethodHandles.lookup();
+                }
+                getter = fieldLookup.findGetter(declaringClass, name, field.getType());
+                setter = fieldLookup.findSetter(declaringClass, name, field.getType());
+            }
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new MansartDataException("Cannot create MethodHandle for " + entityClass.getName()
                     + "#" + name, e);
+        }
+
+        String columnName = readColumnName(field, false);
+        boolean nullable  = readBooleanColumnAttr(field, "nullable", true);
+        boolean unique    = readBooleanColumnAttr(field, "unique",   false);
+        int     length    = (int) readIntColumnAttr(field, "length", 255);
+        
+        boolean isId = implicitId || hasAnnotation(field, "jakarta.persistence.Id")
+                || hasAnnotation(field, "jakarta.persistence.EmbeddedId")
+                || (getterMethod != null && (hasAnnotation(getterMethod, "jakarta.persistence.Id") 
+                    || hasAnnotation(getterMethod, "jakarta.persistence.EmbeddedId")));
+        boolean isVersion = hasAnnotation(field, "jakarta.persistence.Version") 
+                || (getterMethod != null && hasAnnotation(getterMethod, "jakarta.persistence.Version"));
+        boolean isManyToOne = hasAnnotation(field, "jakarta.persistence.ManyToOne") 
+                || (getterMethod != null && hasAnnotation(getterMethod, "jakarta.persistence.ManyToOne"));
+        boolean isOneToOne = hasAnnotation(field, "jakarta.persistence.OneToOne")
+                || (getterMethod != null && hasAnnotation(getterMethod, "jakarta.persistence.OneToOne"));
+        boolean isReference = isManyToOne || isOneToOne;
+        boolean generated = hasAnnotation(field, "jakarta.persistence.GeneratedValue")
+                || (getterMethod != null && hasAnnotation(getterMethod, "jakarta.persistence.GeneratedValue"));
+        
+        // If column name annotation is on getter, use it
+        if (getterMethod != null) {
+            String getterColumnName = readAnnoMember(getterMethod, "jakarta.persistence.Column", "name", String.class, "");
+            if (!getterColumnName.isEmpty()) {
+                columnName = getterColumnName;
+            } else if (isReference) {
+                getterColumnName = readAnnoMember(getterMethod, "jakarta.persistence.JoinColumn", "name", String.class, "");
+                if (!getterColumnName.isEmpty()) columnName = getterColumnName;
+            }
         }
 
         if (isId) {
