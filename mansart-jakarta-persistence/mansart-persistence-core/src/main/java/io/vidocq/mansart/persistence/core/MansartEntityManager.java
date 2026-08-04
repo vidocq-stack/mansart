@@ -349,7 +349,7 @@ public class MansartEntityManager implements EntityManager {
     /* -------- Helper Methods -------- */
 
     @SuppressWarnings("unchecked")
-    private <T> EntityModel<T> getEntityModel(Class<T> entityClass) {
+    <T> EntityModel<T> getEntityModel(Class<T> entityClass) {
         return (EntityModel<T>) entityModelCache.computeIfAbsent(entityClass, clazz -> {
             try {
                 return EntityModelResolver.resolve(clazz);

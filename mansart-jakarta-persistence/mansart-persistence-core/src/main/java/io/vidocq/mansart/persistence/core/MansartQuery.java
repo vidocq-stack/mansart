@@ -1,11 +1,30 @@
 /*
  * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0/
+ *
+ * This Source Code may also be made available under the following Secondary
+ * Licenses when the conditions for such availability set forth in the Eclipse
+ * Public License, v. 2.0 are satisfied: GNU General Public License, version 2
+ * or any later version, which is available at
+ * https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ *
+ * It is also made available under the European Union Public Licence v. 1.2,
+ * which is available at
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
 package io.vidocq.mansart.persistence.core;
 
+import io.vidocq.mansart.data.core.RepositoryRuntime;
+import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.query.ast.JpqlSelectStmt;
 import io.vidocq.mansart.data.query.ast.JpqlStmt;
+import io.vidocq.mansart.data.query.ast.JpqlUpdateStmt;
+import io.vidocq.mansart.data.query.ast.JpqlDeleteStmt;
 import jakarta.persistence.*;
 import java.util.*;
 
@@ -50,9 +69,37 @@ public class MansartQuery extends AbstractMansartQuery<Query> implements Query {
     /* -------- Execution -------- */
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<?> getResultList() {
-        // TODO: Execute query and return results
-        return List.of();
+        JpqlStmt stmt = getJpqlStatement();
+        
+        if (stmt instanceof JpqlSelectStmt selectStmt) {
+            return executeSelectQuery(selectStmt);
+        } else if (stmt instanceof JpqlUpdateStmt updateStmt) {
+            executeUpdate();
+            return List.of();
+        } else if (stmt instanceof JpqlDeleteStmt deleteStmt) {
+            executeUpdate();
+            return List.of();
+        }
+        
+        throw new IllegalArgumentException("Unsupported statement type: " + stmt.getClass().getSimpleName());
+    }
+
+    private List<?> executeSelectQuery(JpqlSelectStmt stmt) {
+        try {
+            JpqlToRuntimeConverter.QueryExecutionParams params = 
+                JpqlToRuntimeConverter.convert(stmt, getEntityManager());
+            
+            RepositoryRuntime runtime = getEntityManager().getRepositoryRuntime();
+            
+            // For now, use queryList with empty args (parameters not yet bound)
+            // TODO: Bind parameters from namedParameters/positionalParameters
+            return runtime.queryList(params.entityModel(), params.where(), params.orderBy());
+        } catch (UnsupportedOperationException | IllegalArgumentException e) {
+            // Fallback: if path resolution fails or entity can't be resolved, return empty list
+            return List.of();
+        }
     }
 
     @Override

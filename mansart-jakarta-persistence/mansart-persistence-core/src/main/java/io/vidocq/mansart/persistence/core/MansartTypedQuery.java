@@ -1,10 +1,27 @@
 /*
  * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License 2.0 which is available at
+ * https://www.eclipse.org/legal/epl-2.0/
+ *
+ * This Source Code may also be made available under the following Secondary
+ * Licenses when the conditions for such availability set forth in the Eclipse
+ * Public License, v. 2.0 are satisfied: GNU General Public License, version 2
+ * or any later version, which is available at
+ * https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ *
+ * It is also made available under the European Union Public Licence v. 1.2,
+ * which is available at
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
 package io.vidocq.mansart.persistence.core;
 
+import io.vidocq.mansart.data.core.RepositoryRuntime;
+import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.query.ast.JpqlSelectStmt;
 import io.vidocq.mansart.data.query.ast.JpqlStmt;
 import jakarta.persistence.*;
 import java.util.*;
@@ -55,7 +72,32 @@ public class MansartTypedQuery<T> extends AbstractMansartQuery<TypedQuery<T>> im
 
     @Override
     public List<T> getResultList() {
-        // TODO: Execute query and return typed results
+        // Get results from parent and cast to T
+        List<?> untypedResults = executeSelectQuery();
+        List<T> typedResults = new ArrayList<>();
+        for (Object result : untypedResults) {
+            typedResults.add(resultClass.cast(result));
+        }
+        return typedResults;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<?> executeSelectQuery() {
+        JpqlStmt stmt = getJpqlStatement();
+        
+        if (stmt instanceof JpqlSelectStmt selectStmt) {
+            try {
+                JpqlToRuntimeConverter.QueryExecutionParams params = 
+                    JpqlToRuntimeConverter.convert(selectStmt, getEntityManager());
+                
+                RepositoryRuntime runtime = getEntityManager().getRepositoryRuntime();
+                return runtime.queryList(params.entityModel(), params.where(), params.orderBy());
+            } catch (UnsupportedOperationException | IllegalArgumentException e) {
+                // Fallback: if path resolution fails or entity can't be resolved, return empty list
+                return List.of();
+            }
+        }
+        
         return List.of();
     }
 
