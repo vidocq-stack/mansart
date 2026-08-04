@@ -31,6 +31,7 @@ import io.vidocq.mansart.data.query.ast.JpqlSelectStmt;
 import io.vidocq.mansart.data.query.ast.JpqlUpdateStmt;
 import io.vidocq.mansart.data.query.ast.JpqlDeleteStmt;
 import io.vidocq.mansart.persistence.core.bootstrap.MansartEntityManagerFactory;
+import io.vidocq.mansart.persistence.core.criteria.MansartCriteriaBuilder;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaDelete;
@@ -192,9 +193,8 @@ public class MansartEntityManager implements EntityManager {
     /* -------- Query Operations -------- */
 
     @Override public CriteriaBuilder getCriteriaBuilder() {
-        // TODO: M5 - Implement CriteriaBuilder
-        // Currently returns null as Criteria API is not yet implemented
-        return null;
+        // Return stub implementation via dynamic proxy - full Criteria API implementation is planned for M5
+        return MansartCriteriaBuilder.create();
     }
     
     @Override public void flush() {}

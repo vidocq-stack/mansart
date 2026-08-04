@@ -135,8 +135,8 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
-        // TODO: M5 - Implement CriteriaBuilder
-        return null;
+        // Return stub implementation via dynamic proxy
+        return io.vidocq.mansart.persistence.core.criteria.MansartCriteriaBuilder.create();
     }
 
     /**
