@@ -122,7 +122,27 @@ public final class JpqlToRuntimeConverter {
     }
 
     private static Where convertExistsPredicate(io.vidocq.mansart.data.query.ast.JpqlExistsPredicate exists, QueryExecutionContext context) {
-        return Where.ALWAYS_TRUE; // TODO
+        // M6 — Convert EXISTS predicate
+        // Get the dialect from the entity manager
+        MansartEntityManager entityManager = context.getEntityManager();
+        Dialect dialect = entityManager.getDialect();
+        
+        // Convert the subquery to QueryExecutionParams
+        // Note: The subquery uses its own entity model and where clause
+        QueryExecutionParams subqueryParams = convert(exists.subquery(), entityManager);
+        
+        // Render the subquery to SQL (without pagination for subqueries)
+        SqlFragment subquerySql = dialect.select(
+            subqueryParams.entityModel(),
+            subqueryParams.where(),
+            subqueryParams.orderBy(),
+            Pagination.NONE
+        );
+        
+        // Create the EXISTS Where predicate
+        return exists.not() 
+            ? Where.notExists(subquerySql)
+            : Where.exists(subquerySql);
     }
 
     private static Where convertInPredicate(io.vidocq.mansart.data.query.ast.JpqlInPredicate in, QueryExecutionContext context) {

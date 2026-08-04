@@ -31,6 +31,7 @@ import java.util.Objects;
  * M4 — Test entity for EntityManager operations.
  */
 @Entity
+@jakarta.persistence.Table(name = "test_entity")
 public class TestEntity {
 
     @Id @GeneratedValue

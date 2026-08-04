@@ -91,6 +91,7 @@ public final class Joins {
             case Where.Not x       -> walkWhere(x.child(), sink);
             case Where.IgnoreCase x -> walkWhere(x.inner(), sink);
             case Where.Func x      -> walkWhere(x.inner(), sink);
+            case Where.Exists x    -> {} // Exists subqueries don't contribute to joins in the outer query
             case Where.AlwaysTrue ignored -> {}
             case Where.AlwaysFalse ignored -> {}
         }

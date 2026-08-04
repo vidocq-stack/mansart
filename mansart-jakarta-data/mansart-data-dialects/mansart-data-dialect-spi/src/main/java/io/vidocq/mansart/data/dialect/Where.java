@@ -66,10 +66,17 @@ public sealed interface Where {
     record Func(String fn, Where inner) implements Where {}
     record AlwaysTrue() implements Where {}
     record AlwaysFalse() implements Where {}
+    /**
+     * M6 — EXISTS predicate with a subquery.
+     * The SqlFragment represents the complete subquery (including SELECT, FROM, WHERE, etc.).
+     */
+    record Exists(SqlFragment subquery, boolean not) implements Where {}
 
     static Where eq(Attribute<?, ?> a)        { return new Eq(a); }
     static Where between(Attribute<?, ?> a)   { return new Between(a); }
     static Where in(Attribute<?, ?> a, int n) { return new In(a, n); }
     static Where and(Where... ws)             { return new And(List.of(ws)); }
     static Where or(Where... ws)              { return new Or(List.of(ws)); }
+    static Where exists(SqlFragment subquery) { return new Exists(subquery, false); }
+    static Where notExists(SqlFragment subquery) { return new Exists(subquery, true); }
 }
