@@ -226,14 +226,12 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
 
     /**
      * Returns the schema manager for this factory.
-     * Not yet implemented - returns null for now.
      *
      * @return the SchemaManager for this factory
      */
     @Override
     public SchemaManager getSchemaManager() {
-        // TODO: Implement SchemaManager
-        return null;
+        return new MansartSchemaManager(this);
     }
 
     /**

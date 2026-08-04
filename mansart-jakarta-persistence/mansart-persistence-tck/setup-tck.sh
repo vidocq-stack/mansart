@@ -20,7 +20,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TCK_REPO="https://github.com/jakartaee/persistence.git"
-TCK_BRANCH="main"
+TCK_BRANCH="3.2-TCK"
 TCK_CLONE_DIR="${SCRIPT_DIR}/target/jakarta-persistence-tck"
 
 echo "============================================"

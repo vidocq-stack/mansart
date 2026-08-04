@@ -34,7 +34,7 @@
     <url>https://codeberg.org/Vidocq/mansart</url>
 
     <properties>
-        <tck.version>3.2.0-SNAPSHOT</tck.version>
+        <tck.version>3.2.2-SNAPSHOT</tck.version>
         <tck.db.url>jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</tck.db.url>
         <tck.db.user>sa</tck.db.user>
         <tck.db.password></tck.db.password>
@@ -101,13 +101,13 @@
             <artifactId>assertj-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>jakarta.persistence</groupId>
+            <groupId>jakarta.tck</groupId>
             <artifactId>persistence-tck-common</artifactId>
             <version>${tck.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>jakarta.persistence</groupId>
+            <groupId>jakarta.tck</groupId>
             <artifactId>persistence-tck-spec-tests</artifactId>
             <version>${tck.version}</version>
             <scope>test</scope>
@@ -193,10 +193,15 @@
                                 <include>**/*Tests.java</include>
                                 <include>**/*TCK*.java</include>
                                 <include>**/*Tck*.java</include>
+                                <include>**/*Client.java</include>
                             </includes>
+                            <excludes>
+                                <exclude>**/SigTest*.java</exclude>
+                                <exclude>**/signaturetest/*.java</exclude>
+                            </excludes>
                             <dependenciesToScan>
-                                <dependency>jakarta.persistence:persistence-tck-spec-tests</dependency>
-                                <dependency>jakarta.persistence:persistence-tck-common</dependency>
+                                <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
+                                <dependency>jakarta.tck:persistence-tck-common</dependency>
                             </dependenciesToScan>
                             <systemPropertyVariables>
                                 <jakarta.persistence.provider>${mansart.provider}</jakarta.persistence.provider>
