@@ -13,14 +13,34 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
+
 package io.vidocq.mansart.data.core;
 
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.Where;
+import io.vidocq.mansart.data.dialect.Where.AlwaysFalse;
+import io.vidocq.mansart.data.dialect.Where.AlwaysTrue;
+import io.vidocq.mansart.data.dialect.Where.And;
+import io.vidocq.mansart.data.dialect.Where.Between;
+import io.vidocq.mansart.data.dialect.Where.Eq;
+import io.vidocq.mansart.data.dialect.Where.Exists;
+import io.vidocq.mansart.data.dialect.Where.Func;
+import io.vidocq.mansart.data.dialect.Where.Gt;
+import io.vidocq.mansart.data.dialect.Where.Gte;
+import io.vidocq.mansart.data.dialect.Where.In;
+import io.vidocq.mansart.data.dialect.Where.IgnoreCase;
+import io.vidocq.mansart.data.dialect.Where.IsNotNull;
+import io.vidocq.mansart.data.dialect.Where.IsNull;
+import io.vidocq.mansart.data.dialect.Where.Like;
+import io.vidocq.mansart.data.dialect.Where.Lt;
+import io.vidocq.mansart.data.dialect.Where.Lte;
+import io.vidocq.mansart.data.dialect.Where.Not;
+import io.vidocq.mansart.data.dialect.Where.NotEq;
+import io.vidocq.mansart.data.dialect.Where.Or;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -36,45 +56,45 @@ final class WhereBinder {
     static int bind(Dialect dialect, PreparedStatement ps, Where where,
                     Object[] args, int psIdx, int[] argCursor) throws SQLException {
         switch (where) {
-            case Where.Eq w        -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.NotEq w     -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.Lt w        -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.Lte w       -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.Gt w        -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.Gte w       -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.Like w      -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
-            case Where.Between w   -> {
+            case Eq w        -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case NotEq w     -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case Lt w        -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case Lte w       -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case Gt w        -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case Gte w       -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case Like w      -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
+            case Between w   -> {
                 psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
                 psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
             }
-            case Where.In w -> {
+            case In w -> {
                 for (int i = 0; i < w.arity(); i++) {
                     psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
                 }
             }
-            case Where.IsNull ignored1 -> { /* no bind */ }
-            case Where.IsNotNull ignored2 -> { /* no bind */ }
-            case Where.And w -> {
+            case IsNull ignored1 -> { /* no bind */ }
+            case IsNotNull ignored2 -> { /* no bind */ }
+            case And w -> {
                 for (Where child : w.children()) psIdx = bind(dialect, ps, child, args, psIdx, argCursor);
             }
-            case Where.Or w -> {
+            case Or w -> {
                 for (Where child : w.children()) psIdx = bind(dialect, ps, child, args, psIdx, argCursor);
             }
-            case Where.Not w -> psIdx = bind(dialect, ps, w.child(), args, psIdx, argCursor);
+            case Not w -> psIdx = bind(dialect, ps, w.child(), args, psIdx, argCursor);
             // M7-27 — IgnoreCase wraps a single text comparator that consumes exactly one arg.
             // The dialect renders LOWER(col) <op> LOWER(?), so we still bind one parameter.
-            case Where.IgnoreCase w -> psIdx = bind(dialect, ps, w.inner(), args, psIdx, argCursor);
+            case IgnoreCase w -> psIdx = bind(dialect, ps, w.inner(), args, psIdx, argCursor);
             // M8-1 — Func(fn, inner) wraps a comparator with a unary scalar function on the
             // column. UPPER/LOWER/ABS preserve the bound parameter type. LENGTH returns the
             // character count, so the bound parameter must be Integer instead of the column's
             // declared Java type.
-            case Where.Func w -> psIdx = bindFunc(dialect, ps, w, args, psIdx, argCursor);
+            case Func w -> psIdx = bindFunc(dialect, ps, w, args, psIdx, argCursor);
             // M6 — EXISTS predicate with a subquery. The subquery's SqlFragment may have its own
             // bind sites, but they are bound as part of the overall query, not here.
             // EXISTS predicates don't consume additional bind parameters beyond what the subquery defines.
-            case Where.Exists w -> { /* subquery parameters are bound separately */ }
-            case Where.AlwaysTrue ignored3  -> { /* no bind */ }
-            case Where.AlwaysFalse ignored4 -> { /* no bind */ }
+            case Exists w -> { /* subquery parameters are bound separately */ }
+            case AlwaysTrue ignored3  -> { /* no bind */ }
+            case AlwaysFalse ignored4 -> { /* no bind */ }
         }
         return psIdx;
     }
