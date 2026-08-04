@@ -68,8 +68,66 @@ public final class QueryExecutionContext {
             aliasToEntityClass.put(alias, entityClass);
             EntityModel<?> model = entityManager.getEntityModel(entityClass);
             aliasToEntityModel.put(alias, model);
+            
+            // M7 — Process explicit JOINs from this FROM item
+            processJoins(fromItem, model);
         }
     }
+    
+    /**
+     * M7 — Processes explicit JOINs from a FROM item.
+     * Registers join aliases and their entity models.
+     */
+    @SuppressWarnings("unchecked")
+    private void processJoins(JpqlFromItem fromItem, EntityModel<?> sourceModel) {
+        String sourceAlias = fromItem.identifier();
+        for (JpqlJoin join : fromItem.joins()) {
+            String joinAlias = join.identifier();
+            
+            // Resolve the path from the source entity
+            // The path is relative to the FROM item's alias
+            // e.g., for "JOIN b.author a", path is "author" and source is "b"
+            String path = join.path().path();
+            
+            // Build the full path expression: sourceAlias.path
+            String fullPath = sourceAlias + "." + path;
+            
+            // Parse as a path expression and resolve
+            JpqlPathExpr pathExpr = JpqlPathExpr.of(fullPath);
+            Attribute<?, ?> attr = resolvePath(pathExpr);
+            
+            if (attr instanceof ReferenceAttribute<?, ?> refAttr) {
+                // Get the target entity model from javaType (the referenced entity class)
+                EntityModel<?> targetModel = entityManager.getEntityModel(refAttr.javaType());
+                
+                // Register the join alias
+                aliasToEntityClass.put(joinAlias, refAttr.javaType());
+                aliasToEntityModel.put(joinAlias, targetModel);
+                
+                // Store the join information for path resolution
+                // This allows paths like "a.name" to resolve correctly
+                joinedAliases.put(joinAlias, new JoinedPathInfo(sourceAlias, path));
+            } else {
+                throw new IllegalArgumentException(
+                    "Join path " + path + " from " + sourceAlias + " does not resolve to a relationship");
+            }
+        }
+    }
+    
+    /**
+     * M7 — Stores information about a joined path for later resolution.
+     */
+    private static class JoinedPathInfo {
+        final String sourceAlias;
+        final String path;
+        
+        JoinedPathInfo(String sourceAlias, String path) {
+            this.sourceAlias = sourceAlias;
+            this.path = path;
+        }
+    }
+    
+    private final Map<String, JoinedPathInfo> joinedAliases = new HashMap<>();
 
     /**
      * Resolves a path expression to an Attribute.
@@ -92,7 +150,31 @@ public final class QueryExecutionContext {
         
         // First part is the alias
         String alias = parts[0];
-        EntityModel<?> entityModel = aliasToEntityModel.get(alias);
+        
+        // M7 — Check if this alias is from a JOIN
+        JoinedPathInfo joinedInfo = joinedAliases.get(alias);
+        EntityModel<?> entityModel;
+        
+        if (joinedInfo != null) {
+            // This alias is from a JOIN - resolve from the source alias
+            // e.g., for "JOIN b.author a", alias "a" resolves from "b.author"
+            entityModel = aliasToEntityModel.get(alias);
+            if (entityModel == null) {
+                throw new IllegalArgumentException("Unknown joined alias: " + alias);
+            }
+            
+            // For joined aliases, if there are more parts, they are relative to the joined entity
+            // e.g., "a.name" where "a" is a joined alias for Author
+            if (parts.length > 1) {
+                // Build path from the joined entity
+                List<String> remainingParts = java.util.Arrays.asList(parts).subList(1, parts.length);
+                return resolveAttributePath(entityModel, remainingParts);
+            }
+            // Single part is the joined alias itself - return its ID
+            return entityModel.id();
+        }
+        
+        entityModel = aliasToEntityModel.get(alias);
         
         if (entityModel == null) {
             throw new IllegalArgumentException("Unknown alias: " + alias);
@@ -173,6 +255,85 @@ public final class QueryExecutionContext {
      */
     public Attribute<?, ?> resolvePath(String path) {
         return resolvePath(new JpqlPathExpr(path, List.of(path.split("\\."))));
+    }
+
+    /**
+     * M7 — Resolves an attribute path from a given entity model.
+     * Used for resolving paths relative to a joined entity.
+     */
+    @SuppressWarnings("unchecked")
+    private Attribute<?, ?> resolveAttributePath(EntityModel<?> entityModel, List<String> parts) {
+        if (parts.isEmpty()) {
+            return entityModel.id();
+        }
+        
+        // Build a path expression from the parts relative to this entity
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.size(); i++) {
+            if (i > 0) sb.append(".");
+            sb.append(parts.get(i));
+        }
+        
+        // Create a temporary path expression - we need an alias prefix
+        // Use a dummy alias that we'll ignore
+        String tempPath = "_temp_." + sb.toString();
+        JpqlPathExpr tempExpr = JpqlPathExpr.of(tempPath);
+        
+        // Create a temporary context with the entity mapped to _temp_
+        // Actually, let's just resolve directly without going through resolvePath
+        List<JoinPath.Step> joinSteps = new ArrayList<>();
+        EntityModel<?> currentModel = entityModel;
+        Attribute<?, ?> leafAttribute = null;
+        Class<?> currentEntityType = entityModel.entityClass();
+        
+        for (String attrName : parts) {
+            Optional<?> attrOptRaw = currentModel.attribute(attrName);
+            
+            if (attrOptRaw.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "Cannot find attribute '" + attrName + "' in entity " + currentModel.entityClass().getSimpleName());
+            }
+            
+            @SuppressWarnings("unchecked")
+            Attribute<?, ?> attr = (Attribute<?, ?>) attrOptRaw.get();
+            
+            if (attr instanceof ReferenceAttribute<?, ?> refAttr) {
+                String fkColumn = "";
+                String refColumn = "id";
+                String targetTable = "";
+                String targetSchema = "";
+                
+                joinSteps.add(new JoinPath.Step(
+                    attr.name(),
+                    fkColumn,
+                    refColumn,
+                    targetTable,
+                    targetSchema,
+                    attr.javaType()
+                ));
+                
+                currentEntityType = attr.javaType();
+                currentModel = entityManager.getEntityModel(currentEntityType);
+                leafAttribute = null;
+            } else {
+                if (leafAttribute == null && !joinSteps.isEmpty()) {
+                    leafAttribute = attr;
+                } else if (joinSteps.isEmpty()) {
+                    leafAttribute = attr;
+                }
+            }
+        }
+        
+        if (!joinSteps.isEmpty() && leafAttribute != null) {
+            JoinPath joinPath = new JoinPath(joinSteps);
+            return new JoinedAttribute<>(
+                leafAttribute,
+                joinPath,
+                entityModel.entityClass()
+            );
+        }
+        
+        return leafAttribute != null ? leafAttribute : entityModel.id();
     }
 
     /**

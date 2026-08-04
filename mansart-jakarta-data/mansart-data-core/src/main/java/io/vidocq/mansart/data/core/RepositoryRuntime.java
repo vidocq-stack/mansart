@@ -1,27 +1,30 @@
 /*
- * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License 2.0 which is available at
- * https://www.eclipse.org/legal/epl-2.0/
- *
- * This Source Code may also be made available under the following Secondary
- * Licenses when the conditions for such availability set forth in the Eclipse
- * Public License, v. 2.0 are satisfied: GNU General Public License, version 2
- * or any later version, which is available at
- * https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- *
- * It is also made available under the European Union Public Licence v. 1.2,
- * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
- *
- * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
+ * /*
+ *  * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ *  *
+ *  * This program and the accompanying materials are made available under the
+ *  * terms of the Eclipse Public License 2.0 which is available at
+ *  * https://www.eclipse.org/legal/epl-2.0/
+ *  *
+ *  * This Source Code may also be made available under the following Secondary
+ *  * Licenses when the conditions for such availability set forth in the Eclipse
+ *  * Public License, v. 2.0 are satisfied: GNU General Public License, version 2
+ *  * or any later version, which is available at
+ *  * https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+ *  *
+ *  * It is also made available under the European Union Public Licence v. 1.2,
+ *  * which is available at
+ *  * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ *  *
+ *  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
+ *  */
  */
 package io.vidocq.mansart.data.core;
 
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.dialect.GroupBy;
 import io.vidocq.mansart.data.dialect.OrderBy;
 import io.vidocq.mansart.data.dialect.Pagination;
 import io.vidocq.mansart.data.dialect.SqlFragment;
@@ -167,7 +170,7 @@ public final class RepositoryRuntime {
 
     public <E, K> Optional<E> findById(EntityModel<E> model, K id) {
         Where where = Where.eq(model.id());
-        SqlFragment frag = dialect.select(model, where, OrderBy.NONE, Pagination.NONE);
+        SqlFragment frag = dialect.select(model, where, GroupBy.NONE, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 dialect.bind(ps, 1, id, model.id().javaType());
@@ -180,7 +183,7 @@ public final class RepositoryRuntime {
     }
 
     public <E> List<E> findAll(EntityModel<E> model) {
-        SqlFragment frag = dialect.select(model, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
+        SqlFragment frag = dialect.select(model, Where.ALWAYS_TRUE, GroupBy.NONE, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql());
                  ResultSet rs = ps.executeQuery()) {
@@ -225,7 +228,7 @@ public final class RepositoryRuntime {
     /* -------- derived queries (M3b) ---------- */
 
     public <E> List<E> queryList(EntityModel<E> model, Where where, OrderBy orderBy, Object... args) {
-        SqlFragment frag = dialect.select(model, where, orderBy, Pagination.NONE);
+        SqlFragment frag = dialect.select(model, where, GroupBy.NONE, Where.ALWAYS_TRUE, orderBy, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -239,7 +242,7 @@ public final class RepositoryRuntime {
     }
 
     public <E> Optional<E> queryOne(EntityModel<E> model, Where where, Object... args) {
-        SqlFragment frag = dialect.select(model, where, OrderBy.NONE, Pagination.NONE);
+        SqlFragment frag = dialect.select(model, where, GroupBy.NONE, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -262,7 +265,7 @@ public final class RepositoryRuntime {
         // and aliasing applied uniformly. Project COUNT(*) as a literal expression entry.
         SqlFragment frag = dialect.selectColumns(model,
                 java.util.List.of(new io.vidocq.mansart.data.dialect.Dialect.ProjectedColumn.Expr("COUNT(*)")),
-                where, OrderBy.NONE, Pagination.NONE);
+                where, GroupBy.NONE, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -295,7 +298,7 @@ public final class RepositoryRuntime {
                                                   Object... args) {
         SqlFragment frag = dialect.selectColumns(model,
                 java.util.List.of(new io.vidocq.mansart.data.dialect.Dialect.ProjectedColumn.Leaf(attr)),
-                where, orderBy, Pagination.NONE);
+                where, GroupBy.NONE, Where.ALWAYS_TRUE, orderBy, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -322,7 +325,7 @@ public final class RepositoryRuntime {
         for (Attribute<?, ?> a : attrs) {
             cols.add(new io.vidocq.mansart.data.dialect.Dialect.ProjectedColumn.Leaf(a));
         }
-        SqlFragment frag = dialect.selectColumns(model, cols, where, orderBy, Pagination.NONE);
+        SqlFragment frag = dialect.selectColumns(model, cols, where, GroupBy.NONE, Where.ALWAYS_TRUE, orderBy, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -344,7 +347,7 @@ public final class RepositoryRuntime {
     private <E, T> T scalarSelect(EntityModel<E> model,
                                   io.vidocq.mansart.data.dialect.Dialect.ProjectedColumn col,
                                   Class<T> resultType, Where where, Object[] args) {
-        SqlFragment frag = dialect.selectColumns(model, java.util.List.of(col), where, OrderBy.NONE, Pagination.NONE);
+        SqlFragment frag = dialect.selectColumns(model, java.util.List.of(col), where, GroupBy.NONE, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
         return ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -358,7 +361,7 @@ public final class RepositoryRuntime {
     /** Extracts {@code WHERE …} (and optional ORDER BY) from a dialect-rendered SELECT, reused
      *  to compose custom-projection SQL without re-implementing the predicate renderer here. */
     private String whereOrderTail(EntityModel<?> model, Where where, OrderBy orderBy) {
-        SqlFragment selFrag = dialect.select(model, where, orderBy, Pagination.NONE);
+        SqlFragment selFrag = dialect.select(model, where, GroupBy.NONE, Where.ALWAYS_TRUE, orderBy, Pagination.NONE);
         String src = selFrag.sql();
         int whereIdx = src.indexOf(" WHERE ");
         int orderIdx = src.indexOf(" ORDER BY ");
@@ -379,7 +382,7 @@ public final class RepositoryRuntime {
         Pagination.Offset pag = new Pagination.Offset(
                 (pageRequest.page() - 1) * pageRequest.size(),
                 pageRequest.size());
-        SqlFragment frag = dialect.select(model, where, orderBy, pag);
+        SqlFragment frag = dialect.select(model, where, GroupBy.NONE, Where.ALWAYS_TRUE, orderBy, pag);
         List<E> content = ConnectionScope.withConnection(bridge, dataSource, c -> {
             try (PreparedStatement ps = c.prepareStatement(frag.sql())) {
                 WhereBinder.bind(dialect, ps, where, args, 1, new int[]{0});
@@ -466,7 +469,7 @@ public final class RepositoryRuntime {
         }
 
         Pagination.Offset pag = new Pagination.Offset(0, pr.size());
-        SqlFragment frag = dialect.select(model, combined, effectiveOrder, pag);
+        SqlFragment frag = dialect.select(model, combined, GroupBy.NONE, Where.ALWAYS_TRUE, effectiveOrder, pag);
 
         Where finalWhere = combined;
         Object[] finalArgs = effectiveArgs;
@@ -544,7 +547,7 @@ public final class RepositoryRuntime {
                                      Where where, Object... whereArgs) {
         StringBuilder sb = new StringBuilder("UPDATE ").append(qualifiedTable(model))
                 .append(" SET ").append(setClause);
-        SqlFragment selFrag = dialect.select(model, where, OrderBy.NONE, Pagination.NONE);
+        SqlFragment selFrag = dialect.select(model, where, GroupBy.NONE, Where.ALWAYS_TRUE, OrderBy.NONE, Pagination.NONE);
         int whereIdx = selFrag.sql().indexOf(" WHERE ");
         if (whereIdx >= 0) sb.append(selFrag.sql().substring(whereIdx));
         String sql = sb.toString();
