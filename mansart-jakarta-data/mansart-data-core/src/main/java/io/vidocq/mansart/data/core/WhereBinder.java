@@ -69,6 +69,10 @@ final class WhereBinder {
             // character count, so the bound parameter must be Integer instead of the column's
             // declared Java type.
             case Where.Func w -> psIdx = bindFunc(dialect, ps, w, args, psIdx, argCursor);
+            // M6 — EXISTS predicate with a subquery. The subquery's SqlFragment may have its own
+            // bind sites, but they are bound as part of the overall query, not here.
+            // EXISTS predicates don't consume additional bind parameters beyond what the subquery defines.
+            case Where.Exists w -> { /* subquery parameters are bound separately */ }
             case Where.AlwaysTrue ignored3  -> { /* no bind */ }
             case Where.AlwaysFalse ignored4 -> { /* no bind */ }
         }

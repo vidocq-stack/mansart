@@ -357,6 +357,8 @@ public final class PostgresqlDialect implements Dialect {
             }
             case Where.IgnoreCase w -> renderIgnoreCase(sb, w.inner(), plan);
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
+            // M6 — EXISTS predicate
+            case Where.Exists w -> sb.append(w.not() ? "NOT EXISTS " : "EXISTS ").append('(').append(w.subquery().sql()).append(')');
             case Where.AlwaysTrue _  -> sb.append("TRUE");
             case Where.AlwaysFalse _ -> sb.append("FALSE");
         }
