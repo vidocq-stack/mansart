@@ -147,8 +147,8 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public Metamodel getMetamodel() {
-        // TODO: Implement Metamodel creation
-        return null;
+        // TODO: M5 - Implement Metamodel
+        throw new UnsupportedOperationException("Metamodel not yet implemented");
     }
 
     /**
