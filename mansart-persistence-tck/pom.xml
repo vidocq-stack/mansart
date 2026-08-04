@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  This module is intentionally OUT of the parent reactor (Model 4.0.0 standalone, no <parent>).
+  Reason: ShrinkWrap Maven Resolver (transitive of the official Jakarta Persistence TCK harness) cannot
+  parse Maven Model 4.1.0 POMs. This allows the TCK to be executed independently.
+  
+  To run the TCK:
+    cd mansart-persistence-tck
+    mvn clean test -Ptck-run
+  
+  For PostgreSQL:
+    mvn clean test -Ptck-run,tck-pg
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-persistence-tck</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Mansart :: Jakarta Persistence 3.2 :: TCK Runner</name>
+    <description>Arquillian/TestNG harness for the official Jakarta Persistence 3.2 TCK.
+        This module runs the Jakarta Persistence TCK against the Mansart implementation.
+        
+        NOTE: This module is OUTSIDE the parent reactor due to ShrinkWrap Maven Resolver
+        incompatibility with Maven Model 4.1.0.
+    </description>
+    <url>https://codeberg.org/Vidocq/mansart</url>
+
+    <scm>
+        <connection>scm:git:https://codeberg.org/Vidocq/mansart.git</connection>
+        <developerConnection>scm:git:ssh://git@codeberg.org/Vidocq/mansart.git</developerConnection>
+        <url>https://codeberg.org/Vidocq/mansart</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>Yann Blazart</name>
+            <email>yann.blazart@gmail.com</email>
+        </developer>
+        <developer>
+            <name>Antoine Sabot-Durand</name>
+            <email>antoine@sabot-durand.net</email>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>EPL-2.0</name>
+            <url>https://www.eclipse.org/legal/epl-2.0/</url>
+            <distribution>repo</distribution>
+        </license>
+        <license>
+            <name>EUPL-1.2</name>
+            <url>https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2</url>
+            <distribution>repo</distribution>
+        </license>
+        <license>
+            <name>GPL-2.0-or-later</name>
+            <url>https://www.gnu.org/licenses/gpl-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <properties>
+        <!-- Never deploy this TCK runner module -->
+        <maven.deploy.skip>true</maven.deploy.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <maven.source.skip>true</maven.source.skip>
+        <gpg.skip>true</gpg.skip>
+        
+        <maven.compiler.release>25</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        
+        <!-- Jakarta Persistence -->
+        <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
+        <jakarta.persistence.tck.version>3.2.0</jakarta.persistence.tck.version>
+        
+        <!-- Mansart Persistence -->
+        <mansart.version>0.3.0-SNAPSHOT</mansart.version>
+        
+        <!-- CDI -->
+        <jakarta.cdi.version>4.1.0</jakarta.cdi.version>
+        <jakarta.inject.version>2.0.1</jakarta.inject.version>
+        <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
+        
+        <!-- Test frameworks -->
+        <arquillian.version>1.9.1.Final</arquillian.version>
+        <shrinkwrap.version>1.2.6</shrinkwrap.version>
+        <testng.version>7.10.2</testng.version>
+        <junit.version>5.11.4</junit.version>
+        
+        <!-- Databases -->
+        <h2.version>2.3.232</h2.version>
+        <postgresql.version>42.7.4</postgresql.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
+        
+        <maven.compiler.plugin.version>3.13.0</maven.compiler.plugin.version>
+        <maven.surefire.plugin.version>3.5.2</maven.surefire.plugin.version>
+        <maven.failsafe.plugin.version>3.5.2</maven.failsafe.plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.jboss.arquillian</groupId>
+                <artifactId>arquillian-bom</artifactId>
+                <version>${arquillian.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Mansart Jakarta Persistence implementation under test -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-api</artifactId>
+            <version>${mansart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-core</artifactId>
+            <version>${mansart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-cdi</artifactId>
+            <version>${mansart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-spi</artifactId>
+            <version>${mansart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-processor</artifactId>
+            <version>${mansart.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Jakarta Persistence API -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>${jakarta.persistence.version}</version>
+        </dependency>
+        
+        <!-- Jakarta CDI API -->
+        <dependency>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
+            <version>${jakarta.cdi.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>${jakarta.inject.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.transaction</groupId>
+            <artifactId>jakarta.transaction-api</artifactId>
+            <version>${jakarta.transaction.version}</version>
+        </dependency>
+
+        <!-- Mansart Data dependencies (reused for dialect) -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-data-dialect-h2</artifactId>
+            <version>${mansart.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-data-dialect-postgresql</artifactId>
+            <version>${mansart.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- H2 Database (default for TCK) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>${h2.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- TestNG (used by TCK) -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Arquillian + ShrinkWrap (always available on Central) -->
+        <dependency>
+            <groupId>org.jboss.arquillian.testng</groupId>
+            <artifactId>arquillian-testng-container</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.shrinkwrap</groupId>
+            <artifactId>shrinkwrap-api</artifactId>
+            <version>${shrinkwrap.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.shrinkwrap</groupId>
+            <artifactId>shrinkwrap-impl-base</artifactId>
+            <version>${shrinkwrap.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Servlet API (required by TCK) -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <version>6.1.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Testcontainers for PostgreSQL support -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${testcontainers.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <!--
+          Enable with `mvn -Ptck-run test` to pull in the official Jakarta Persistence 3.2 TCK suite.
+          Note: The TCK may need to be installed manually from Eclipse Foundation if not on Central.
+          
+          When available, the TCK coordinates should be:
+          - Group: jakarta.persistence
+          - Artifact: jakarta.persistence-tck
+          - Version: 3.2.0 (or latest)
+        -->
+        <profile>
+            <id>tck-run</id>
+            <dependencies>
+                <dependency>
+                    <groupId>jakarta.persistence</groupId>
+                    <artifactId>jakarta.persistence-tck</artifactId>
+                    <version>${jakarta.persistence.tck.version}</version>
+                    <scope>test</scope>
+                </dependency>
+                <!-- TCK uses JUnit 5 -->
+                <dependency>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter-api</artifactId>
+                    <version>${junit.version}</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter-engine</artifactId>
+                    <version>${junit.version}</version>
+                    <scope>test</scope>
+                </dependency>
+                <!-- Ant (required by signature tests) -->
+                <dependency>
+                    <groupId>org.apache.ant</groupId>
+                    <artifactId>ant</artifactId>
+                    <version>1.10.15</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.plugin.version}</version>
+                        <configuration>
+                            <!-- Disable default test inclusion to use only TCK tests -->
+                            <suiteXmlFiles combine.self="override"/>
+                            <dependenciesToScan>
+                                <dependency>jakarta.persistence:jakarta.persistence-tck</dependency>
+                            </dependenciesToScan>
+                            <!-- Run EntityTests (CRUD validation) by default -->
+                            <includes>
+                                <include>**/EntityTests.class</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <!-- Directory for jimage cache (signature tests) -->
+                                <jimage.dir>${project.build.directory}/jimage-cache</jimage.dir>
+                                <!-- Database dialect - h2 or pg -->
+                                <mansart.tck.dialect>h2</mansart.tck.dialect>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+          PostgreSQL support via Testcontainers.
+          Use with: mvn -Ptck-run,tck-pg test
+          Requires Docker on the host.
+        -->
+        <profile>
+            <id>tck-pg</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.plugin.version}</version>
+                        <configuration>
+                            <systemPropertyVariables>
+                                <mansart.tck.dialect>pg</mansart.tck.dialect>
+                            </systemPropertyVariables>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!--
+          Signature tests for Jakarta Persistence 3.2.
+          Use with: mvn -Ptck-run,tck-sig test
+        -->
+        <profile>
+            <id>tck-sig</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.plugin.version}</version>
+                        <configuration>
+                            <includes combine.children="append">
+                                <include>**/SignatureTests.class</include>
+                            </includes>
+                            <systemPropertyVariables>
+                                <jimage.dir>${project.build.directory}/jimage-cache</jimage.dir>
+                                <!-- Force Java 21 for signature comparison -->
+                                <java.specification.version>21</java.specification.version>
+                            </systemPropertyVariables>
+                            <argLine>--add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-opens java.base/jdk.internal.vm.annotation=ALL-UNNAMED</argLine>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
+                <configuration>
+                    <!-- Skip tests by default - TCK requires explicit profile activation -->
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>5.1.1</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
