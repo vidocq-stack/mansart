@@ -88,10 +88,17 @@ public class MansartTypedQuery<T> extends AbstractMansartQuery<TypedQuery<T>> im
         if (stmt instanceof JpqlSelectStmt selectStmt) {
             try {
                 JpqlToRuntimeConverter.QueryExecutionParams params = 
-                    JpqlToRuntimeConverter.convert(selectStmt, getEntityManager());
+                    JpqlToRuntimeConverter.convert(selectStmt, getEntityManager(),
+                                                    getNamedParameters(), getPositionalParameters());
                 
                 RepositoryRuntime runtime = getEntityManager().getRepositoryRuntime();
-                return runtime.queryList(params.entityModel(), params.where(), params.orderBy());
+                
+                // Pass bound parameters to query execution
+                Map<String, Object> boundArgs = new HashMap<>();
+                boundArgs.putAll(params.namedParameters());
+                // TODO: Map positional parameters to their positions
+                
+                return runtime.queryList(params.entityModel(), params.where(), params.orderBy(), boundArgs);
             } catch (UnsupportedOperationException | IllegalArgumentException e) {
                 // Fallback: if path resolution fails or entity can't be resolved, return empty list
                 return List.of();
@@ -99,6 +106,20 @@ public class MansartTypedQuery<T> extends AbstractMansartQuery<TypedQuery<T>> im
         }
         
         return List.of();
+    }
+
+    /**
+     * Gets the named parameters map from this query.
+     */
+    protected Map<String, Object> getNamedParameters() {
+        return Collections.unmodifiableMap(namedParameters);
+    }
+
+    /**
+     * Gets the positional parameters map from this query.
+     */
+    protected Map<Integer, Object> getPositionalParameters() {
+        return Collections.unmodifiableMap(positionalParameters);
     }
 
     @Override

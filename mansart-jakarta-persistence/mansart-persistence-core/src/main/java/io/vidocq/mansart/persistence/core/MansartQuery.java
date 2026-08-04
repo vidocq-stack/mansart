@@ -27,6 +27,7 @@ import io.vidocq.mansart.data.query.ast.JpqlUpdateStmt;
 import io.vidocq.mansart.data.query.ast.JpqlDeleteStmt;
 import jakarta.persistence.*;
 import java.util.*;
+import java.util.HashMap;
 
 /**
  * Mansart implementation of Jakarta Persistence Query interface.
@@ -89,17 +90,35 @@ public class MansartQuery extends AbstractMansartQuery<Query> implements Query {
     private List<?> executeSelectQuery(JpqlSelectStmt stmt) {
         try {
             JpqlToRuntimeConverter.QueryExecutionParams params = 
-                JpqlToRuntimeConverter.convert(stmt, getEntityManager());
+                JpqlToRuntimeConverter.convert(stmt, getEntityManager(), 
+                                                getNamedParameters(), getPositionalParameters());
             
             RepositoryRuntime runtime = getEntityManager().getRepositoryRuntime();
             
-            // For now, use queryList with empty args (parameters not yet bound)
-            // TODO: Bind parameters from namedParameters/positionalParameters
-            return runtime.queryList(params.entityModel(), params.where(), params.orderBy());
+            // Pass bound parameters to query execution
+            Map<String, Object> boundArgs = new HashMap<>();
+            boundArgs.putAll(params.namedParameters());
+            // TODO: Map positional parameters to their positions
+            
+            return runtime.queryList(params.entityModel(), params.where(), params.orderBy(), boundArgs);
         } catch (UnsupportedOperationException | IllegalArgumentException e) {
             // Fallback: if path resolution fails or entity can't be resolved, return empty list
             return List.of();
         }
+    }
+
+    /**
+     * Gets the named parameters map from this query.
+     */
+    protected Map<String, Object> getNamedParameters() {
+        return Collections.unmodifiableMap(namedParameters);
+    }
+
+    /**
+     * Gets the positional parameters map from this query.
+     */
+    protected Map<Integer, Object> getPositionalParameters() {
+        return Collections.unmodifiableMap(positionalParameters);
     }
 
     @Override

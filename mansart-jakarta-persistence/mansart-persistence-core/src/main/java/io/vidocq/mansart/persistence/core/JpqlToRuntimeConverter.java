@@ -35,13 +35,23 @@ public final class JpqlToRuntimeConverter {
 
     private JpqlToRuntimeConverter() {}
 
-    public static QueryExecutionParams convert(JpqlSelectStmt stmt, MansartEntityManager entityManager) {
+    public static QueryExecutionParams convert(JpqlSelectStmt stmt, MansartEntityManager entityManager,
+                                               Map<String, Object> namedParameters,
+                                               Map<Integer, Object> positionalParameters) {
         QueryExecutionContext context = new QueryExecutionContext(entityManager, stmt.fromClause());
         Where where = convertWhere(
             stmt.whereClause().map(JpqlWhereClause::predicate).orElse(null), context);
         OrderBy orderBy = convertOrderBy(
             stmt.orderByClause().map(JpqlOrderByClause::items).orElse(List.of()), context);
-        return new QueryExecutionParams(context.getRootEntityModel(), where, orderBy, context);
+        return new QueryExecutionParams(context.getRootEntityModel(), where, orderBy, context,
+                                        namedParameters, positionalParameters);
+    }
+
+    /**
+     * Convenience method for conversion without parameters.
+     */
+    public static QueryExecutionParams convert(JpqlSelectStmt stmt, MansartEntityManager entityManager) {
+        return convert(stmt, entityManager, Map.of(), Map.of());
     }
 
     public static Where convertWhere(JpqlPredicate predicate, QueryExecutionContext context) {
@@ -124,7 +134,9 @@ public final class JpqlToRuntimeConverter {
         EntityModel<?> entityModel,
         Where where,
         OrderBy orderBy,
-        QueryExecutionContext context
+        QueryExecutionContext context,
+        Map<String, Object> namedParameters,
+        Map<Integer, Object> positionalParameters
     ) {
         @SuppressWarnings("unchecked")
         public <E> EntityModel<E> castEntityModel() { return (EntityModel<E>) entityModel; }

@@ -21,9 +21,13 @@ package io.vidocq.mansart.persistence.core;
 
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.dialect.attribute.JoinedAttribute;
+import io.vidocq.mansart.data.dialect.attribute.JoinPath;
+import io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute;
 import io.vidocq.mansart.data.query.ast.*;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Maintains the execution context for JPQL query execution.
@@ -34,11 +38,13 @@ import java.util.*;
 public final class QueryExecutionContext {
 
     private final MansartEntityManager entityManager;
+    private final EntityNameResolver entityNameResolver;
     private final Map<String, EntityModel<?>> aliasToEntityModel = new HashMap<>();
     private final Map<String, Class<?>> aliasToEntityClass = new HashMap<>();
 
     public QueryExecutionContext(MansartEntityManager entityManager, JpqlFromClause fromClause) {
         this.entityManager = entityManager;
+        this.entityNameResolver = new EntityNameResolver(entityManager);
         initializeFromClause(fromClause);
     }
 
@@ -51,8 +57,8 @@ public final class QueryExecutionContext {
             String alias = fromItem.identifier();
             String entityName = fromItem.entityName();
             
-            // First, try to resolve the entity name as a fully qualified class name
-            Class<?> entityClass = tryResolveEntityClass(entityName);
+            // Use EntityNameResolver to resolve the entity class
+            Class<?> entityClass = entityNameResolver.resolveEntityClass(entityName);
             
             if (entityClass == null) {
                 throw new IllegalArgumentException(
@@ -66,49 +72,14 @@ public final class QueryExecutionContext {
     }
 
     /**
-     * Tries to resolve an entity name to a Class.
-     * First tries the fully qualified name, then tries with common base packages.
-     */
-    private Class<?> tryResolveEntityClass(String entityName) {
-        // If it already looks like a FQN, try that first
-        if (entityName.contains(".")) {
-            try {
-                return Class.forName(entityName);
-            } catch (ClassNotFoundException e) {
-                // Fall through to try other approaches
-            }
-        }
-        
-        // Try to find the class by scanning the test entity packages
-        String[] basePackages = {
-            "io.vidocq.mansart.persistence.core",
-            "io.vidocq.mansart.test",
-            "example"
-        };
-        
-        for (String basePackage : basePackages) {
-            String fqn = basePackage + "." + entityName;
-            try {
-                return Class.forName(fqn);
-            } catch (ClassNotFoundException e) {
-                // Try next package
-            }
-        }
-        
-        // Try without package (default package)
-        try {
-            return Class.forName(entityName);
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
-    }
-
-    /**
      * Resolves a path expression to an Attribute.
      * Handles simple paths like "b.price" or "b.author.name".
      * 
+     * <p>For relationship paths (e.g., "b.author.name"), creates a JoinedAttribute
+     * that represents the leaf attribute through a chain of relationships.</p>
+     * 
      * @param pathExpr the path expression
-     * @return the resolved Attribute
+     * @return the resolved Attribute (may be a JoinedAttribute for relationship paths)
      */
     @SuppressWarnings("unchecked")
     public Attribute<?, ?> resolvePath(JpqlPathExpr pathExpr) {
@@ -127,34 +98,74 @@ public final class QueryExecutionContext {
             throw new IllegalArgumentException("Unknown alias: " + alias);
         }
         
-        // If only one part (e.g., "b"), return the ID attribute or first attribute
+        // If only one part (e.g., "b"), return the ID attribute
         if (parts.length == 1) {
-            // This is just the alias itself - return the entity's ID or first attribute
             return entityModel.id();
         }
         
-        // Resolve the path within the entity
-        Attribute<?, ?> currentAttr = entityModel.id(); // Default to ID if path has only one part
+        // Build the path step by step
+        List<JoinPath.Step> joinSteps = new ArrayList<>();
         EntityModel<?> currentModel = entityModel;
+        Attribute<?, ?> leafAttribute = null;
+        Class<?> currentEntityType = entityModel.entityClass();
         
         for (int i = 1; i < parts.length; i++) {
             String attrName = parts[i];
             
-            // Try to find the attribute in the current model
-            @SuppressWarnings("unchecked")
-            Optional<Attribute<?, ?>> attrOpt = (Optional<Attribute<?, ?>>) (Optional<?>) currentModel.attribute(attrName);
+            Optional<?> attrOptRaw = currentModel.attribute(attrName);
             
-            if (attrOpt.isEmpty()) {
-                // If attribute not found, try to find an entity with that name
-                // This handles cases like "b.author" where "author" is a relationship
-                throw new UnsupportedOperationException(
-                    "Path resolution for relationship '" + attrName + "' not yet implemented");
+            if (attrOptRaw.isEmpty()) {
+                throw new IllegalArgumentException(
+                    "Cannot find attribute '" + attrName + "' in entity " + currentModel.entityClass().getSimpleName());
             }
             
-            currentAttr = attrOpt.get();
+            @SuppressWarnings("unchecked")
+            Attribute<?, ?> attr = (Attribute<?, ?>) attrOptRaw.get();
+            
+            // Check if this is a relationship attribute (ReferenceAttribute)
+            if (attr instanceof ReferenceAttribute<?, ?> refAttr) {
+                // This is a relationship - add to join path
+                String fkColumn = ""; // Will be set properly by dialect
+                String refColumn = ""; // Will be set properly by dialect
+                String targetTable = ""; // Will be set properly by dialect
+                
+                joinSteps.add(new JoinPath.Step(
+                    attrName,
+                    fkColumn,
+                    refColumn,
+                    targetTable,
+                    "",
+                    attr.javaType()
+                ));
+                
+                // Move to the target entity model
+                currentEntityType = attr.javaType();
+                currentModel = entityManager.getEntityModel(currentEntityType);
+                leafAttribute = null; // Reset, we need to find the leaf in the target entity
+            } else {
+                // This is a leaf attribute
+                if (leafAttribute == null && !joinSteps.isEmpty()) {
+                    // This is the leaf attribute after traversing relationships
+                    leafAttribute = attr;
+                } else if (joinSteps.isEmpty()) {
+                    // Simple attribute path (no relationships)
+                    leafAttribute = attr;
+                }
+            }
         }
         
-        return currentAttr;
+        if (!joinSteps.isEmpty() && leafAttribute != null) {
+            // Create a JoinedAttribute for relationship paths
+            JoinPath joinPath = new JoinPath(joinSteps);
+            return new JoinedAttribute<>(
+                leafAttribute,
+                joinPath,
+                (Class<?>) entityModel.entityClass()
+            );
+        }
+        
+        // Simple attribute path (no relationships)
+        return leafAttribute != null ? leafAttribute : entityModel.id();
     }
 
     /**
