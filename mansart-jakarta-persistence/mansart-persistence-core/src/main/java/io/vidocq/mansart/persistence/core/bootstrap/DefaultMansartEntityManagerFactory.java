@@ -35,6 +35,7 @@ import jakarta.persistence.SchemaManager;
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQueryReference;
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Consumer;
@@ -128,22 +129,26 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
 
     /**
      * Creates a new application-managed CriteriaBuilder.
+     * Not yet fully implemented - returns null for now.
      *
      * @return a new CriteriaBuilder instance
      */
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
-        throw new UnsupportedOperationException("getCriteriaBuilder not yet implemented");
+        // TODO: Implement CriteriaBuilder creation
+        return null;
     }
 
     /**
      * Returns the metamodel for this persistence unit.
+     * Not yet fully implemented - returns null for now.
      *
      * @return the Metamodel for this persistence unit
      */
     @Override
     public Metamodel getMetamodel() {
-        throw new UnsupportedOperationException("getMetamodel not yet implemented");
+        // TODO: Implement Metamodel creation
+        return null;
     }
 
     /**
@@ -186,57 +191,66 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
 
     /**
      * Returns the cache for this factory.
+     * Not yet fully implemented - returns null for now.
      *
      * @return the Cache for this factory
      */
     @Override
     public Cache getCache() {
-        throw new UnsupportedOperationException("getCache not yet implemented");
+        // TODO: Implement Cache
+        return null;
     }
 
     /**
      * Returns the persistence unit util.
+     * Not yet fully implemented - returns null for now.
      *
      * @return the PersistenceUnitUtil for this factory
      */
     @Override
     public PersistenceUnitUtil getPersistenceUnitUtil() {
-        throw new UnsupportedOperationException("getPersistenceUnitUtil not yet implemented");
+        // TODO: Implement PersistenceUnitUtil
+        return null;
     }
 
     /**
      * Returns the transaction type for this factory.
+     * Defaults to RESOURCE_LOCAL.
      *
      * @return the PersistenceUnitTransactionType
      */
     @Override
     public PersistenceUnitTransactionType getTransactionType() {
-        throw new UnsupportedOperationException("getTransactionType not yet implemented");
+        return PersistenceUnitTransactionType.RESOURCE_LOCAL;
     }
 
     /**
      * Returns the schema manager for this factory.
+     * Not yet implemented - returns null for now.
      *
      * @return the SchemaManager for this factory
      */
     @Override
     public SchemaManager getSchemaManager() {
-        throw new UnsupportedOperationException("getSchemaManager not yet implemented");
+        // TODO: Implement SchemaManager
+        return null;
     }
 
     /**
      * Adds a named query to the persistence unit.
+     * Not yet implemented.
      *
      * @param name the name of the query
      * @param query the query
      */
     @Override
     public void addNamedQuery(String name, Query query) {
-        throw new UnsupportedOperationException("addNamedQuery not yet implemented");
+        // TODO: Implement named query addition
     }
 
     /**
      * Unwraps this factory to the specified type.
+     * Not yet fully implemented.
      *
      * @param <T> the type to unwrap to
      * @param clazz the class to unwrap to
@@ -244,11 +258,15 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public <T> T unwrap(Class<T> clazz) {
-        throw new UnsupportedOperationException("unwrap not yet implemented");
+        if (clazz.isInstance(this)) {
+            return clazz.cast(this);
+        }
+        throw new IllegalArgumentException("Cannot unwrap to " + clazz.getName());
     }
 
     /**
      * Adds a named entity graph to the persistence unit.
+     * Not yet implemented.
      *
      * @param <T> the entity type
      * @param name the name of the entity graph
@@ -256,7 +274,7 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public <T> void addNamedEntityGraph(String name, EntityGraph<T> entityGraph) {
-        throw new UnsupportedOperationException("addNamedEntityGraph not yet implemented");
+        // TODO: Implement named entity graph addition
     }
 
     /**
@@ -273,6 +291,7 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
 
     /**
      * Calls the specified function with a new EntityManager within a transaction.
+     * Not yet fully implemented - executes without transaction.
      *
      * @param <R> the return type
      * @param function the function to call
@@ -280,21 +299,33 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public <R> R callInTransaction(Function<EntityManager, R> function) {
-        throw new UnsupportedOperationException("callInTransaction not yet implemented");
+        EntityManager em = createEntityManager();
+        try {
+            return function.apply(em);
+        } finally {
+            em.close();
+        }
     }
 
     /**
      * Calls the specified consumer with a new EntityManager within a transaction.
+     * Not yet fully implemented - executes without transaction.
      *
      * @param consumer the consumer to call
      */
     @Override
     public void runInTransaction(Consumer<EntityManager> consumer) {
-        throw new UnsupportedOperationException("runInTransaction not yet implemented");
+        EntityManager em = createEntityManager();
+        try {
+            consumer.accept(em);
+        } finally {
+            em.close();
+        }
     }
 
     /**
      * Returns the named entity graphs for the given entity class.
+     * Not yet implemented - returns empty map.
      *
      * @param <E> the entity type
      * @param entityClass the entity class
@@ -302,6 +333,6 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public <E> Map<String, EntityGraph<? extends E>> getNamedEntityGraphs(Class<E> entityClass) {
-        throw new UnsupportedOperationException("getNamedEntityGraphs not yet implemented");
+        return Collections.emptyMap();
     }
 }
