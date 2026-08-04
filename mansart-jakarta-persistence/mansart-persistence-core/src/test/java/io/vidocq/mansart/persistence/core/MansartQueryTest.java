@@ -352,4 +352,56 @@ class MansartQueryTest {
         List<?> results = query.getResultList();
         assertNotNull(results);
     }
+
+    /* -------- M7: GROUP BY and HAVING Tests -------- */
+
+    @Test
+    void testQueryWithGroupBy() {
+        Query query = entityManager.createQuery(
+            "SELECT b.author, COUNT(b) FROM Book b GROUP BY b.author");
+        assertNotNull(query);
+        
+        List<?> results = query.getResultList();
+        assertNotNull(results);
+    }
+
+    @Test
+    void testQueryWithGroupByAndHaving() {
+        Query query = entityManager.createQuery(
+            "SELECT b.author, COUNT(b) FROM Book b GROUP BY b.author HAVING COUNT(b) > 1");
+        assertNotNull(query);
+        
+        List<?> results = query.getResultList();
+        assertNotNull(results);
+    }
+
+    @Test
+    void testQueryWithGroupByAndOrderBy() {
+        Query query = entityManager.createQuery(
+            "SELECT b.author, COUNT(b) FROM Book b GROUP BY b.author ORDER BY COUNT(b) DESC");
+        assertNotNull(query);
+        
+        List<?> results = query.getResultList();
+        assertNotNull(results);
+    }
+
+    @Test
+    void testQueryWithMultiColumnGroupBy() {
+        Query query = entityManager.createQuery(
+            "SELECT b.author, b.category, COUNT(b) FROM Book b GROUP BY b.author, b.category");
+        assertNotNull(query);
+        
+        List<?> results = query.getResultList();
+        assertNotNull(results);
+    }
+
+    @Test
+    void testQueryWithHavingOnly() {
+        Query query = entityManager.createQuery(
+            "SELECT b.author FROM Book b GROUP BY b.author HAVING COUNT(b) > 0");
+        assertNotNull(query);
+        
+        List<?> results = query.getResultList();
+        assertNotNull(results);
+    }
 }

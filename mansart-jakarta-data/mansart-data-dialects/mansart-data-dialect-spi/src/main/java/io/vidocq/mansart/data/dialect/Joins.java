@@ -49,6 +49,10 @@ public final class Joins {
      * top of their already-aliased prefixes.
      */
     public static Plan collect(Where where, OrderBy orderBy) {
+        return collect(where, GroupBy.NONE, orderBy);
+    }
+
+    public static Plan collect(Where where, GroupBy groupBy, OrderBy orderBy) {
         // Use an ordered set to register paths from shallowest to deepest. We rely on JoinPath
         // structural equality — same chain = same key.
         java.util.LinkedHashSet<JoinPath> ordered = new java.util.LinkedHashSet<>();
@@ -56,6 +60,9 @@ public final class Joins {
             if (a instanceof JoinedAttribute<?, ?> joined) registerWithPrefixes(joined.path(), ordered);
         };
         walkWhere(where, visit);
+        if (groupBy != null && !groupBy.isEmpty()) {
+            for (var expr : groupBy.expressions()) visit.accept(expr);
+        }
         if (orderBy != null) {
             for (var o : orderBy.orders()) visit.accept(o.attr());
         }

@@ -35,7 +35,7 @@ public interface Dialect {
 
     String name();
 
-    SqlFragment select(EntityModel<?> model, Where where, OrderBy orderBy, Pagination pagination);
+    SqlFragment select(EntityModel<?> model, Where where, GroupBy groupBy, Where having, OrderBy orderBy, Pagination pagination);
 
     /**
      * M8-3 — variant of {@link #select} that selects a custom column list (one or many) instead
@@ -49,7 +49,7 @@ public interface Dialect {
      * aggregates). The fragment must already be SQL-safe — Mansart never mixes user input here.
      */
     default SqlFragment selectColumns(EntityModel<?> model, java.util.List<ProjectedColumn> columns,
-                                      Where where, OrderBy orderBy, Pagination pagination) {
+                                      Where where, GroupBy groupBy, Where having, OrderBy orderBy, Pagination pagination) {
         // Default delegates rendering to a uniform helper that mirrors {@link #select}'s plan-aware
         // rendering. Concrete dialects may override for backend-specific behaviour. This default
         // does NOT support joined columns — concrete dialects must override to support M8-3 paths.

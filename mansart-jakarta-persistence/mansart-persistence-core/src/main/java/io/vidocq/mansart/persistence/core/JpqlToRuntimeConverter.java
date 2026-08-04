@@ -41,9 +41,13 @@ public final class JpqlToRuntimeConverter {
         QueryExecutionContext context = new QueryExecutionContext(entityManager, stmt.fromClause());
         Where where = convertWhere(
             stmt.whereClause().map(JpqlWhereClause::predicate).orElse(null), context);
+        GroupBy groupBy = convertGroupBy(
+            stmt.groupByClause().map(JpqlGroupByClause::expressions).orElse(List.of()), context);
+        Where having = convertHaving(
+            stmt.havingClause().map(JpqlHavingClause::predicate).orElse(null), context);
         OrderBy orderBy = convertOrderBy(
             stmt.orderByClause().map(JpqlOrderByClause::items).orElse(List.of()), context);
-        return new QueryExecutionParams(context.getRootEntityModel(), where, orderBy, context,
+        return new QueryExecutionParams(context.getRootEntityModel(), where, groupBy, having, orderBy, context,
                                         namedParameters, positionalParameters);
     }
 
@@ -135,6 +139,8 @@ public final class JpqlToRuntimeConverter {
         SqlFragment subquerySql = dialect.select(
             subqueryParams.entityModel(),
             subqueryParams.where(),
+            subqueryParams.groupBy(),
+            subqueryParams.having(),
             subqueryParams.orderBy(),
             Pagination.NONE
         );
@@ -204,6 +210,22 @@ public final class JpqlToRuntimeConverter {
         }).toList());
     }
 
+    @SuppressWarnings("unchecked")
+    private static GroupBy convertGroupBy(List<io.vidocq.mansart.data.query.ast.JpqlExpr> expressions, QueryExecutionContext context) {
+        if (expressions.isEmpty()) return GroupBy.NONE;
+        List<Attribute<?, ?>> attrs = new ArrayList<>();
+        for (io.vidocq.mansart.data.query.ast.JpqlExpr expr : expressions) {
+            attrs.add(extractAttribute(expr, context));
+        }
+        return new GroupBy(attrs);
+    }
+
+    private static Where convertHaving(io.vidocq.mansart.data.query.ast.JpqlPredicate predicate, QueryExecutionContext context) {
+        // HAVING clause uses the same predicate types as WHERE
+        // Just convert it the same way
+        return predicate != null ? convertWhere(predicate, context) : Where.ALWAYS_TRUE;
+    }
+
     private static Attribute<?, ?> extractAttribute(io.vidocq.mansart.data.query.ast.JpqlExpr expr, QueryExecutionContext context) {
         if (expr instanceof io.vidocq.mansart.data.query.ast.JpqlPathExpr path) return context.resolvePath(path);
         if (expr instanceof io.vidocq.mansart.data.query.ast.JpqlFunctionExpr func) {
@@ -222,6 +244,8 @@ public final class JpqlToRuntimeConverter {
     public record QueryExecutionParams(
         EntityModel<?> entityModel,
         Where where,
+        GroupBy groupBy,
+        Where having,
         OrderBy orderBy,
         QueryExecutionContext context,
         Map<String, Object> namedParameters,

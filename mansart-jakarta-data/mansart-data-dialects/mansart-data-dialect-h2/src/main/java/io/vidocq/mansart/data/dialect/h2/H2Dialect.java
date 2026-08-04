@@ -22,6 +22,7 @@ package io.vidocq.mansart.data.dialect.h2;
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.dialect.GroupBy;
 import io.vidocq.mansart.data.dialect.Joins;
 import io.vidocq.mansart.data.dialect.OrderBy;
 import io.vidocq.mansart.data.dialect.Pagination;
@@ -50,20 +51,24 @@ public final class H2Dialect implements Dialect {
     @Override public String name() { return "H2"; }
 
     @Override
-    public SqlFragment select(EntityModel<?> model, Where where, OrderBy orderBy, Pagination pagination) {
-        // M8-3 — collect joins from the predicate / orderBy. Empty plan ⇒ classic single-table SQL.
-        Joins.Plan plan = Joins.collect(where, orderBy);
+    public SqlFragment select(EntityModel<?> model, Where where, GroupBy groupBy, Where having, OrderBy orderBy, Pagination pagination) {
+        // M8-3 — collect joins from the predicate / orderBy / groupBy. Empty plan ⇒ classic single-table SQL.
+        Joins.Plan plan = Joins.collect(where, groupBy, orderBy);
         StringBuilder sb = new StringBuilder("SELECT ");
         if (plan.isEmpty()) {
             appendColumnList(sb, model);
             sb.append(" FROM ").append(qualified(model));
             appendWhere(sb, where, plan);
+            appendGroupBy(sb, groupBy, plan);
+            appendHaving(sb, having, plan);
             appendOrderBy(sb, orderBy, plan);
         } else {
             appendAliasedColumnList(sb, model, Joins.ROOT_ALIAS);
             sb.append(" FROM ").append(qualified(model)).append(' ').append(Joins.ROOT_ALIAS);
             appendJoins(sb, plan);
             appendWhere(sb, where, plan);
+            appendGroupBy(sb, groupBy, plan);
+            appendHaving(sb, having, plan);
             appendOrderBy(sb, orderBy, plan);
         }
         appendPagination(sb, pagination);
@@ -72,8 +77,8 @@ public final class H2Dialect implements Dialect {
 
     @Override
     public SqlFragment selectColumns(EntityModel<?> model, java.util.List<ProjectedColumn> columns,
-                                     Where where, OrderBy orderBy, Pagination pagination) {
-        Joins.Plan plan = Joins.collect(where, orderBy);
+                                     Where where, GroupBy groupBy, Where having, OrderBy orderBy, Pagination pagination) {
+        Joins.Plan plan = Joins.collect(where, groupBy, orderBy);
         StringBuilder sb = new StringBuilder("SELECT ");
         for (int i = 0; i < columns.size(); i++) {
             if (i > 0) sb.append(", ");
@@ -88,6 +93,8 @@ public final class H2Dialect implements Dialect {
             appendJoins(sb, plan);
         }
         appendWhere(sb, where, plan);
+        appendGroupBy(sb, groupBy, plan);
+        appendHaving(sb, having, plan);
         appendOrderBy(sb, orderBy, plan);
         appendPagination(sb, pagination);
         return new SqlFragment(sb.toString(), java.util.List.of());
@@ -320,6 +327,21 @@ public final class H2Dialect implements Dialect {
         if (where instanceof Where.AlwaysTrue) return;
         sb.append(" WHERE ");
         renderPredicate(sb, where, plan);
+    }
+
+    private void appendGroupBy(StringBuilder sb, GroupBy groupBy, Joins.Plan plan) {
+        if (groupBy == null || groupBy.isEmpty()) return;
+        sb.append(" GROUP BY ");
+        for (int i = 0; i < groupBy.expressions().size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(col(groupBy.expressions().get(i), plan));
+        }
+    }
+
+    private void appendHaving(StringBuilder sb, Where having, Joins.Plan plan) {
+        if (having instanceof Where.AlwaysTrue) return;
+        sb.append(" HAVING ");
+        renderPredicate(sb, having, plan);
     }
 
     private void renderPredicate(StringBuilder sb, Where where, Joins.Plan plan) {
