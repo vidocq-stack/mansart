@@ -95,12 +95,11 @@ public class MansartQuery extends AbstractMansartQuery<Query> implements Query {
             
             RepositoryRuntime runtime = getEntityManager().getRepositoryRuntime();
             
-            // Pass bound parameters to query execution
-            Map<String, Object> boundArgs = new HashMap<>();
-            boundArgs.putAll(params.namedParameters());
-            // TODO: Map positional parameters to their positions
+            // Convert bound parameters to array for RepositoryRuntime
+            // TODO: Proper parameter ordering based on JPQL parameter positions
+            Object[] args = params.namedParameters().values().toArray();
             
-            return runtime.queryList(params.entityModel(), params.where(), params.orderBy(), boundArgs);
+            return runtime.queryList(params.entityModel(), params.where(), params.orderBy(), args);
         } catch (UnsupportedOperationException | IllegalArgumentException e) {
             // Fallback: if path resolution fails or entity can't be resolved, return empty list
             return List.of();
