@@ -93,9 +93,9 @@ public class MansartTypedQuery<T> extends AbstractMansartQuery<TypedQuery<T>> im
                 
                 RepositoryRuntime runtime = getEntityManager().getRepositoryRuntime();
                 
-                // Convert bound parameters to array for RepositoryRuntime
-                // TODO: Proper parameter ordering based on JPQL parameter positions
-                Object[] args = params.namedParameters().values().toArray();
+                // Extract parameters in the order they appear in the query
+                Object[] args = ParameterExtractor.extractParameters(
+                    selectStmt, getNamedParameters(), getPositionalParameters());
                 
                 return runtime.queryList(params.entityModel(), params.where(), params.orderBy(), args);
             } catch (UnsupportedOperationException | IllegalArgumentException e) {
