@@ -192,7 +192,8 @@ public class MansartEntityManager implements EntityManager {
     /* -------- Query Operations -------- */
 
     @Override public CriteriaBuilder getCriteriaBuilder() {
-        // TODO: Implement CriteriaBuilder creation
+        // TODO: M5 - Implement CriteriaBuilder
+        // Currently returns null as Criteria API is not yet implemented
         return null;
     }
     

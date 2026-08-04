@@ -135,7 +135,7 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      */
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
-        // TODO: Implement CriteriaBuilder creation
+        // TODO: M5 - Implement CriteriaBuilder
         return null;
     }
 
