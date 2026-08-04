@@ -101,6 +101,17 @@
             <artifactId>assertj-core</artifactId>
         </dependency>
         <dependency>
+            <groupId>org.jboss.shrinkwrap</groupId>
+            <artifactId>shrinkwrap-api</artifactId>
+            <version>1.2.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.shrinkwrap.resolver</groupId>
+            <artifactId>shrinkwrap-resolver-depchain</artifactId>
+            <version>3.1.4</version>
+            <type>pom</type>
+        </dependency>
+        <dependency>
             <groupId>jakarta.tck</groupId>
             <artifactId>persistence-tck-common</artifactId>
             <version>${tck.version}</version>
@@ -187,13 +198,12 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
+                        <version>3.3.1</version>
                         <configuration>
+                            <forkCount>0</forkCount>
                             <includes>
-                                <include>**/*Test.java</include>
-                                <include>**/*Tests.java</include>
-                                <include>**/*TCK*.java</include>
-                                <include>**/*Tck*.java</include>
-                                <include>**/*Client.java</include>
+                                <include>**/*Client*.*</include>
+                                <include>**/*JPASigTest*.*</include>
                             </includes>
                             <excludes>
                                 <exclude>**/SigTest*.java</exclude>
@@ -206,28 +216,26 @@
                             <systemPropertyVariables>
                                 <jakarta.persistence.provider>${mansart.provider}</jakarta.persistence.provider>
                                 <javax.persistence.provider>${mansart.provider}</javax.persistence.provider>
+                                <jakarta.persistence.jdbc.url>${tck.db.url}</jakarta.persistence.jdbc.url>
                                 <javax.persistence.jdbc.url>${tck.db.url}</javax.persistence.jdbc.url>
+                                <jakarta.persistence.jdbc.user>${tck.db.user}</jakarta.persistence.jdbc.user>
                                 <javax.persistence.jdbc.user>${tck.db.user}</javax.persistence.jdbc.user>
+                                <jakarta.persistence.jdbc.password>${tck.db.password}</jakarta.persistence.jdbc.password>
                                 <javax.persistence.jdbc.password>${tck.db.password}</javax.persistence.jdbc.password>
+                                <jakarta.persistence.jdbc.driver>${tck.db.driver}</jakarta.persistence.jdbc.driver>
                                 <javax.persistence.jdbc.driver>${tck.db.driver}</javax.persistence.jdbc.driver>
                                 <persistence.provider>${mansart.provider}</persistence.provider>
                                 <tck.concurrent>true</tck.concurrent>
+                                <platform.mode>standalone</platform.mode>
+                                <persistence.unit.name>JPATCK</persistence.unit.name>
+                                <persistence.unit.name.2>JPATCK2</persistence.unit.name.2>
+                                <vehicle>standalone</vehicle>
+                                <persistence.second.level.caching.supported>false</persistence.second.level.caching.supported>
+                                <jpa.provider.implementation.specific.properties></jpa.provider.implementation.specific.properties>
                             </systemPropertyVariables>
                             <trimStackTrace>false</trimStackTrace>
-                            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                            <redirectTestOutputToFile>false</redirectTestOutputToFile>
                         </configuration>
-                        <dependencies>
-                            <dependency>
-                                <groupId>org.testng</groupId>
-                                <artifactId>testng</artifactId>
-                                <version>7.10.2</version>
-                            </dependency>
-                            <dependency>
-                                <groupId>org.apache.maven.surefire</groupId>
-                                <artifactId>surefire-testng</artifactId>
-                                <version>3.3.1</version>
-                            </dependency>
-                        </dependencies>
                     </plugin>
                 </plugins>
             </build>

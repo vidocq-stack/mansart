@@ -34,6 +34,46 @@
     </persistence-unit>
 
     <!--
+        Persistence Unit pour les tests TCK Jakarta Persistence.
+        Utilisee par le TCK avec les noms JPATCK et JPATCK2.
+    -->
+    <persistence-unit name="JPATCK" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:tck-test;DB_CLOSE_DELAY=-1"/>
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            
+            <!-- Configuration specifique Mansart -->
+            <property name="io.vidocq.mansart.data.dialect" value="h2"/>
+            
+            <!-- Schema generation -->
+            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.scripts.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.create-database-schemas" value="true"/>
+        </properties>
+    </persistence-unit>
+    
+    <persistence-unit name="JPATCK2" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:tck-test2;DB_CLOSE_DELAY=-1"/>
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            
+            <!-- Configuration specifique Mansart -->
+            <property name="io.vidocq.mansart.data.dialect" value="h2"/>
+            
+            <!-- Schema generation -->
+            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.scripts.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.create-database-schemas" value="true"/>
+        </properties>
+    </persistence-unit>
+    
+    <!--
         Persistence Unit pour les tests avec H2.
         Utilisee par le TCK Jakarta Persistence.
     -->
