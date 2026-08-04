@@ -34,7 +34,7 @@
     <url>https://codeberg.org/Vidocq/mansart</url>
 
     <properties>
-        <tck.version>4.0.0-SNAPSHOT</tck.version>
+        <tck.version>3.2.0-SNAPSHOT</tck.version>
         <tck.db.url>jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</tck.db.url>
         <tck.db.user>sa</tck.db.user>
         <tck.db.password></tck.db.password>
@@ -48,7 +48,7 @@
             <id>eclipse-jakarta-releases</id>
             <url>https://repo.eclipse.org/content/repositories/jakarta-releases</url>
             <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
+            <snapshots><enabled>true</enabled></snapshots>
         </repository>
     </repositories>
 
@@ -109,12 +109,6 @@
         <dependency>
             <groupId>jakarta.persistence</groupId>
             <artifactId>persistence-tck-spec-tests</artifactId>
-            <version>${tck.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>jakarta.persistence</groupId>
-            <artifactId>persistence-tck-dbprocedures</artifactId>
             <version>${tck.version}</version>
             <scope>test</scope>
         </dependency>
@@ -200,6 +194,10 @@
                                 <include>**/*TCK*.java</include>
                                 <include>**/*Tck*.java</include>
                             </includes>
+                            <dependenciesToScan>
+                                <dependency>jakarta.persistence:persistence-tck-spec-tests</dependency>
+                                <dependency>jakarta.persistence:persistence-tck-common</dependency>
+                            </dependenciesToScan>
                             <systemPropertyVariables>
                                 <jakarta.persistence.provider>${mansart.provider}</jakarta.persistence.provider>
                                 <javax.persistence.provider>${mansart.provider}</javax.persistence.provider>
