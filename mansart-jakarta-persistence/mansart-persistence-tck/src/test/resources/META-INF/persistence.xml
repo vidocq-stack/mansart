@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Fichier de configuration persistence.xml pour les tests TCK.
+    
+    Ce fichier definit les Persistence Units utilisees par les tests.
+    Par defaut, H2 en mode memoire est utilise pour les tests unitaires.
+    
+    Pour utiliser une autre base de donnees, activer le profil Maven
+    correspondant (pgsql, mysql, etc.) ou surcharger les proprietes
+    via la ligne de commande.
+-->
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+                 https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd"
+             version="3.2">
+
+    <!--
+        Persistence Unit par defaut pour les tests smoke.
+        Utilise H2 en mode memoire.
+    -->
+    <persistence-unit name="smoke-test" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <class>io.vidocq.mansart.persistence.tck.MansartPersistenceTckSmokeTest</class>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            
+            <!-- Configuration specifique Mansart -->
+            <property name="io.vidocq.mansart.data.dialect" value="h2"/>
+        </properties>
+    </persistence-unit>
+
+    <!--
+        Persistence Unit pour les tests avec H2.
+        Utilisee par le TCK Jakarta Persistence.
+    -->
+    <persistence-unit name="h2-mem" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:tck-test;DB_CLOSE_DELAY=-1"/>
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            
+            <!-- Configuration specifique Mansart -->
+            <property name="io.vidocq.mansart.data.dialect" value="h2"/>
+            
+            <!-- Schema generation -->
+            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.scripts.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.create-database-schemas" value="true"/>
+        </properties>
+    </persistence-unit>
+
+    <!--
+        Persistence Unit pour les tests avec PostgreSQL.
+        Activee via le profil Maven 'pgsql'.
+    -->
+    <persistence-unit name="pgsql-test" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:postgresql://localhost:5432/tck_db"/>
+            <property name="jakarta.persistence.jdbc.user" value="tck_user"/>
+            <property name="jakarta.persistence.jdbc.password" value="tck_password"/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.postgresql.Driver"/>
+            
+            <!-- Configuration specifique Mansart -->
+            <property name="io.vidocq.mansart.data.dialect" value="postgresql"/>
+            
+            <!-- Schema generation -->
+            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.scripts.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.create-database-schemas" value="true"/>
+        </properties>
+    </persistence-unit>
+</persistence>

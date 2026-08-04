@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Mansart Jakarta Persistence 3.2 - TCK Module
+    
+    Ce module permet d'executer le Jakarta Persistence TCK 3.2 contre l'implementation
+    Mansart. Le TCK officiel n-etant pas disponible sur Maven Central, il doit etre
+    construit et installe localement depuis les sources GitHub.
+    
+    Pour configurer le TCK:
+        1. Executer: ./setup-tck.sh
+        2. Le script clone, compile et installe automatiquement le TCK depuis
+           https://github.com/jakartaee/persistence/tree/main/tck
+    
+    Pour executer les tests TCK:
+        mvn -pl mansart-persistence-tck -Ptck test
+    
+    Note: Le TCK necessite une base de donnees relationnelle. Par defaut, H2 est utilise.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -13,12 +30,27 @@
     <packaging>jar</packaging>
 
     <name>Mansart :: Jakarta Persistence 3.2 :: TCK</name>
-    <description>Jakarta Persistence 3.2 Technology Compatibility Kit execution for Mansart.</description>
+    <description>Jakarta Persistence 3.2 Technology Compatibility Kit execution for Mansart implementation.</description>
+    <url>https://codeberg.org/Vidocq/mansart</url>
 
     <properties>
+        <tck.version>4.0.0-SNAPSHOT</tck.version>
+        <tck.db.url>jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</tck.db.url>
+        <tck.db.user>sa</tck.db.user>
+        <tck.db.password></tck.db.password>
+        <tck.db.driver>org.h2.Driver</tck.db.driver>
+        <mansart.provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</mansart.provider>
         <maven.deploy.skip>true</maven.deploy.skip>
-        <tck.version>3.2.0</tck.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>eclipse-jakarta-releases</id>
+            <url>https://repo.eclipse.org/content/repositories/jakarta-releases</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
@@ -44,14 +76,13 @@
             <groupId>io.vidocq.mansart</groupId>
             <artifactId>mansart-data-dialect-postgresql</artifactId>
         </dependency>
-
         <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
+            <groupId>jakarta.enterprise</groupId>
+            <artifactId>jakarta.enterprise.cdi-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.h2database</groupId>
@@ -61,15 +92,32 @@
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
         </dependency>
-
-        <!-- TCK dependencies - will be configured when TCK is available
-             Currently not available on Maven Central, will be added when TCK is accessible -->
-        <!-- <dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
+        <dependency>
             <groupId>jakarta.persistence</groupId>
-            <artifactId>jakarta.persistence-tck</artifactId>
+            <artifactId>persistence-tck-common</artifactId>
             <version>${tck.version}</version>
             <scope>test</scope>
-        </dependency> -->
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>persistence-tck-spec-tests</artifactId>
+            <version>${tck.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>persistence-tck-dbprocedures</artifactId>
+            <version>${tck.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -83,15 +131,6 @@
                     <compilerArgs>
                         <arg>-parameters</arg>
                     </compilerArgs>
-                    <!-- Annotation processor path disabled for now - will be enabled 
-                         when the processor is fully implemented and tested -->
-                    <!-- <annotationProcessorPaths>
-                        <path>
-                            <groupId>io.vidocq.mansart</groupId>
-                            <artifactId>mansart-persistence-processor</artifactId>
-                            <version>${project.version}</version>
-                        </path>
-                    </annotationProcessorPaths> -->
                 </configuration>
             </plugin>
             <plugin>
@@ -104,9 +143,13 @@
                         <include>**/*Tck*.java</include>
                     </includes>
                     <systemPropertyVariables>
-                        <jakarta.persistence.provider>
-                            io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider
-                        </jakarta.persistence.provider>
+                        <jakarta.persistence.provider>${mansart.provider}</jakarta.persistence.provider>
+                        <javax.persistence.provider>${mansart.provider}</javax.persistence.provider>
+                        <javax.persistence.jdbc.url>${tck.db.url}</javax.persistence.jdbc.url>
+                        <javax.persistence.jdbc.user>${tck.db.user}</javax.persistence.jdbc.user>
+                        <javax.persistence.jdbc.password>${tck.db.password}</javax.persistence.jdbc.password>
+                        <javax.persistence.jdbc.driver>${tck.db.driver}</javax.persistence.jdbc.driver>
+                        <persistence.provider>${mansart.provider}</persistence.provider>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
@@ -119,6 +162,26 @@
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>5.1.1</version>
+                <configuration>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>file://${project.basedir}/etc/license-header.txt</header>
+                        </licenseSet>
+                    </licenseSets>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>format-license-headers</id>
+                        <goals>
+                            <goal>format</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -136,12 +199,76 @@
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
                             <includes>
+                                <include>**/*Test.java</include>
+                                <include>**/*Tests.java</include>
                                 <include>**/*TCK*.java</include>
+                                <include>**/*Tck*.java</include>
                             </includes>
+                            <systemPropertyVariables>
+                                <jakarta.persistence.provider>${mansart.provider}</jakarta.persistence.provider>
+                                <javax.persistence.provider>${mansart.provider}</javax.persistence.provider>
+                                <javax.persistence.jdbc.url>${tck.db.url}</javax.persistence.jdbc.url>
+                                <javax.persistence.jdbc.user>${tck.db.user}</javax.persistence.jdbc.user>
+                                <javax.persistence.jdbc.password>${tck.db.password}</javax.persistence.jdbc.password>
+                                <javax.persistence.jdbc.driver>${tck.db.driver}</javax.persistence.jdbc.driver>
+                                <persistence.provider>${mansart.provider}</persistence.provider>
+                                <tck.concurrent>true</tck.concurrent>
+                            </systemPropertyVariables>
+                            <trimStackTrace>false</trimStackTrace>
+                            <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                        </configuration>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.testng</groupId>
+                                <artifactId>testng</artifactId>
+                                <version>7.10.2</version>
+                            </dependency>
+                            <dependency>
+                                <groupId>org.apache.maven.surefire</groupId>
+                                <artifactId>surefire-testng</artifactId>
+                                <version>3.3.1</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+            <dependencies>
+                <dependency>
+                    <groupId>org.testng</groupId>
+                    <artifactId>testng</artifactId>
+                    <version>7.10.2</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+        </profile>
+        <profile>
+            <id>smoke</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <excludes>
+                                <exclude>**/*TCK*.java</exclude>
+                                <exclude>**/*Tck*.java</exclude>
+                            </excludes>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>pgsql</id>
+            <properties>
+                <tck.db.url>jdbc:postgresql://localhost:5432/tck_db</tck.db.url>
+                <tck.db.user>tck_user</tck.db.user>
+                <tck.db.password>tck_password</tck.db.password>
+                <tck.db.driver>org.postgresql.Driver</tck.db.driver>
+            </properties>
         </profile>
     </profiles>
 </project>
