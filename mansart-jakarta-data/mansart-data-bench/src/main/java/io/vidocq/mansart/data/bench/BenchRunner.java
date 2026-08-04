@@ -29,19 +29,18 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
  *
  * <p>Usage:
  * <pre>
- *   java -jar target/benchmarks.jar
- *   # or
- *   mvn -Pbench verify
+ *   mvn clean compile exec:java -Pbench
+ *   # or run specific benchmarks:
+ *   java -cp target/classes:... org.openjdk.jmh.Main RepositoryCrudBench
  * </pre>
  */
 public class BenchRunner {
     public static void main(String[] args) throws Exception {
         Options opt = new OptionsBuilder()
-                .include("*.*Bench")
+                .include(".*Bench")
                 .forks(1)
                 .warmupIterations(3)
                 .measurementIterations(5)
-                .threads(1, 4, 16)  // Test single-thread, 4 VTs, 16 VTs
                 .build();
         new Runner(opt).run();
     }

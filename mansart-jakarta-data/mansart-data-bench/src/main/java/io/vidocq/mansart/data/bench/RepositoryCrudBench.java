@@ -22,24 +22,21 @@ package io.vidocq.mansart.data.bench;
 
 import io.vidocq.mansart.data.core.MansartData;
 import io.vidocq.mansart.data.core.MansartDataException;
-import jakarta.data.repository.BasicRepository;
-import jakarta.data.repository.Page;
-import jakarta.data.repository.PageRequest;
-import jakarta.data.repository.Sort;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
+import jakarta.data.Order;
+import jakarta.data.Sort;
+import jakarta.data.page.Page;
+import jakarta.data.page.PageRequest;
+import jakarta.data.repository.BasicRepository;
+
+import org.h2.jdbcx.JdbcDataSource;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -47,21 +44,18 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
+
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 /**
  * JMH benchmarks for Mansart Data CRUD operations.
- * Compares performance across different thread counts (1, 4, 16 virtual threads).
- *
- * <p>Benchmarks:
- * <ul>
- *   <li>findById - single entity lookup</li>
- *   <li>findAll - full table scan</li>
- *   <li>findByWithIndex - indexed field lookup</li>
- *   <li>save - entity persistence</li>
- *   <li>saveAll - batch persistence</li>
- * </ul>
  */
 @State(Scope.Benchmark)
 @OutputTimeUnit(MILLISECONDS)
@@ -70,12 +64,11 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 @Fork(1)
 public class RepositoryCrudBench {
 
-    private Connection connection;
+    private DataSource dataSource;
     private MansartData mansartData;
     
     private record TestEntity(Long id, String name, int value) {}
     
-    // Simple repository interface for testing
     private interface TestEntityRepository extends BasicRepository<TestEntity, Long> {
         List<TestEntity> findByName(String name);
         List<TestEntity> findByValueGreaterThan(int value);
@@ -83,17 +76,19 @@ public class RepositoryCrudBench {
 
     @Setup(Level.Trial)
     public void setup() throws SQLException {
-        // Initialize H2 in-memory database
-        String url = "jdbc:h2:mem:bench;DB_CLOSE_DELAY=-1";
-        connection = DriverManager.getConnection(url, "sa", "");
+        JdbcDataSource ds = new JdbcDataSource();
+        ds.setURL("jdbc:h2:mem:bench;DB_CLOSE_DELAY=-1");
+        ds.setUser("sa");
+        ds.setPassword("");
+        dataSource = ds;
         
-        try (Statement stmt = connection.createStatement()) {
+        try (Connection connection = dataSource.getConnection();
+             Statement stmt = connection.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS test_entity (" +
                         "id BIGINT PRIMARY KEY, " +
                         "name VARCHAR(255), " +
                         "value INT)");
             
-            // Insert test data
             for (long i = 1; i <= 10000; i++) {
                 stmt.execute(String.format(
                     "INSERT INTO test_entity (id, name, value) VALUES (%d, 'entity_%d', %d)",
@@ -101,20 +96,23 @@ public class RepositoryCrudBench {
             }
         }
         
-        // Initialize Mansart Data
-        mansartData = MansartData.from(connection);
+        mansartData = MansartData.builder()
+                .dataSource(dataSource)
+                .build();
     }
 
     @TearDown(Level.Trial)
     public void teardown() throws SQLException {
-        if (connection != null && !connection.isClosed()) {
-            connection.createStatement().execute("DROP TABLE IF EXISTS test_entity");
-            connection.close();
+        if (dataSource != null) {
+            try (Connection connection = dataSource.getConnection();
+                 Statement stmt = connection.createStatement()) {
+                stmt.execute("DROP TABLE IF EXISTS test_entity");
+            }
         }
     }
 
     @Benchmark
-    @BenchmarkMode({BenchmarkMode.Throughput, BenchmarkMode.AverageTime})
+    @BenchmarkMode(Mode.Throughput)
     public TestEntity findById() {
         try {
             TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
@@ -126,7 +124,7 @@ public class RepositoryCrudBench {
     }
 
     @Benchmark
-    @BenchmarkMode({BenchmarkMode.Throughput})
+    @BenchmarkMode(Mode.Throughput)
     public List<TestEntity> findAll() {
         try {
             TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
@@ -137,7 +135,7 @@ public class RepositoryCrudBench {
     }
 
     @Benchmark
-    @BenchmarkMode({BenchmarkMode.Throughput})
+    @BenchmarkMode(Mode.Throughput)
     public List<TestEntity> findByName() {
         try {
             TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
@@ -149,7 +147,7 @@ public class RepositoryCrudBench {
     }
 
     @Benchmark
-    @BenchmarkMode({BenchmarkMode.Throughput})
+    @BenchmarkMode(Mode.Throughput)
     public List<TestEntity> findByValueGreaterThan() {
         try {
             TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
@@ -161,13 +159,13 @@ public class RepositoryCrudBench {
     }
 
     @Benchmark
-    @BenchmarkMode({BenchmarkMode.Throughput})
+    @BenchmarkMode(Mode.Throughput)
     public List<TestEntity> findWithPagination() {
         try {
             TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
-            PageRequest request = PageRequest.of(0, 10, Sort.by("id"));
-            Page<TestEntity> page = repo.findAll(request);
-            return page.getContent();
+            PageRequest request = PageRequest.ofPage(1, 10, true);
+            Page<TestEntity> page = repo.findAll(request, Order.by(Sort.asc("id")));
+            return page.content();
         } catch (MansartDataException e) {
             throw new RuntimeException(e);
         }
