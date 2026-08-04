@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ * Copyright (c) ${year} Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -13,14 +13,11 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Public SPI of Mansart Transactions — re-exposes Jakarta Transactions 2.0 contracts and adds
- * Mansart-specific extension points (resource enrolment helpers, lifecycle hooks).
- */
+
 module io.vidocq.mansart.transactions.api {
     requires transitive jakarta.transaction;
     // Jakarta Transactions 2.0 module-info itself requires these — re-export so consumers

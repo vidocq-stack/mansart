@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ * Copyright (c) ${year} Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -13,21 +13,11 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Module-path proof vehicle for Mansart Transactions CDI: verifies that a {@code @Transactional}
- * bean is intercepted on the module path with NO {@code opens} directive and NO runtime-generated
- * subclass.
- *
- * <p>The Vauban APT generates {@code TxService$$Intercepted} (build time) plus the in-module
- * {@code _VaubanComponents} provider declared below. The Vauban container instantiates the bean,
- * field-injects it and runs the interception chain through that provider, so this module opens
- * nothing to {@code io.vidocq.vauban.core}. It depends on {@code vauban-core} for real (it boots a
- * container, and the generated subclass references {@code io.vidocq.vauban.core.interceptor.*}).</p>
- */
+
 module io.vidocq.mansart.transactions.moduleit {
     requires io.vidocq.mansart.transactions.cdi;
     requires io.vidocq.vauban.core;

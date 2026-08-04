@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ * Copyright (c) ${year} Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -13,17 +13,11 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Local-only Jakarta Transactions 2.0 implementation. Provides
- * {@link jakarta.transaction.TransactionManager},
- * {@link jakarta.transaction.UserTransaction} and
- * {@link jakarta.transaction.TransactionSynchronizationRegistry} bound to the current virtual
- * thread via {@link java.lang.ScopedValue}. 2PC + recovery come later.
- */
+
 module io.vidocq.mansart.transactions.core {
     requires transitive io.vidocq.mansart.transactions.api;
     // javax.transaction.xa.XAResource is on the Transaction interface — needed at compile time.

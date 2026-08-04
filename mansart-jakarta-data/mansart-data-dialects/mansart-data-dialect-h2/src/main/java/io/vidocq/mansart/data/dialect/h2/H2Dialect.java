@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ * Copyright (c) ${year} Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at

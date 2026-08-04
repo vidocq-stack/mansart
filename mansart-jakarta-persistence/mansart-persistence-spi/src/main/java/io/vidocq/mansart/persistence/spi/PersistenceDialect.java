@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
+ * Copyright (c) ${year} Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License 2.0 which is available at
@@ -13,14 +13,11 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * SPI interface for JPA-specific dialect extensions.
- * Extends the Mansart Data Dialect interface with JPA-specific functionality.
- */
+
 package io.vidocq.mansart.persistence.spi;
 
 import io.vidocq.mansart.data.dialect.Dialect;
