@@ -185,12 +185,16 @@ public class MansartEntityManager implements EntityManager {
     
     @Override
     public <T> T find(jakarta.persistence.EntityGraph<T> graph, Object primaryKey, jakarta.persistence.FindOption... options) {
-        throw new UnsupportedOperationException("find with EntityGraph not yet implemented");
+        // TODO: Implement EntityGraph support
+        throw new UnsupportedOperationException("EntityGraph not yet supported");
     }
 
     /* -------- Query Operations -------- */
 
-    @Override public CriteriaBuilder getCriteriaBuilder() { throw new UnsupportedOperationException("getCriteriaBuilder not yet implemented"); }
+    @Override public CriteriaBuilder getCriteriaBuilder() {
+        // TODO: Implement CriteriaBuilder creation
+        return null;
+    }
     
     @Override public void flush() {}
     @Override public void setFlushMode(FlushModeType flushMode) {}
@@ -206,7 +210,9 @@ public class MansartEntityManager implements EntityManager {
         throw new IllegalArgumentException("Unsupported JPQL statement type: " + stmt.getClass().getSimpleName());
     }
     
-    @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { throw new UnsupportedOperationException("CriteriaQuery not yet implemented"); }
+    @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) {
+        throw new UnsupportedOperationException("Criteria API not yet implemented");
+    }
     @Override public <T> TypedQuery<T> createQuery(jakarta.persistence.criteria.CriteriaSelect<T> criteriaSelect) { throw new UnsupportedOperationException("CriteriaSelect not yet implemented"); }
     @Override public Query createQuery(CriteriaUpdate updateQuery) { throw new UnsupportedOperationException("CriteriaUpdate not yet implemented"); }
     @Override public Query createQuery(CriteriaDelete deleteQuery) { throw new UnsupportedOperationException("CriteriaDelete not yet implemented"); }
@@ -220,11 +226,26 @@ public class MansartEntityManager implements EntityManager {
         throw new IllegalArgumentException("TypedQuery requires a SELECT statement, got: " + stmt.getClass().getSimpleName());
     }
     @Override public <T> TypedQuery<T> createQuery(jakarta.persistence.TypedQueryReference<T> typedQueryReference) { throw new UnsupportedOperationException("TypedQueryReference not yet implemented"); }
-    @Override public Query createNamedQuery(String name) { throw new UnsupportedOperationException("Named queries not yet implemented"); }
-    @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> result) { throw new UnsupportedOperationException("Named queries not yet implemented"); }
-    @Override public Query createNativeQuery(String sqlString) { throw new UnsupportedOperationException("Native queries not yet implemented"); }
-    @Override public Query createNativeQuery(String sqlString, Class resultClass) { throw new UnsupportedOperationException("Native queries not yet implemented"); }
-    @Override public Query createNativeQuery(String sqlString, String resultSetMapping) { throw new UnsupportedOperationException("Native queries not yet implemented"); }
+    @Override public Query createNamedQuery(String name) {
+        // TODO: Implement named queries
+        throw new IllegalArgumentException("Named query not found: " + name);
+    }
+    @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> result) {
+        // TODO: Implement named queries
+        throw new IllegalArgumentException("Named query not found: " + name);
+    }
+    @Override public Query createNativeQuery(String sqlString) {
+        // TODO: Implement native queries
+        throw new UnsupportedOperationException("Native queries not yet implemented");
+    }
+    @Override public Query createNativeQuery(String sqlString, Class resultClass) {
+        // TODO: Implement native queries
+        throw new UnsupportedOperationException("Native queries not yet implemented");
+    }
+    @Override public Query createNativeQuery(String sqlString, String resultSetMapping) {
+        // TODO: Implement native queries
+        throw new UnsupportedOperationException("Native queries not yet implemented");
+    }
     @Override public jakarta.persistence.StoredProcedureQuery createNamedStoredProcedureQuery(String name) { throw new UnsupportedOperationException("Stored procedures not yet implemented"); }
     @Override public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName) { throw new UnsupportedOperationException("Stored procedures not yet implemented"); }
     @Override public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName, Class<?>... resultClasses) { throw new UnsupportedOperationException("Stored procedures not yet implemented"); }
@@ -241,7 +262,10 @@ public class MansartEntityManager implements EntityManager {
     }
 
     @Override public boolean isJoinedToTransaction() { return getTransaction().isActive(); }
-    @Override public void joinTransaction() { throw new UnsupportedOperationException("joinTransaction not yet implemented"); }
+    @Override public void joinTransaction() {
+        // TODO: Implement joinTransaction
+        // For now, no-op as we don't have full transaction support
+    }
 
     /* -------- Persistence Context Management -------- */
 
@@ -289,11 +313,22 @@ public class MansartEntityManager implements EntityManager {
         }
     }
 
-    @Override public void lock(Object entity, LockModeType lockMode) { throw new UnsupportedOperationException("Locking not yet implemented"); }
-    @Override public void lock(Object entity, LockModeType lockMode, Map<String, Object> properties) { throw new UnsupportedOperationException("Locking not yet implemented"); }
-    @Override public LockModeType getLockMode(Object entity) { throw new UnsupportedOperationException("getLockMode not yet implemented"); }
-    @Override public void setProperty(String name, Object value) { throw new UnsupportedOperationException("setProperty not yet implemented"); }
-    @Override public void lock(Object entity, LockModeType lockMode, jakarta.persistence.LockOption... options) { throw new UnsupportedOperationException("lock with options not yet implemented"); }
+    @Override public void lock(Object entity, LockModeType lockMode) {
+        // TODO: Implement locking
+    }
+    @Override public void lock(Object entity, LockModeType lockMode, Map<String, Object> properties) {
+        // TODO: Implement locking with properties
+    }
+    @Override public LockModeType getLockMode(Object entity) {
+        // TODO: Implement getLockMode
+        return LockModeType.NONE;
+    }
+    @Override public void setProperty(String name, Object value) {
+        // TODO: Implement setProperty
+    }
+    @Override public void lock(Object entity, LockModeType lockMode, jakarta.persistence.LockOption... options) {
+        // TODO: Implement locking with options
+    }
     @Override public void refresh(Object entity, jakarta.persistence.RefreshOption... options) { refresh(entity); }
     @Override public void refresh(Object entity, Map<String, Object> properties) { refresh(entity); }
     @Override public void refresh(Object entity, LockModeType lockMode) { refresh(entity); }
