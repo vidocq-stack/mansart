@@ -58,10 +58,11 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
      * Creates a new DefaultMansartEntityManagerFactory.
      *
      * @param persistenceUnitName the name of the persistence unit
-     * @param properties the properties for this factory
+     * @param properties the properties for this factory (from persistence.xml or provided)
      */
     public DefaultMansartEntityManagerFactory(String persistenceUnitName, Map properties) {
         super(persistenceUnitName, properties);
+        
         // Initialize Mansart Data components
         this.dataSource = createDataSource();
         MansartData mansartData = MansartData.builder()
@@ -73,24 +74,31 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
 
     /**
      * Creates a DataSource from the persistence unit properties.
-     * For M4, this creates an in-memory H2 DataSource for testing.
-     * In a real implementation, this would come from the persistence.xml or properties.
+     * Now uses properties from persistence.xml (via PersistenceUnitInfo) or provided properties.
+     * Creates an in-memory H2 DataSource by default for testing.
+     * 
+     * @return the configured DataSource
      */
     private DataSource createDataSource() {
-        // For M4, create a default in-memory H2 DataSource
-        // In production, this would be configured via persistence.xml properties
         try {
             Class<?> jdbcDataSourceClass = Class.forName("org.h2.jdbcx.JdbcDataSource");
             Object dataSource = jdbcDataSourceClass.getDeclaredConstructor().newInstance();
             
-            // Set default H2 URL - can be overridden via properties
-            String url = (String) getProperties().getOrDefault("jakarta.persistence.jdbc.url", 
+            // Get properties from either PersistenceUnitInfo or the factory properties
+            Map<String, Object> props = getProperties();
+            
+            // Set JDBC URL - can be overridden via properties
+            String url = (String) props.getOrDefault("jakarta.persistence.jdbc.url", 
                 "jdbc:h2:mem:mansart-persistence;DB_CLOSE_DELAY=-1");
             jdbcDataSourceClass.getMethod("setURL", String.class).invoke(dataSource, url);
-            jdbcDataSourceClass.getMethod("setUser", String.class).invoke(dataSource, 
-                getProperties().getOrDefault("jakarta.persistence.jdbc.user", "sa"));
-            jdbcDataSourceClass.getMethod("setPassword", String.class).invoke(dataSource, 
-                getProperties().getOrDefault("jakarta.persistence.jdbc.password", ""));
+            
+            // Set JDBC user
+            String user = (String) props.getOrDefault("jakarta.persistence.jdbc.user", "sa");
+            jdbcDataSourceClass.getMethod("setUser", String.class).invoke(dataSource, user);
+            
+            // Set JDBC password
+            String password = (String) props.getOrDefault("jakarta.persistence.jdbc.password", "");
+            jdbcDataSourceClass.getMethod("setPassword", String.class).invoke(dataSource, password);
             
             return (DataSource) dataSource;
         } catch (Exception e) {
