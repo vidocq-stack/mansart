@@ -24,6 +24,11 @@ import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.data.dialect.attribute.IdAttribute;
+import io.vidocq.mansart.data.query.ast.JpqlParser;
+import io.vidocq.mansart.data.query.ast.JpqlStmt;
+import io.vidocq.mansart.data.query.ast.JpqlSelectStmt;
+import io.vidocq.mansart.data.query.ast.JpqlUpdateStmt;
+import io.vidocq.mansart.data.query.ast.JpqlDeleteStmt;
 import io.vidocq.mansart.persistence.core.bootstrap.MansartEntityManagerFactory;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -189,12 +194,30 @@ public class MansartEntityManager implements EntityManager {
     @Override public void flush() {}
     @Override public void setFlushMode(FlushModeType flushMode) {}
     @Override public FlushModeType getFlushMode() { return FlushModeType.AUTO; }
-    @Override public Query createQuery(String qlString) { throw new UnsupportedOperationException("JPQL not yet implemented"); }
+    
+    @Override 
+    public Query createQuery(String qlString) {
+        // M5: Parse JPQL and create query
+        JpqlStmt stmt = JpqlParser.parse(qlString);
+        if (stmt instanceof JpqlSelectStmt || stmt instanceof JpqlUpdateStmt || stmt instanceof JpqlDeleteStmt) {
+            return new MansartQuery(stmt, this);
+        }
+        throw new IllegalArgumentException("Unsupported JPQL statement type: " + stmt.getClass().getSimpleName());
+    }
+    
     @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { throw new UnsupportedOperationException("CriteriaQuery not yet implemented"); }
     @Override public <T> TypedQuery<T> createQuery(jakarta.persistence.criteria.CriteriaSelect<T> criteriaSelect) { throw new UnsupportedOperationException("CriteriaSelect not yet implemented"); }
     @Override public Query createQuery(CriteriaUpdate updateQuery) { throw new UnsupportedOperationException("CriteriaUpdate not yet implemented"); }
     @Override public Query createQuery(CriteriaDelete deleteQuery) { throw new UnsupportedOperationException("CriteriaDelete not yet implemented"); }
-    @Override public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) { throw new UnsupportedOperationException("TypedQuery not yet implemented"); }
+    @Override 
+    public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
+        // M5: Parse JPQL and create typed query
+        JpqlStmt stmt = JpqlParser.parse(qlString);
+        if (stmt instanceof JpqlSelectStmt) {
+            return new MansartTypedQuery<>((JpqlSelectStmt) stmt, resultClass, this);
+        }
+        throw new IllegalArgumentException("TypedQuery requires a SELECT statement, got: " + stmt.getClass().getSimpleName());
+    }
     @Override public <T> TypedQuery<T> createQuery(jakarta.persistence.TypedQueryReference<T> typedQueryReference) { throw new UnsupportedOperationException("TypedQueryReference not yet implemented"); }
     @Override public Query createNamedQuery(String name) { throw new UnsupportedOperationException("Named queries not yet implemented"); }
     @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> result) { throw new UnsupportedOperationException("Named queries not yet implemented"); }
