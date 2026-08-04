@@ -113,15 +113,15 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.eclipse.persistence</groupId>
-            <artifactId>jakarta.persistence</artifactId>
-            <version>3.2.0</version>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>${jakarta.persistence.version}</version>
             <scope>test</scope>
         </dependency>
 
         <!-- Hibernate -->
         <dependency>
-            <groupId>org.hibernate</groupId>
+            <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-core</artifactId>
             <version>${hibernate.version}</version>
             <scope>test</scope>
@@ -162,37 +162,11 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.1</version>
-                <executions>
-                    <execution>
-                        <id>run-benchmarks</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                        <configuration>
-                            <mainClass>org.openjdk.jmh.Main</mainClass>
-                            <classpathScope>test</classpathScope>
-                            <arguments>
-                                <argument>-rf</argument>
-                                <argument>json</argument>
-                                <argument>-rff</argument>
-                                <argument>target/benchmarks.json</argument>
-                                <argument>-t</argument>
-                                <argument>10</argument>
-                                <argument>-i</argument>
-                                <argument>5</argument>
-                                <argument>-wi</argument>
-                                <argument>3</argument>
-                                <argument>-f</argument>
-                                <argument>1</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
+                <version>1.0.0</version>
                 <configuration>
                     <skip>true</skip>
                 </configuration>
@@ -208,10 +182,32 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.1</version>
                         <executions>
                             <execution>
                                 <id>run-benchmarks</id>
-                                <phase>post-integration-test</phase>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>org.openjdk.jmh.Main</mainClass>
+                                    <classpathScope>test</classpathScope>
+                                    <arguments>
+                                        <argument>-rf</argument>
+                                        <argument>json</argument>
+                                        <argument>-rff</argument>
+                                        <argument>${project.build.directory}/benchmarks.json</argument>
+                                        <argument>-t</argument>
+                                        <argument>10</argument>
+                                        <argument>-i</argument>
+                                        <argument>5</argument>
+                                        <argument>-wi</argument>
+                                        <argument>3</argument>
+                                        <argument>-f</argument>
+                                        <argument>1</argument>
+                                    </arguments>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
