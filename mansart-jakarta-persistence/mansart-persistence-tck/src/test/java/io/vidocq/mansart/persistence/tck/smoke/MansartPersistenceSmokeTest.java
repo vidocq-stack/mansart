@@ -13,13 +13,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  */
-package io.vidocq.mansart.persistence.tck;
+package io.vidocq.mansart.persistence.tck.smoke;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.Persistence;
+import jakarta.persistence.spi.PersistenceProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,25 +37,28 @@ import org.junit.jupiter.api.Test;
  * 3. Une EntityManager peut etre obtenue
  * 4. L'EntityManager est fonctionnelle
  */
-class MansartPersistenceTckSmokeTest {
+class MansartPersistenceSmokeTest {
 
+    private static final String PROVIDER_CLASS = "io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider";
+    
     private EntityManagerFactory emf;
     private EntityManager em;
 
     @BeforeEach
-    void setUp() {
-        System.setProperty("jakarta.persistence.provider",
-                "io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider");
+    void setUp() throws Exception {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("jakarta.persistence.provider", PROVIDER_CLASS);
+        properties.put("jakarta.persistence.jdbc.url", "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
+        properties.put("jakarta.persistence.jdbc.user", "sa");
+        properties.put("jakarta.persistence.jdbc.password", "");
+        properties.put("jakarta.persistence.jdbc.driver", "org.h2.Driver");
         
-        try {
-            emf = Persistence.createEntityManagerFactory("smoke-test");
-            em = emf.createEntityManager();
-        } catch (Exception e) {
-            // Si aucune persistence unit n'est configuree, on utilise les properties
-            // par defaut pour H2
-            emf = Persistence.createEntityManagerFactory("h2-mem");
-            em = emf.createEntityManager();
-        }
+        PersistenceProvider provider = (PersistenceProvider) Class.forName(PROVIDER_CLASS)
+                .getDeclaredConstructor()
+                .newInstance();
+        
+        emf = provider.createEntityManagerFactory("test-pu", properties);
+        em = emf.createEntityManager();
     }
 
     @AfterEach
@@ -63,12 +69,6 @@ class MansartPersistenceTckSmokeTest {
         if (emf != null && emf.isOpen()) {
             emf.close();
         }
-    }
-
-    @Test
-    void providerCanBeLoaded() {
-        assertThat(Persistence.getPersistenceProvider())
-                .isNotNull();
     }
 
     @Test

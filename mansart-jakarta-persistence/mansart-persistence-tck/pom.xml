@@ -138,10 +138,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.3.1</version>
                 <configuration>
-                    <includes>
-                        <include>**/*TCK*.java</include>
-                        <include>**/*Tck*.java</include>
-                    </includes>
                     <systemPropertyVariables>
                         <jakarta.persistence.provider>${mansart.provider}</jakarta.persistence.provider>
                         <javax.persistence.provider>${mansart.provider}</javax.persistence.provider>
@@ -252,10 +248,9 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <excludes>
-                                <exclude>**/*TCK*.java</exclude>
-                                <exclude>**/*Tck*.java</exclude>
-                            </excludes>
+                            <includes>
+                                <include>**/smoke/*.java</include>
+                            </includes>
                         </configuration>
                     </plugin>
                 </plugins>
