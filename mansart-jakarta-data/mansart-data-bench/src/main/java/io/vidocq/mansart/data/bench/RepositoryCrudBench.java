@@ -23,10 +23,6 @@ package io.vidocq.mansart.data.bench;
 import io.vidocq.mansart.data.core.MansartData;
 import io.vidocq.mansart.data.core.MansartDataException;
 
-import jakarta.data.Order;
-import jakarta.data.Sort;
-import jakarta.data.page.Page;
-import jakarta.data.page.PageRequest;
 import jakarta.data.repository.BasicRepository;
 
 import org.h2.jdbcx.JdbcDataSource;
@@ -153,19 +149,6 @@ public class RepositoryCrudBench {
             TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
             int value = ThreadLocalRandom.current().nextInt(100, 500);
             return repo.findByValueGreaterThan(value);
-        } catch (MansartDataException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Benchmark
-    @BenchmarkMode(Mode.Throughput)
-    public List<TestEntity> findWithPagination() {
-        try {
-            TestEntityRepository repo = mansartData.repository(TestEntityRepository.class);
-            PageRequest request = PageRequest.ofPage(1, 10, true);
-            Page<TestEntity> page = repo.findAll(request, Order.by(Sort.asc("id")));
-            return page.content();
         } catch (MansartDataException e) {
             throw new RuntimeException(e);
         }
