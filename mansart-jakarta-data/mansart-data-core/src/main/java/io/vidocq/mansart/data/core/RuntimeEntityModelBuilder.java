@@ -144,8 +144,18 @@ public final class RuntimeEntityModelBuilder {
     private static Field pickImplicitIdField(Class<?> entityClass, List<Field> persisted, Class<?> idTypeHint) {
         for (Field f : persisted) if (isExplicitId(f)) return null;
 
+        // First, try exact match on "id"
         for (Field f : persisted) {
             if ("id".equals(f.getName()) && (idTypeHint == null || matchesType(f, idTypeHint))) return f;
+        }
+
+        // Try fields ending with "Id" (case-insensitive)
+        for (Field f : persisted) {
+            String name = f.getName();
+            if (name.length() > 2 && name.toLowerCase().endsWith("id") 
+                    && (idTypeHint == null || matchesType(f, idTypeHint))) {
+                return f;
+            }
         }
 
         if (idTypeHint != null) {
