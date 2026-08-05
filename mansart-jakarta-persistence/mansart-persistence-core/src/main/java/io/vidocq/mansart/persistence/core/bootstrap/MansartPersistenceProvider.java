@@ -20,15 +20,23 @@
 
 package io.vidocq.mansart.persistence.core.bootstrap;
 
+import io.vidocq.mansart.data.core.MansartData;
+import io.vidocq.mansart.data.core.RepositoryRuntime;
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.persistence.core.bootstrap.SchemaGenerator;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.SchemaValidationException;
 import jakarta.persistence.spi.PersistenceProvider;
 import jakarta.persistence.spi.PersistenceUnitInfo;
 import jakarta.persistence.spi.ProviderUtil;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Properties;
+import javax.sql.DataSource;
 
 /**
  * Mansart implementation of the Jakarta Persistence PersistenceProvider interface.
@@ -137,21 +145,160 @@ public class MansartPersistenceProvider implements PersistenceProvider {
 
     /**
      * Generates schema for the persistence unit.
-     * Not yet implemented - will be implemented in a later milestone.
+     * M6 - Sprint 1: Implement schema generation for PersistenceUnitInfo.
      */
     @Override
-    public void generateSchema(jakarta.persistence.spi.PersistenceUnitInfo info, Map properties) {
-        // TODO: Implement schema generation
-        throw new UnsupportedOperationException("Schema generation not yet implemented");
+    public void generateSchema(PersistenceUnitInfo info, Map properties) {
+        if (info == null) {
+            throw new IllegalArgumentException("PersistenceUnitInfo cannot be null");
+        }
+
+        // Extract entity classes from PersistenceUnitInfo
+        List<Class<?>> entityClasses = new ArrayList<>();
+        for (String className : info.getManagedClassNames()) {
+            try {
+                Class<?> clazz = Class.forName(className, true, info.getClassLoader());
+                entityClasses.add(clazz);
+            } catch (ClassNotFoundException e) {
+                // Log warning and continue
+                System.Logger logger = System.getLogger(getClass().getName());
+                logger.log(System.Logger.Level.WARNING, "Could not load entity class: " + className);
+            }
+        }
+
+        // Create data source and repository runtime for schema generation
+        DataSource dataSource = createDataSourceFromProperties(info.getProperties(), properties);
+        MansartData mansartData = MansartData.builder()
+                .dataSource(dataSource)
+                .build();
+        RepositoryRuntime repositoryRuntime = mansartData.runtime();
+
+        // Create and execute schema generator
+        SchemaGenerator schemaGenerator = new SchemaGenerator(
+            repositoryRuntime, dataSource, mergePropertiesToMap(info.getProperties(), properties), entityClasses);
+        
+        try {
+            schemaGenerator.generateSchema();
+        } catch (SchemaValidationException e) {
+            throw new RuntimeException("Schema generation failed", e);
+        }
     }
 
     /**
-     * Generates schema for the persistence unit.
-     * Not yet implemented - will be implemented in a later milestone.
+     * Generates schema for the persistence unit by name.
+     * M6 - Sprint 1: Implement schema generation for persistence unit name.
      */
     @Override
     public boolean generateSchema(String persistenceUnitName, Map properties) {
-        // TODO: Implement schema generation
-        throw new UnsupportedOperationException("Schema generation not yet implemented");
+        if (persistenceUnitName == null || persistenceUnitName.isEmpty()) {
+            throw new IllegalArgumentException("Persistence unit name cannot be null or empty");
+        }
+
+        try {
+            // Look up persistence.xml for the given persistence unit name
+            PersistenceUnitConfig puConfig = PersistenceXmlParser.findByName(persistenceUnitName);
+            
+            if (puConfig == null) {
+                System.Logger logger = System.getLogger(getClass().getName());
+                logger.log(System.Logger.Level.WARNING, "Persistence unit not found: " + persistenceUnitName);
+                return false;
+            }
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> propertiesMap = (Map<String, Object>) properties;
+            
+            // Merge properties
+            Map<String, Object> mergedProperties = mergePropertiesToMap(toProperties(puConfig.getProperties()), propertiesMap);
+            
+            // Create data source and repository runtime
+            DataSource dataSource = createDataSourceFromProperties(toProperties(puConfig.getProperties()), propertiesMap);
+            MansartData mansartData = MansartData.builder()
+                    .dataSource(dataSource)
+                    .build();
+            RepositoryRuntime repositoryRuntime = mansartData.runtime();
+
+            // Get entity classes
+            List<Class<?>> entityClasses = puConfig.getEntityClasses();
+
+            // Create and execute schema generator
+            SchemaGenerator schemaGenerator = new SchemaGenerator(
+                repositoryRuntime, dataSource, mergedProperties, entityClasses);
+            
+            try {
+                schemaGenerator.generateSchema();
+                return true;
+            } catch (SchemaValidationException e) {
+                System.Logger logger = System.getLogger(getClass().getName());
+                logger.log(System.Logger.Level.WARNING, "Schema generation failed: " + e.getMessage());
+                return false;
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to parse persistence.xml", e);
+        }
+    }
+
+    /**
+     * Creates a DataSource from properties.
+     */
+    private DataSource createDataSourceFromProperties(Properties puProperties, Map<String, Object> additionalProperties) {
+        try {
+            Class<?> jdbcDataSourceClass = Class.forName("org.h2.jdbcx.JdbcDataSource");
+            Object dataSource = jdbcDataSourceClass.getDeclaredConstructor().newInstance();
+            
+            // Merge properties
+            Map<String, Object> merged = mergePropertiesToMap(puProperties, additionalProperties);
+            
+            // Set JDBC URL
+            String url = (String) merged.getOrDefault("jakarta.persistence.jdbc.url", 
+                "jdbc:h2:mem:mansart-persistence;DB_CLOSE_DELAY=-1");
+            jdbcDataSourceClass.getMethod("setURL", String.class).invoke(dataSource, url);
+            
+            // Set JDBC user
+            String user = (String) merged.getOrDefault("jakarta.persistence.jdbc.user", "sa");
+            jdbcDataSourceClass.getMethod("setUser", String.class).invoke(dataSource, user);
+            
+            // Set JDBC password
+            String password = (String) merged.getOrDefault("jakarta.persistence.jdbc.password", "");
+            jdbcDataSourceClass.getMethod("setPassword", String.class).invoke(dataSource, password);
+            
+            return (DataSource) dataSource;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to create DataSource", e);
+        }
+    }
+
+    /**
+     * Merges properties from Properties and Map.
+     */
+    private Map<String, Object> mergePropertiesToMap(Properties properties, Map<String, Object> additionalProperties) {
+        Map<String, Object> merged = new HashMap<>();
+        
+        if (properties != null) {
+            for (Enumeration<?> e = properties.keys(); e.hasMoreElements(); ) {
+                String key = (String) e.nextElement();
+                merged.put(key, properties.getProperty(key));
+            }
+        }
+        
+        if (additionalProperties != null) {
+            merged.putAll(additionalProperties);
+        }
+        
+        return merged;
+    }
+
+    /**
+     * Converts Map to Properties.
+     */
+    private Properties toProperties(Map<String, Object> map) {
+        Properties properties = new Properties();
+        if (map != null) {
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                if (entry.getValue() != null) {
+                    properties.setProperty(entry.getKey(), entry.getValue().toString());
+                }
+            }
+        }
+        return properties;
     }
 }

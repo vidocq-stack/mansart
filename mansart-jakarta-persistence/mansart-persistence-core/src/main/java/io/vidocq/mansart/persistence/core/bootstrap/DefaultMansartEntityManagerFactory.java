@@ -34,9 +34,13 @@ import jakarta.persistence.PersistenceUnitTransactionType;
 import jakarta.persistence.SchemaManager;
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.Query;
+import jakarta.persistence.SchemaValidationException;
 import jakarta.persistence.TypedQueryReference;
+import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.Consumer;
 import javax.sql.DataSource;
@@ -54,6 +58,7 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
     private final RepositoryRuntime repositoryRuntime;
     private final Dialect dialect;
     private final DataSource dataSource;
+    private final List<Class<?>> entityClasses;
 
     /**
      * Creates a new DefaultMansartEntityManagerFactory.
@@ -71,6 +76,20 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
                 .build();
         this.repositoryRuntime = mansartData.runtime();
         this.dialect = mansartData.dialect();
+        
+        // Extract entity classes from properties or persistence configuration
+        this.entityClasses = extractEntityClasses();
+        
+        // Perform schema generation if configured
+        SchemaGenerator schemaGenerator = new SchemaGenerator(
+            repositoryRuntime, dataSource, properties, entityClasses);
+        try {
+            schemaGenerator.generateSchema();
+        } catch (SchemaValidationException e) {
+            // Log the validation error but don't fail factory creation
+            System.Logger logger = System.getLogger(getClass().getName());
+            logger.log(System.Logger.Level.WARNING, "Schema validation failed: " + e.getMessage());
+        }
     }
 
     /**
@@ -105,6 +124,48 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
         } catch (Exception e) {
             throw new IllegalStateException("Failed to create DataSource", e);
         }
+    }
+
+    /**
+     * Extracts entity classes from persistence unit configuration.
+     * Tries to find entity classes from the persistence.xml configuration.
+     *
+     * @return list of entity classes
+     */
+    private List<Class<?>> extractEntityClasses() {
+        List<Class<?>> classes = new ArrayList<>();
+        
+        // Try to find the persistence unit configuration and extract class names
+        try {
+            PersistenceUnitConfig puConfig = PersistenceXmlParser.findByName(getPersistenceUnitName());
+            if (puConfig != null) {
+                classes.addAll(puConfig.getEntityClasses());
+            }
+        } catch (IOException e) {
+            System.Logger logger = System.getLogger(getClass().getName());
+            logger.log(System.Logger.Level.WARNING, "Failed to parse persistence.xml: " + e.getMessage());
+        }
+        
+        // Also check if there are entity classes in the properties
+        // (some implementations might pass them as a property)
+        Object entityClassesObj = getProperties().get("jakarta.persistence.entity.classes");
+        if (entityClassesObj instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<?> list = (List<?>) entityClassesObj;
+            for (Object item : list) {
+                if (item instanceof Class) {
+                    classes.add((Class<?>) item);
+                } else if (item instanceof String) {
+                    try {
+                        classes.add(Class.forName((String) item));
+                    } catch (ClassNotFoundException e) {
+                        // Ignore - will be logged during schema generation
+                    }
+                }
+            }
+        }
+        
+        return classes;
     }
 
     @Override

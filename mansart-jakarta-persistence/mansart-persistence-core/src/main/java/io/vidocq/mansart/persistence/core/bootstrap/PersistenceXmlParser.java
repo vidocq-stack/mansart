@@ -114,8 +114,22 @@ public final class PersistenceXmlParser {
         for (Element child : children) {
             String localName = getLocalName(child);
             
-            if ("properties".equals(localName)) {
-                parseProperties(child, builder);
+            switch (localName) {
+                case "class":
+                    String className = child.getAttribute("name");
+                    if (className != null && !className.isEmpty()) {
+                        builder.addClassName(className);
+                    } else {
+                        // class element can also contain the class name as text content
+                        String textContent = text(child);
+                        if (textContent != null && !textContent.isEmpty()) {
+                            builder.addClassName(textContent);
+                        }
+                    }
+                    break;
+                case "properties":
+                    parseProperties(child, builder);
+                    break;
             }
         }
     }
