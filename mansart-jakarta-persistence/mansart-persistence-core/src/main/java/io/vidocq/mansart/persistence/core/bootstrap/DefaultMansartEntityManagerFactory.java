@@ -189,6 +189,14 @@ public class DefaultMansartEntityManagerFactory extends MansartEntityManagerFact
     }
 
     /**
+     * M6 — Returns the list of entity classes managed by this persistence unit.
+     */
+    @Override
+    public List<Class<?>> getEntityClasses() {
+        return Collections.unmodifiableList(entityClasses);
+    }
+
+    /**
      * Creates a new application-managed CriteriaBuilder.
      * Not yet fully implemented - returns null for now.
      *

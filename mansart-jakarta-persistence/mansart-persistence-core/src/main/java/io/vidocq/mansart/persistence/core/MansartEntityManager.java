@@ -60,6 +60,7 @@ public class MansartEntityManager implements EntityManager {
     private final Map<EntityCacheKey, Object> persistenceContext = new IdentityHashMap<>();
     private final Map<Class<?>, EntityModel<?>> entityModelCache = new ConcurrentHashMap<>();
     private final MansartEntityManagerFactory entityManagerFactory;
+    private final EntityNameResolver entityNameResolver;
     
     private MansartEntityTransaction currentTransaction;
     private boolean open = true;
@@ -70,6 +71,12 @@ public class MansartEntityManager implements EntityManager {
         this.dialect = dialect;
         this.dataSource = dataSource;
         this.entityManagerFactory = entityManagerFactory;
+        
+        // M6 — Create EntityNameResolver and register all entity classes from factory
+        this.entityNameResolver = new EntityNameResolver(this);
+        for (Class<?> entityClass : entityManagerFactory.getEntityClasses()) {
+            entityNameResolver.registerEntity(entityClass);
+        }
     }
 
     /* -------- Entity Lifecycle Operations -------- */
@@ -450,4 +457,12 @@ public class MansartEntityManager implements EntityManager {
     DataSource getDataSource() { return dataSource; }
     RepositoryRuntime getRepositoryRuntime() { return repositoryRuntime; }
     Dialect getDialect() { return dialect; }
+
+    /**
+     * M6 — Returns the EntityNameResolver for this EntityManager.
+     * The resolver is shared across all QueryExecutionContext instances.
+     */
+    EntityNameResolver getEntityNameResolver() {
+        return entityNameResolver;
+    }
 }

@@ -32,6 +32,8 @@ import jakarta.persistence.SchemaManager;
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.Query;
 import jakarta.persistence.TypedQueryReference;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -73,5 +75,15 @@ public abstract class MansartEntityManagerFactory implements EntityManagerFactor
      */
     public String getPersistenceUnitName() {
         return persistenceUnitName;
+    }
+
+    /**
+     * M6 — Returns the list of entity classes managed by this persistence unit.
+     * Override in concrete implementations to return actual entity classes.
+     *
+     * @return unmodifiable list of entity classes
+     */
+    public List<Class<?>> getEntityClasses() {
+        return Collections.emptyList();
     }
 }

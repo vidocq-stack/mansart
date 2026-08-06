@@ -45,7 +45,8 @@ public final class QueryExecutionContext {
 
     public QueryExecutionContext(MansartEntityManager entityManager, JpqlFromClause fromClause) {
         this.entityManager = entityManager;
-        this.entityNameResolver = new EntityNameResolver(entityManager);
+        // M6 — Use the EntityNameResolver from the EntityManager (shared across all contexts)
+        this.entityNameResolver = entityManager.getEntityNameResolver();
         initializeFromClause(fromClause);
     }
 
