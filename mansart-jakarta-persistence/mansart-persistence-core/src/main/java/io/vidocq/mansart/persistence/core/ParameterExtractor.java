@@ -178,6 +178,13 @@ public final class ParameterExtractor {
     private static void collectParametersFromAllAnySomePredicate(JpqlAllAnySomePredicate predicate, List<String> parameterOrder) {
         try {
             collectParametersFromExpr(predicate.expression(), parameterOrder);
+            // Try to get the subquery using the public getSubquery() method first
+            JpqlSelectStmt subquery = predicate.getSubquery();
+            if (subquery != null) {
+                collectParameters(subquery, parameterOrder);
+                return;
+            }
+            // Fallback to reflection for expression list case
             var subqueryObj = predicate.getClass().getMethod("subquery").invoke(predicate);
             if (subqueryObj != null) {
                 String subqueryClassName = subqueryObj.getClass().getName();

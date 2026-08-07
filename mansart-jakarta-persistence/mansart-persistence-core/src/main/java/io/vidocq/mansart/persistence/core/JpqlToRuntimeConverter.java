@@ -71,7 +71,7 @@ public final class JpqlToRuntimeConverter {
             case io.vidocq.mansart.data.query.ast.JpqlInPredicate in -> convertInPredicate(in, context);
             case io.vidocq.mansart.data.query.ast.JpqlLikePredicate like -> convertLikePredicate(like, context);
             case io.vidocq.mansart.data.query.ast.JpqlBetweenPredicate between -> convertBetweenPredicate(between, context);
-            case io.vidocq.mansart.data.query.ast.JpqlAllAnySomePredicate allAnySome -> throw new UnsupportedOperationException("ALL/ANY/SOME not yet supported");
+            case io.vidocq.mansart.data.query.ast.JpqlAllAnySomePredicate allAnySome -> convertAllAnySomePredicate(allAnySome, context);
             default -> throw new IllegalArgumentException("Unknown predicate type: " + predicate.getClass().getSimpleName());
         };
     }
@@ -201,6 +201,99 @@ public final class JpqlToRuntimeConverter {
     private static Where convertBetweenPredicate(io.vidocq.mansart.data.query.ast.JpqlBetweenPredicate between, QueryExecutionContext context) {
         Where where = Where.between(extractAttribute(between.expression(), context));
         return between.not() ? new Where.Not(where) : where;
+    }
+
+    private static Where convertAllAnySomePredicate(io.vidocq.mansart.data.query.ast.JpqlAllAnySomePredicate allAnySome, QueryExecutionContext context) {
+        // Extract the left expression attribute
+        Attribute<?, ?> attr = extractAttribute(allAnySome.expression(), context);
+        
+        // Get the operator symbol for SQL rendering
+        String operatorSymbol = mapComparisonOperator(allAnySome.operator());
+        
+        // Handle the quantified expression (subquery or expression list)
+        SqlFragment subquerySql;
+        
+        if (allAnySome.hasSubquery()) {
+            // Convert the subquery to QueryExecutionParams
+            JpqlSelectStmt subquery = allAnySome.getSubquery();
+            QueryExecutionContext subqueryContext = new QueryExecutionContext(context.getEntityManager(), subquery.fromClause());
+            
+            // Extract the select expressions from the subquery
+            List<JpqlExpr> selectExprs = subquery.selectExpressions();
+            
+            // Get the dialect from the entity manager
+            Dialect dialect = context.getEntityManager().getDialect();
+            
+            if (selectExprs.isEmpty() || (selectExprs.size() == 1 && selectExprs.get(0) instanceof JpqlPathExpr path && path.path().equals("*"))) {
+                // SELECT * or empty SELECT - use all columns from the entity
+                QueryExecutionParams subqueryParams = convert(subquery, context.getEntityManager());
+                subquerySql = dialect.select(
+                    subqueryParams.entityModel(),
+                    subqueryParams.where(),
+                    subqueryParams.groupBy(),
+                    subqueryParams.having(),
+                    subqueryParams.orderBy(),
+                    Pagination.NONE
+                );
+            } else {
+                // SELECT specific columns - convert expressions to attributes and use selectColumns
+                QueryExecutionParams subqueryParams = convert(subquery, context.getEntityManager());
+                
+                // Convert select expressions to ProjectedColumn
+                java.util.List<Dialect.ProjectedColumn> columns = new java.util.ArrayList<>();
+                for (JpqlExpr expr : selectExprs) {
+                    Attribute<?, ?> columnAttr = extractAttribute(expr, subqueryContext);
+                    columns.add(new Dialect.ProjectedColumn.Leaf(columnAttr));
+                }
+                
+                subquerySql = dialect.selectColumns(
+                    subqueryParams.entityModel(),
+                    columns,
+                    subqueryParams.where(),
+                    subqueryParams.groupBy(),
+                    subqueryParams.having(),
+                    subqueryParams.orderBy(),
+                    Pagination.NONE
+                );
+            }
+        } else if (allAnySome.hasExpressionList()) {
+            // For expression lists like "ALL (10, 20, 30)", we need to create a subquery
+            // This is equivalent to: ALL (SELECT value FROM (VALUES (10), (20), (30)) AS t(value))
+            // For now, we'll handle this as a special case
+            throw new UnsupportedOperationException("ALL/ANY/SOME with expression list not yet supported");
+        } else {
+            throw new UnsupportedOperationException("Unknown quantified expression type");
+        }
+        
+        // Create the appropriate Where based on the quantifier
+        switch (allAnySome.quantifier()) {
+            case ALL -> {
+                return Where.all(attr, subquerySql, operatorSymbol);
+            }
+            case ANY -> {
+                return Where.any(attr, subquerySql, operatorSymbol);
+            }
+            case SOME -> {
+                return Where.some(attr, subquerySql, operatorSymbol);
+            }
+            default -> throw new UnsupportedOperationException("Unknown quantifier: " + allAnySome.quantifier());
+        }
+    }
+
+    /**
+     * Maps a JPQL ComparisonOperator to its SQL symbol.
+     */
+    private static String mapComparisonOperator(io.vidocq.mansart.data.query.ast.JpqlPredicate.ComparisonOperator operator) {
+        return switch (operator) {
+            case EQUAL -> "=";
+            case NOT_EQUAL -> "<>";
+            case LESS_THAN -> "<";
+            case LESS_THAN_OR_EQUAL -> "<=";
+            case GREATER_THAN -> ">";
+            case GREATER_THAN_OR_EQUAL -> ">=";
+            case IS_NULL -> "IS NULL";
+            case IS_NOT_NULL -> "IS NOT NULL";
+        };
     }
 
     private static OrderBy convertOrderBy(List<io.vidocq.mansart.data.query.ast.JpqlOrderByItem> items, QueryExecutionContext context) {

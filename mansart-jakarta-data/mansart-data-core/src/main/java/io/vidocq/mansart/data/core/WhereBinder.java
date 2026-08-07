@@ -21,6 +21,7 @@
 package io.vidocq.mansart.data.core;
 
 import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.SqlFragment;
 import io.vidocq.mansart.data.dialect.Where;
 import io.vidocq.mansart.data.dialect.Where.AlwaysFalse;
 import io.vidocq.mansart.data.dialect.Where.AlwaysTrue;
@@ -39,8 +40,11 @@ import io.vidocq.mansart.data.dialect.Where.Like;
 import io.vidocq.mansart.data.dialect.Where.Lt;
 import io.vidocq.mansart.data.dialect.Where.Lte;
 import io.vidocq.mansart.data.dialect.Where.Not;
+import io.vidocq.mansart.data.dialect.Where.All;
+import io.vidocq.mansart.data.dialect.Where.Any;
 import io.vidocq.mansart.data.dialect.Where.NotEq;
 import io.vidocq.mansart.data.dialect.Where.Or;
+import io.vidocq.mansart.data.dialect.Where.Some;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -72,6 +76,9 @@ final class WhereBinder {
                     psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
                 }
             }
+            case All w -> psIdx = bindAllAnySome(dialect, ps, psIdx, args, argCursor, w);
+            case Any w -> psIdx = bindAllAnySome(dialect, ps, psIdx, args, argCursor, w);
+            case Some w -> psIdx = bindAllAnySome(dialect, ps, psIdx, args, argCursor, w);
             case IsNull ignored1 -> { /* no bind */ }
             case IsNotNull ignored2 -> { /* no bind */ }
             case And w -> {
@@ -112,6 +119,45 @@ final class WhereBinder {
      * type. Other unary functions ({@code UPPER}/{@code LOWER}/{@code ABS}) preserve the
      * column's Java type.
      */
+    /**
+     * M6 — bind for ALL/ANY/SOME predicates. These contain subqueries that are part of the
+     * main SQL statement, so we need to bind their parameters here.
+     */
+    private static int bindAllAnySome(Dialect dialect, PreparedStatement ps, int psIdx,
+                                     Object[] args, int[] argCursor, Where where) throws SQLException {
+        // For ALL/ANY/SOME predicates, the subquery SQL is part of the main SQL statement
+        // and its parameters (? placeholders) must be bound in the main PreparedStatement
+        // Count the number of ? in the subquery SQL and bind them
+        SqlFragment subquerySql = switch (where) {
+            case Where.All w -> w.subquery();
+            case Where.Any w -> w.subquery();
+            case Where.Some w -> w.subquery();
+            default -> throw new IllegalArgumentException("Unknown ALL/ANY/SOME type: " + where);
+        };
+        
+        String sql = subquerySql.sql();
+        int paramCount = 0;
+        int pos = 0;
+        while ((pos = sql.indexOf('?', pos)) != -1) {
+            paramCount++;
+            pos++;
+        }
+        
+        // Bind the parameters for the subquery
+        for (int i = 0; i < paramCount; i++) {
+            if (argCursor[0] < args.length) {
+                Object value = args[argCursor[0]++];
+                // Try to infer the type from the value
+                Class<?> type = value != null ? value.getClass() : String.class;
+                dialect.bind(ps, psIdx + i, value, type);
+            } else {
+                throw new SQLException("Not enough parameters provided for subquery in ALL/ANY/SOME predicate");
+            }
+        }
+        
+        return psIdx + paramCount;
+    }
+
     private static int bindFunc(Dialect dialect, PreparedStatement ps, Where.Func func,
                                 Object[] args, int psIdx, int[] argCursor) throws SQLException {
         if (!"LENGTH".equals(func.fn())) {
@@ -152,6 +198,9 @@ final class WhereBinder {
                     "Func cannot wrap And, got: " + inner);
             case Where.Or ignored       -> throw new IllegalArgumentException(
                     "Func cannot wrap Or, got: " + inner);
+            case Where.All ignored    -> psIdx;
+            case Where.Any ignored    -> psIdx;
+            case Where.Some ignored   -> psIdx;
             case Where.Func w           -> bindFuncWithType(dialect, ps, w.inner(), args, psIdx, argCursor, overrideType);
         };
     }
