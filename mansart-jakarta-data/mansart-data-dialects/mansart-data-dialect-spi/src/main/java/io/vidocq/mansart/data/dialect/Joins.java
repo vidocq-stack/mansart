@@ -94,6 +94,9 @@ public final class Joins {
             case Where.Between x   -> sink.accept(x.attr());
             case Where.IsNull x    -> sink.accept(x.attr());
             case Where.IsNotNull x -> sink.accept(x.attr());
+            case Where.All x       -> sink.accept(x.attr());
+            case Where.Any x       -> sink.accept(x.attr());
+            case Where.Some x      -> sink.accept(x.attr());
             case Where.And x       -> { for (Where c : x.children()) walkWhere(c, sink); }
             case Where.Or x        -> { for (Where c : x.children()) walkWhere(c, sink); }
             case Where.Not x       -> walkWhere(x.child(), sink);

@@ -34,12 +34,14 @@ package io.vidocq.mansart.data.query.ast;
  * </pre>
  *
  * @param expression the expression to compare
+ * @param operator the comparison operator (=, <>, <, <=, >, >=)
  * @param quantifier the quantifier (ALL, ANY, SOME)
  * @param subquery the subquery or expression list
  * @since 0.3.0-SNAPSHOT
  */
 public record JpqlAllAnySomePredicate(
     JpqlExpr expression,
+    JpqlPredicate.ComparisonOperator operator,
     Quantifier quantifier,
     JpqlQuantifiedExpression subquery
 ) implements JpqlPredicate {
@@ -105,36 +107,102 @@ public record JpqlAllAnySomePredicate(
     }
 
     /**
+     * Returns the subquery if this quantified expression is a subquery.
+     *
+     * @return the subquery, or null if this is an expression list
+     */
+    public JpqlSelectStmt getSubquery() {
+        if (subquery instanceof JpqlQuantifiedExpression.Subquery sub) {
+            return sub.query();
+        }
+        return null;
+    }
+
+    /**
+     * Returns true if this quantified expression is a subquery.
+     *
+     * @return true if subquery
+     */
+    public boolean hasSubquery() {
+        return subquery instanceof JpqlQuantifiedExpression.Subquery;
+    }
+
+    /**
+     * Returns true if this quantified expression is an expression list.
+     *
+     * @return true if expression list
+     */
+    public boolean hasExpressionList() {
+        return subquery instanceof JpqlQuantifiedExpression.ExpressionList;
+    }
+
+    /**
      * Creates an ALL predicate.
      *
      * @param expression the expression to compare
+     * @param operator the comparison operator
      * @param subquery the subquery
      * @return a new ALL predicate
      */
-    public static JpqlAllAnySomePredicate all(JpqlExpr expression, JpqlSelectStmt subquery) {
-        return new JpqlAllAnySomePredicate(expression, Quantifier.ALL, new JpqlQuantifiedExpression.Subquery(subquery));
+    public static JpqlAllAnySomePredicate all(JpqlExpr expression, JpqlPredicate.ComparisonOperator operator, JpqlSelectStmt subquery) {
+        return new JpqlAllAnySomePredicate(expression, operator, Quantifier.ALL, new JpqlQuantifiedExpression.Subquery(subquery));
     }
 
     /**
      * Creates an ANY predicate.
      *
      * @param expression the expression to compare
+     * @param operator the comparison operator
      * @param subquery the subquery
      * @return a new ANY predicate
      */
-    public static JpqlAllAnySomePredicate any(JpqlExpr expression, JpqlSelectStmt subquery) {
-        return new JpqlAllAnySomePredicate(expression, Quantifier.ANY, new JpqlQuantifiedExpression.Subquery(subquery));
+    public static JpqlAllAnySomePredicate any(JpqlExpr expression, JpqlPredicate.ComparisonOperator operator, JpqlSelectStmt subquery) {
+        return new JpqlAllAnySomePredicate(expression, operator, Quantifier.ANY, new JpqlQuantifiedExpression.Subquery(subquery));
     }
 
     /**
      * Creates a SOME predicate.
      *
      * @param expression the expression to compare
+     * @param operator the comparison operator
      * @param subquery the subquery
      * @return a new SOME predicate
      */
+    public static JpqlAllAnySomePredicate some(JpqlExpr expression, JpqlPredicate.ComparisonOperator operator, JpqlSelectStmt subquery) {
+        return new JpqlAllAnySomePredicate(expression, operator, Quantifier.SOME, new JpqlQuantifiedExpression.Subquery(subquery));
+    }
+
+    /**
+     * Creates an ALL predicate with EQUAL operator.
+     *
+     * @param expression the expression to compare
+     * @param subquery the subquery
+     * @return a new ALL predicate with EQUAL operator
+     */
+    public static JpqlAllAnySomePredicate all(JpqlExpr expression, JpqlSelectStmt subquery) {
+        return all(expression, JpqlPredicate.ComparisonOperator.EQUAL, subquery);
+    }
+
+    /**
+     * Creates an ANY predicate with EQUAL operator.
+     *
+     * @param expression the expression to compare
+     * @param subquery the subquery
+     * @return a new ANY predicate with EQUAL operator
+     */
+    public static JpqlAllAnySomePredicate any(JpqlExpr expression, JpqlSelectStmt subquery) {
+        return any(expression, JpqlPredicate.ComparisonOperator.EQUAL, subquery);
+    }
+
+    /**
+     * Creates a SOME predicate with EQUAL operator.
+     *
+     * @param expression the expression to compare
+     * @param subquery the subquery
+     * @return a new SOME predicate with EQUAL operator
+     */
     public static JpqlAllAnySomePredicate some(JpqlExpr expression, JpqlSelectStmt subquery) {
-        return new JpqlAllAnySomePredicate(expression, Quantifier.SOME, new JpqlQuantifiedExpression.Subquery(subquery));
+        return some(expression, JpqlPredicate.ComparisonOperator.EQUAL, subquery);
     }
 }
 

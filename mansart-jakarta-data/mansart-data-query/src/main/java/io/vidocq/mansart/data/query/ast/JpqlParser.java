@@ -409,36 +409,36 @@ public final class JpqlParser {
             return JpqlExistsPredicate.exists(subquery);
         }
         
-        if (currentToken.type == TokenType.ALL || currentToken.type == TokenType.ANY || currentToken.type == TokenType.SOME) {
-            TokenType quantifierType = currentToken.type;
-            advance();
-            expect(TokenType.LPAREN);
-            // Parse the expression before the subquery for ALL/ANY/SOME
-            // For now, we assume it's a simple expression; full support needs more work
-            JpqlExpr leftExpr = parseExpression();
-            JpqlSelectStmt subquery = parseSelectStatement();
-            expect(TokenType.RPAREN);
-            
-            JpqlAllAnySomePredicate.Quantifier quantifier = switch (quantifierType) {
-                case ALL -> JpqlAllAnySomePredicate.Quantifier.ALL;
-                case ANY -> JpqlAllAnySomePredicate.Quantifier.ANY;
-                case SOME -> JpqlAllAnySomePredicate.Quantifier.SOME;
-                default -> throw unexpectedToken("Expected ALL, ANY, or SOME");
-            };
-            return new JpqlAllAnySomePredicate(leftExpr, quantifier, new JpqlQuantifiedExpression.Subquery(subquery));
-        }
-        
-
-        
         // Parse left expression for most predicates
         JpqlExpr left = parseExpression();
         
+        // Check for comparison operators
         if (currentToken.type == TokenType.EQ || currentToken.type == TokenType.NE ||
             currentToken.type == TokenType.LT || currentToken.type == TokenType.LE ||
             currentToken.type == TokenType.GT || currentToken.type == TokenType.GE) {
             
             JpqlPredicate.ComparisonOperator operator = mapComparisonOperator(currentToken.type);
             advance();
+            
+            // Check if next token is ALL/ANY/SOME for quantified comparison
+            // e.g., "b.price > ALL (SELECT ...)"
+            if (currentToken.type == TokenType.ALL || currentToken.type == TokenType.ANY || currentToken.type == TokenType.SOME) {
+                TokenType quantifierType = currentToken.type;
+                advance();
+                expect(TokenType.LPAREN);
+                JpqlSelectStmt subquery = parseSelectStatement();
+                expect(TokenType.RPAREN);
+                
+                JpqlAllAnySomePredicate.Quantifier quantifier = switch (quantifierType) {
+                    case ALL -> JpqlAllAnySomePredicate.Quantifier.ALL;
+                    case ANY -> JpqlAllAnySomePredicate.Quantifier.ANY;
+                    case SOME -> JpqlAllAnySomePredicate.Quantifier.SOME;
+                    default -> throw unexpectedToken("Expected ALL, ANY, or SOME");
+                };
+                return new JpqlAllAnySomePredicate(left, operator, quantifier, new JpqlQuantifiedExpression.Subquery(subquery));
+            }
+            
+            // Regular comparison predicate
             JpqlExpr right = parseExpression();
             return mapComparisonPredicate(operator, left, right);
         }

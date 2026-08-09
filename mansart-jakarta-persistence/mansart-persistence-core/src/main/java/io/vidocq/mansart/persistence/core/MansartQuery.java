@@ -103,6 +103,7 @@ public class MansartQuery extends AbstractMansartQuery<Query> implements Query {
             return runtime.queryList(params.entityModel(), params.where(), params.orderBy(), args);
         } catch (UnsupportedOperationException | IllegalArgumentException e) {
             // Fallback: if path resolution fails or entity can't be resolved, return empty list
+            System.err.println("DEBUG: MansartQuery.executeSelectQuery - caught exception: " + e.getMessage());
             return List.of();
         }
     }

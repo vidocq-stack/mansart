@@ -73,6 +73,24 @@ public sealed interface Where {
      */
     record Exists(SqlFragment subquery, boolean not) implements Where {}
 
+    /**
+     * M6 — ALL predicate: expression operator {ALL | ANY | SOME} (subquery).
+     * The SqlFragment represents the complete subquery.
+     */
+    record All(Attribute<?, ?> attr, SqlFragment subquery, String operator) implements Where {}
+
+    /**
+     * M6 — ANY predicate: expression operator {ALL | ANY | SOME} (subquery).
+     * ANY and SOME are semantically equivalent.
+     */
+    record Any(Attribute<?, ?> attr, SqlFragment subquery, String operator) implements Where {}
+
+    /**
+     * M6 — SOME predicate: expression operator {ALL | ANY | SOME} (subquery).
+     * SOME is semantically equivalent to ANY.
+     */
+    record Some(Attribute<?, ?> attr, SqlFragment subquery, String operator) implements Where {}
+
     static Where eq(Attribute<?, ?> a)        { return new Eq(a); }
     static Where between(Attribute<?, ?> a)   { return new Between(a); }
     static Where in(Attribute<?, ?> a, int n) { return new In(a, n); }
@@ -80,4 +98,7 @@ public sealed interface Where {
     static Where or(Where... ws)              { return new Or(List.of(ws)); }
     static Where exists(SqlFragment subquery) { return new Exists(subquery, false); }
     static Where notExists(SqlFragment subquery) { return new Exists(subquery, true); }
+    static Where all(Attribute<?, ?> attr, SqlFragment subquery, String operator) { return new All(attr, subquery, operator); }
+    static Where any(Attribute<?, ?> attr, SqlFragment subquery, String operator) { return new Any(attr, subquery, operator); }
+    static Where some(Attribute<?, ?> attr, SqlFragment subquery, String operator) { return new Some(attr, subquery, operator); }
 }

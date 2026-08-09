@@ -389,6 +389,10 @@ public final class H2Dialect implements Dialect {
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
             // M6 — EXISTS predicate
             case Where.Exists w -> sb.append(w.not() ? "NOT EXISTS " : "EXISTS ").append('(').append(w.subquery().sql()).append(')');
+            // M6 — ALL/ANY/SOME predicates
+            case Where.All w -> sb.append(col(w.attr(), plan)).append(' ').append(w.operator()).append(" ALL (").append(w.subquery().sql()).append(")");
+            case Where.Any w -> sb.append(col(w.attr(), plan)).append(' ').append(w.operator()).append(" ANY (").append(w.subquery().sql()).append(")");
+            case Where.Some w -> sb.append(col(w.attr(), plan)).append(' ').append(w.operator()).append(" SOME (").append(w.subquery().sql()).append(")");
             case Where.AlwaysTrue ignored  -> sb.append("1=1");
             case Where.AlwaysFalse ignored -> sb.append("1=0");
         }
