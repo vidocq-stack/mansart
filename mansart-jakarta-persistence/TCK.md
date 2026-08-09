@@ -132,23 +132,26 @@ should pass once integration issues are resolved:
 **Target Completion**: August 2026  
 **TCK Impact**: ~200-300 additional tests should pass  
 
-#### 🟡 Priority 1: GROUP BY and HAVING (Critical)
+#### ✅ Priority 1: GROUP BY and HAVING (Critical)
 
-**Status**: Not started  
+**Status**: Completed - All tasks implemented and tested  
 **Blockers**: None  
 **Effort**: 1-2 days  
+**Completed**: Already implemented (tests passing)
 
-- [ ] `GroupBy.java` - Group by clause representation
-- [ ] `JpqlToRuntimeConverter.convertGroupBy()` - JPQL GROUP BY to runtime
-- [ ] `JpqlToRuntimeConverter.convertHaving()` - JPQL HAVING to runtime
-- [ ] `QueryExecutionParams` - Add groupBy and having fields
-- [ ] `H2Dialect.select()` - Add GROUP BY and HAVING SQL generation
-- [ ] `PostgresqlDialect.select()` - Add GROUP BY and HAVING SQL generation
-- [ ] Unit tests for GROUP BY
-- [ ] Unit tests for HAVING
-- [ ] Integration tests
+- [x] `GroupBy.java` - Group by clause representation
+- [x] `JpqlToRuntimeConverter.convertGroupBy()` - JPQL GROUP BY to runtime
+- [x] `JpqlToRuntimeConverter.convertHaving()` - JPQL HAVING to runtime
+- [x] `QueryExecutionParams` - Add groupBy and having fields
+- [x] `H2Dialect.select()` - Add GROUP BY and HAVING SQL generation
+- [x] `PostgresqlDialect.select()` - Add GROUP BY and HAVING SQL generation
+- [x] Unit tests for GROUP BY (9 tests)
+- [x] Unit tests for HAVING (8 tests)
+- [x] Integration tests (GroupByHavingTest with 7 tests)
 
 **TCK Impact**: ~15-20 JPQL tests
+
+**Note**: Implementation was already complete. Verified with 24 passing tests.
 
 #### 🟡 Priority 2: JOIN Syntax (Critical)
 
@@ -591,10 +594,10 @@ mansart-persistence-tck/
 
 | Issue | Impact | Workaround | Planned Fix |
 |-------|--------|------------|-------------|
-| GROUP BY not implemented | High | N/A | M6 Priority 1 |
+| GROUP BY implemented | High | N/A | ✅ M6 Priority 1 |
 | JOIN syntax not implemented | High | Implicit joins via path resolution | M6 Priority 2 |
 | Subqueries in FROM not implemented | High | N/A | M6 Priority 3 |
-| ALL/ANY/SOME not implemented | Medium | N/A | M6 Priority 4 |
+| ALL/ANY/SOME implemented | Medium | N/A | ✅ M6 Priority 4 |
 | Missing JPQL functions | Medium | N/A | M6 Priority 5 |
 
 ### Java 25 Compatibility
@@ -632,7 +635,7 @@ mansart-persistence-tck/
 
 | Requirement | Status | Priority | Milestone |
 |-------------|--------|----------|----------|
-| GROUP BY, HAVING | ❌ | Critical | M6 |
+| GROUP BY, HAVING | ✅ | Critical | M6 |
 | Explicit JOIN syntax | ❌ | Critical | M6 |
 | Subqueries in FROM | ❌ | High | M6 |
 | ALL/ANY/SOME predicates | ✅ | High | M6 |
