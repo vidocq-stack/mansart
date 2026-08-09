@@ -174,36 +174,16 @@ public final class JpqlParser {
         String entityName = parseEntityName();
         String identifier = parseIdentifier();
         List<JpqlJoin> joins = new ArrayList<>();
-        List<JpqlFromItem> items = new ArrayList<>();
         
-        // Parse joins - for now, create separate from items for each join to match test expectations
+        // Parse joins - store them in the main from item
         while (isJoinToken(currentToken.type)) {
             JpqlJoin join = parseJoin();
             joins.add(join);
-            // For test compatibility: create a separate from item for the join target
-            // Extract entity name from the join path (last part)
-            String joinEntityName = extractEntityNameFromPath(join.path().path());
-            items.add(new JpqlFromItem(joinEntityName, join.identifier(), List.of()));
         }
         
-        items.add(0, new JpqlFromItem(entityName, identifier, joins));
-        return items;
+        return List.of(new JpqlFromItem(entityName, identifier, joins));
     }
     
-    private String extractEntityNameFromPath(String path) {
-        // Simple heuristic: use the last part of the path as entity name
-        // e.g., "b.author" -> "author" -> capitalize -> "Author"
-        String[] parts = path.split("\\.");
-        if (parts.length > 0) {
-            String lastPart = parts[parts.length - 1];
-            // Capitalize first letter
-            if (!lastPart.isEmpty()) {
-                return lastPart.substring(0, 1).toUpperCase() + lastPart.substring(1);
-            }
-        }
-        return "Unknown";
-    }
-
     private String parseEntityName() {
         if (currentToken.type == TokenType.IDENTIFIER) {
             String name = currentToken.text;
