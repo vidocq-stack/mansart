@@ -5,6 +5,9 @@ Compact scoreboard read at the START of every Vibe session and updated at the EN
 `MANSART_PERSISTENCE_3_2.md` — **never load it whole**; grep only the section for the
 current task. Bugs → `BUG.md` (`/log-bug`). Perf numbers → `BENCH.md` (`/log-bench`).
 
+**Validation gate**: a checkbox below may only be ticked after a green FULL build from
+the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every module.
+
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
@@ -85,5 +88,6 @@ current task. Bugs → `BUG.md` (`/log-bug`). Perf numbers → `BENCH.md` (`/log
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-13 — incident — MANSART-008: jdtls ECJ classes corrupted mansart-transactions `target/`; reverted Vibe's opens/add-reads workaround, killed orphaned jdtls, clean rebuild green (88 tests). Pitfall rule added to AGENTS.md.
 - 2026-08-13 — M7-1 — mansart-jakarta-persistence module structure created: POMs, module-info.java, service file; all modules compile successfully
 - 2026-08-13 — setup — Vibe configuration completed (agents, skills, hooks, MCP); tracker created.

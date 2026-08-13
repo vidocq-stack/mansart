@@ -174,6 +174,14 @@ Vibe loads up to two `AGENTS.md` files into every session: `~/.vibe/AGENTS.md`
 (user-level) and the first one found walking up from the working directory (trusted
 folders only). Subagents inherit it too. mansart's `AGENTS.md` gained two sections:
 
+- **"Engineering directives (mansart-persistence 3.2)"** — JDK 25, Virtual Threads +
+  `ScopedValue` (never `ThreadLocal`), APT-first codegen (Class-File API last resort),
+  CDI via Vauban BCE (mirror mansart-data-cdi), English, TDD, official TCK green.
+- **"Working protocol (context-window efficiency)"** — one task per session; read
+  `PERSISTENCE-STATUS.md` at start, update it at end; **validation gate: a task may
+  only be marked done after `./mvnw -ntp clean install` at the mansart root is green
+  on every module** (full non-regression, also purges stale jdtls/ECJ classes).
+- **"Known pitfall: stale ECJ classes in `target/` (jdtls)"** — see §10.
 - **"Vibe subagents and skills (`.vibe/`)"** — tells the model which subagents exist
   and to delegate proactively, and lists the slash commands. Without this, discovery
   relies only on the `task` tool's agent list.
@@ -279,6 +287,47 @@ echo '{"tool_input":{"command":"git status","timeout":30}}' \
    context-mode routing).
 6. Nothing to do for RTK — the user-level hook applies everywhere.
 7. Run the §8 probes.
+
+## 10. Lesson learned: jdtls fights Maven for `target/` (incident MANSART-008)
+
+Running jdtls (via the `java-lsp` bridge) against a project that is **also built with
+Maven CLI** has a sharp edge: jdtls imports the project through m2e and compiles with
+**ECJ into the Maven output directories** (`target/classes`, `target/test-classes`).
+
+Two failure modes were hit on 2026-08-13 (full trace: `BUG.md` MANSART-008):
+
+1. **Stale broken classes.** Unlike javac, ECJ writes `.class` files even for code it
+   could NOT compile, embedding `throw new Error("Unresolved compilation problems")`
+   and **package-less descriptors** for unresolved types. Maven's incremental compiler
+   then sees a `.class` newer than the source, skips recompilation, and surefire runs
+   the corrupted bytecode. The fingerprint is unmistakable: a test dies with
+   `TypeNotPresentException` / `ClassNotFoundException` on a class name **without a
+   package**, or `java.lang.Error: Unresolved compilation problems`, while sources are
+   green. `javap -v <class>` shows the embedded error string.
+2. **Orphaned jdtls processes.** `vibe -p` (programmatic) runs may fail to kill their
+   MCP child process groups — the CLI prints `Process group termination failed …
+   falling back to simple terminate`. The leaked jdtls instances keep recompiling and
+   re-corrupting `target/` DURING later Maven builds; wiping their `-data` directory
+   while they run makes it worse (broken resolution → more ECJ garbage).
+
+**The trap for the agent**: the runtime symptoms look module-related, so the model
+"fixes" them with `opens`, `--add-reads`, or surefire `useModulePath` changes. That is
+always wrong for this fingerprint — it violates the strict-modules charter and cannot
+fix corrupted bytecode. The rule is codified in `AGENTS.md` > "Known pitfall".
+
+**Recovery procedure**:
+
+```bash
+pkill -f mcp-language-server                      # stops bridges AND their jdtls children
+rm -rf ~/.cache/jdtls/<project>-workspace          # only when no jdtls is running
+git checkout -- <files touched by the wrong fix>   # if the agent already "fixed" modules
+./mvnw -ntp -f <reactor>/pom.xml clean test        # clean purges the ECJ classes
+```
+
+**Prevention**: `mvn clean` before any test run that follows java-lsp editing activity;
+after `vibe -p` probes, check `ps aux | grep jdtls` for orphans; treat any
+`module-info.java`/surefire edit proposed in response to a test failure as suspect
+unless the error is a genuine module error (`does not read`, `does not export`).
 
 ## References
 

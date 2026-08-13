@@ -344,3 +344,52 @@ Two aligned changes: (1) `MansartMetamodelWriter` should read `@Enumerated` and 
 `EnumStorage`; (2) the dialects' `bind`/`extract` should honor `EnumAttribute.storage` — `name()`/
 `valueOf` for STRING, `ordinal()`/`values()[i]` for ORDINAL. Add a regression entity with an
 `@Enumerated(ORDINAL)` column. Not urgent: no current Vidocq entity needs ORDINAL.
+
+---
+
+## MANSART-008 — jdtls (java-lsp MCP) writes broken ECJ classes into `target/`, corrupting surefire runs
+
+- **Date**: 2026-08-13
+- **Status**: CLOSED (tooling incident — zero mansart source change needed)
+- **Severity**: medium (broke `mansart-transactions-cdi` and `-module-it` test runs; misled the
+  Vibe agent into module-config workarounds that violated the strict-modules charter)
+
+### Symptom
+`TransactionalInterceptorTest` failed with `TypeNotPresentException: Type
+MansartTransactionsProducer not present`, caused by `ClassNotFoundException:
+MansartTransactionsProducer` — note the **package-less** class name. Later,
+`TxModulePathTest` failed with `NoClassDefFound: Block` and
+`java.lang.Error: Unresolved compilation problems`. Sources were correct and committed green.
+
+### Root cause
+The `java-lsp` MCP server (mcp-language-server → jdtls) compiles with **ECJ into the Maven
+output directories** (`target/classes`, `target/test-classes`). Unlike javac, ECJ emits `.class`
+files even for uncompilable code, embedding `throw new Error("Unresolved compilation problems")`
+and **simple-name descriptors** (`LMansartTransactionsProducer;`) for unresolved types — proven
+by `javap -v` on the failing test class. Maven's incremental compile then skips the stale (newer)
+`.class`, and surefire executes the corrupted bytecode. Two aggravating factors:
+1. jdtls's workspace metadata (`~/.cache/jdtls/mansart-workspace`) was stale (created before a
+   module layout change), so its resolution was broken ("The type X collides with a package").
+2. **Orphaned jdtls instances**: `vibe -p` probe runs failed to kill their process groups
+   ("Process group termination failed … falling back to simple terminate"), leaving two live
+   jdtls processes that re-corrupted `target/` DURING subsequent Maven builds.
+
+### Wrong fix (reverted)
+The Vibe agent pattern-matched a module problem and set surefire `useModulePath=true` +
+`--add-reads` argLine, and added `opens io.vidocq.mansart.transactions.cdi to io.vidocq.vauban.core`
+— deleting the design comment that documents the no-opens proof (`mansart-transactions-cdi-module-it`).
+Reverted via `git checkout`.
+
+### Resolution
+1. `git checkout` of `mansart-transactions-cdi/pom.xml` and `module-info.java`.
+2. Killed the orphaned `mcp-language-server`/jdtls processes; `rm -rf ~/.cache/jdtls/mansart-workspace`.
+3. `./mvnw -f mansart-transactions/pom.xml clean test` → **BUILD SUCCESS, 88 tests, 0 failures**
+   (incl. `TransactionalInterceptorTest` 14/14 and `TxModulePathTest` 2/2 on the strict module path).
+
+### Prevention
+- `AGENTS.md` > "Known pitfall: stale ECJ classes in `target/` (jdtls)": symptom fingerprint
+  (package-less CNFE / "Unresolved compilation problems") → `mvn clean`, NEVER `opens`/`--add-reads`;
+  any `module-info.java` change must be justified by a genuine module error and reviewed by
+  `jpms-guardian`.
+- Stop jdtls (`pkill -f mcp-language-server`) before wiping its workspace; check for orphans after
+  `vibe -p` runs. Full write-up: `PARAMETRAGE_VIBE.md` §10.
