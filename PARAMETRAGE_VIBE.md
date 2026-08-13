@@ -435,6 +435,11 @@ brain; only the tool-specific glue differs.
   itself — which means the §10 ECJ pitfall applies to OpenCode too (its jdtls also
   compiles into `target/`; `pkill -f mcp-language-server` will NOT catch OpenCode's
   jdtls — use `pkill -f "eclipse.jdt.ls"`).
+- **LSP is opt-in since OpenCode 1.18**: without an `lsp` key the TUI shows "LSPs
+  are disabled". Enabled globally with `"lsp": true` in
+  `~/.config/opencode/opencode.json` — jdtls then starts when a `.java` file is
+  touched (first use downloads jdtls and imports the Maven reactor: slow once).
+  `OPENCODE_DISABLE_LSP_DOWNLOAD=true` would block the auto-download if ever needed.
 - **RTK** — global plugin `~/.config/opencode/plugins/rtk-rewrite.js` using the
   `tool.execute.before` hook: bash commands go through `rtk rewrite` (exit 0/3 →
   rewrite; 1/2 → pass through), mirroring the Vibe/Claude hooks.

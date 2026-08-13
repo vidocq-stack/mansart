@@ -11,14 +11,14 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-2 — Implement mansart-persistence-api
-- **Next up**: M7-3 (persistence-spi), M7-4 (PersistenceProvider), M7-5 (EntityManagerFactory)
+- **Current task**: M7-3 — Implement mansart-persistence-spi
+- **Next up**: M7-4 (PersistenceProvider), M7-5 (EntityManagerFactory), M7-6 (EntityManager)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
 
 - [x] M7-1 Create mansart-jakarta-persistence module structure (POMs, module-info)
-- [ ] M7-2 Implement mansart-persistence-api
+- [x] M7-2 Implement mansart-persistence-api
 - [ ] M7-3 Implement mansart-persistence-spi
 - [ ] M7-4 Implement MansartPersistenceProvider
 - [ ] M7-5 Implement EntityManagerFactory
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-13 — M7-2 — Fixed mansart-persistence-api: changed `requires jakarta.persistence` to `requires transitive jakarta.persistence`, removed redundant dependencies (jakarta.inject, jakarta.cdi) from pom.xml, module now properly re-exports Jakarta Persistence API as per M7-2 spec; full build green
 - 2026-08-13 — M7-2 — Fixed mansart-persistence-cdi compilation: removed non-existent `vauban-cdi` dependency from pom.xml and corrected module-info.java; fixed mansart-persistence-tests module-info.java (removed invalid test dependency requires); full build green
 - 2026-08-13 — incident — MANSART-008: jdtls ECJ classes corrupted mansart-transactions `target/`; reverted Vibe's opens/add-reads workaround, killed orphaned jdtls, clean rebuild green (88 tests). Pitfall rule added to AGENTS.md.
 - 2026-08-13 — M7-1 — mansart-jakarta-persistence module structure created: POMs, module-info.java, service file; all modules compile successfully
