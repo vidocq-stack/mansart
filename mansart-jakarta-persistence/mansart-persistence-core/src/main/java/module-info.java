@@ -16,9 +16,5 @@ module io.vidocq.mansart.persistence.core {
     requires io.vidocq.mansart.data.dialect.h2;
     requires io.vidocq.mansart.transactions.core;
     
-    exports io.vidocq.mansart.persistence.core;
-    
-    // Required for reflection-based entity loading (fallback when APT not available)
-    // Justification: Entity class loading via Class.forName for dynamic entity registration
-    opens io.vidocq.mansart.persistence.core to java.base;
+    exports io.vidocq.mansart.persistence.core.bootstrap;
 }

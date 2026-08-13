@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-4 — Implement MansartPersistenceProvider
-- **Next up**: M7-5 (EntityManagerFactory), M7-6 (EntityManager), M7-7 (L1 cache)
+- **Current task**: M7-5 — Implement EntityManagerFactory
+- **Next up**: M7-6 (EntityManager), M7-7 (L1 cache), M7-8 (EntityState management)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -20,7 +20,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-1 Create mansart-jakarta-persistence module structure (POMs, module-info)
 - [x] M7-2 Implement mansart-persistence-api
 - [x] M7-3 Implement mansart-persistence-spi
-- [ ] M7-4 Implement MansartPersistenceProvider
+- [x] M7-4 Implement MansartPersistenceProvider
 - [ ] M7-5 Implement EntityManagerFactory
 - [ ] M7-6 Implement MansartEntityManager (CRUD)
 - [ ] M7-7 Implement L1 cache
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-13 — M7-4 — Implemented MansartPersistenceProvider (PersistenceProvider interface, all 6 methods as stubs); removed duplicate EntityState.java from core; updated module-info to export only bootstrap package; full build green
 - 2026-08-13 — M7-3 — Implemented SPI interfaces: EntityState (enum), Bootstrap (config), EntityMetadata (runtime metadata); full build green
 - 2026-08-13 — M7-2 — Fixed mansart-persistence-api: changed `requires jakarta.persistence` to `requires transitive jakarta.persistence`, removed redundant dependencies (jakarta.inject, jakarta.cdi) from pom.xml, module now properly re-exports Jakarta Persistence API as per M7-2 spec; full build green
 - 2026-08-13 — M7-2 — Fixed mansart-persistence-cdi compilation: removed non-existent `vauban-cdi` dependency from pom.xml and corrected module-info.java; fixed mansart-persistence-tests module-info.java (removed invalid test dependency requires); full build green
