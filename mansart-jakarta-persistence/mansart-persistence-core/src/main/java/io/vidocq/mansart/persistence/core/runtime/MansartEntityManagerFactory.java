@@ -17,16 +17,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-module io.vidocq.mansart.persistence.core {
-    requires io.vidocq.mansart.persistence.api;
-    requires io.vidocq.mansart.persistence.spi;
-    requires jakarta.persistence;
-    requires jakarta.transaction;
-    requires java.sql;
-    requires io.vidocq.mansart.data.dialect.spi;
-    requires io.vidocq.mansart.data.dialect.h2;
-    requires io.vidocq.mansart.transactions.core;
-    
-    exports io.vidocq.mansart.persistence.core.bootstrap;
-    exports io.vidocq.mansart.persistence.core.runtime;
+package io.vidocq.mansart.persistence.core.runtime;
+
+/**
+ * Stub implementation of {@link jakarta.persistence.EntityManagerFactory}.
+ *
+ * <p>Milestone: M7-5 - Skeleton implementation for {@code MansartPersistenceProvider}.
+ * This class currently returns null for all methods and serves as a placeholder
+ * for future implementation.
+ */
+public class MansartEntityManagerFactory {
+
 }

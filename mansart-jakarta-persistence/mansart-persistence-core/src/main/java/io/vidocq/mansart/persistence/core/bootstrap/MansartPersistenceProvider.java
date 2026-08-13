@@ -29,6 +29,8 @@ import jakarta.persistence.spi.PersistenceUnitInfo;
 
 import java.util.Map;
 
+import io.vidocq.mansart.persistence.spi.Bootstrap;
+
 /**
  * Mansart Persistence Provider implementation.
  *

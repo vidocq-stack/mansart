@@ -21,7 +21,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-2 Implement mansart-persistence-api
 - [x] M7-3 Implement mansart-persistence-spi
 - [x] M7-4 Implement MansartPersistenceProvider
-- [ ] M7-5 Implement EntityManagerFactory
+- [x] M7-5 Implement EntityManagerFactory
 - [ ] M7-6 Implement MansartEntityManager (CRUD)
 - [ ] M7-7 Implement L1 cache
 - [ ] M7-8 Implement EntityState management
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-13 — M7-5 — Implemented MansartEntityManagerFactory stub; simplified bootstrap to return null for createEntityManagerFactory; updated module-info and POMs; full build green
 - 2026-08-13 — M7-4 — Implemented MansartPersistenceProvider (PersistenceProvider interface, all 6 methods as stubs); removed duplicate EntityState.java from core; updated module-info to export only bootstrap package; full build green
 - 2026-08-13 — M7-3 — Implemented SPI interfaces: EntityState (enum), Bootstrap (config), EntityMetadata (runtime metadata); full build green
 - 2026-08-13 — M7-2 — Fixed mansart-persistence-api: changed `requires jakarta.persistence` to `requires transitive jakarta.persistence`, removed redundant dependencies (jakarta.inject, jakarta.cdi) from pom.xml, module now properly re-exports Jakarta Persistence API as per M7-2 spec; full build green
