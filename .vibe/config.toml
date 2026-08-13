@@ -1,32 +1,77 @@
-# Project-level Vibe configuration for mansart.
-# Loaded when the working directory is trusted; takes precedence over ~/.vibe/config.toml.
-
-# Java language intelligence via jdtls, bridged to MCP.
-# jdtls speaks LSP, not MCP: launching it directly as an MCP server hangs on the
-# MCP `initialize` handshake and times out. mcp-language-server
-# (github.com/isaacphi/mcp-language-server) wraps it and exposes MCP tools
-# (definition, references, diagnostics, hover, rename).
 [[mcp_servers]]
 name = "java-lsp"
 transport = "stdio"
 command = "/Users/yblazart/go/bin/mcp-language-server"
 args = [
-    "--workspace", "/Users/yblazart/projects/perso/vidocq/mansart",
-    "--lsp", "/opt/homebrew/bin/jdtls",
-    "--", "-data", "/Users/yblazart/.cache/jdtls/mansart-workspace",
+    "--workspace",
+    "/Users/yblazart/projects/perso/vidocq/mansart",
+    "--lsp",
+    "/opt/homebrew/bin/jdtls",
+    "--",
+    "-data",
+    "/Users/yblazart/.cache/jdtls/mansart-workspace",
 ]
-env = { JAVA_HOME = "/Users/yblazart/.sdkman/candidates/java/25-tem" }
-# jdtls imports the Maven reactor on first start — give it time.
 startup_timeout_sec = 120
 tool_timeout_sec = 60
 
-# context-mode: sandboxed command execution + FTS5 knowledge base to keep large
-# outputs out of the context window (same server as the Claude Code plugin).
-# Path is version-pinned to the installed Claude plugin — bump after plugin updates.
+[mcp_servers.env]
+JAVA_HOME = "/Users/yblazart/.sdkman/candidates/java/25-tem"
+
 [[mcp_servers]]
 name = "ctx"
 transport = "stdio"
 command = "/opt/homebrew/bin/node"
-args = ["/Users/yblazart/.claude/plugins/cache/context-mode/context-mode/1.0.65/start.mjs"]
+args = [
+    "/Users/yblazart/.claude/plugins/cache/context-mode/context-mode/1.0.65/start.mjs",
+]
 startup_timeout_sec = 60
 tool_timeout_sec = 120
+
+[tools.bash]
+allowlist = [
+    "/Users/yblazart/.vibe/*",
+    "/Users/yblazart/.vibe/skills/*",
+    "/Users/yblazart/projects/perso/vidocq/*",
+    "basename",
+    "cat",
+    "cd",
+    "comm",
+    "cut",
+    "date",
+    "diff",
+    "dirname",
+    "du",
+    "echo",
+    "file",
+    "find",
+    "fmt",
+    "fold",
+    "grep",
+    "head",
+    "join",
+    "less",
+    "ls",
+    "md5sum",
+    "mkdir",
+    "more",
+    "nl",
+    "od",
+    "paste",
+    "pwd",
+    "readlink",
+    "rtk",
+    "sha1sum",
+    "sha256sum",
+    "shasum",
+    "sort",
+    "stat",
+    "sum",
+    "tac",
+    "tail",
+    "tr",
+    "uname",
+    "uniq",
+    "wc",
+    "which",
+    "xargs",
+]

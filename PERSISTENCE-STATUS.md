@@ -8,13 +8,13 @@ current task. Bugs → `BUG.md` (`/log-bug`). Perf numbers → `BENCH.md` (`/log
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-1 — Create mansart-jakarta-persistence module structure
-- **Next up**: M7-2 (persistence-api), M7-3 (persistence-spi), M7-4 (PersistenceProvider)
+- **Current task**: M7-2 — Implement mansart-persistence-api
+- **Next up**: M7-3 (persistence-spi), M7-4 (PersistenceProvider), M7-5 (EntityManagerFactory)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
 
-- [ ] M7-1 Create mansart-jakarta-persistence module structure (POMs, module-info)
+- [x] M7-1 Create mansart-jakarta-persistence module structure (POMs, module-info)
 - [ ] M7-2 Implement mansart-persistence-api
 - [ ] M7-3 Implement mansart-persistence-spi
 - [ ] M7-4 Implement MansartPersistenceProvider
@@ -85,4 +85,5 @@ current task. Bugs → `BUG.md` (`/log-bug`). Perf numbers → `BENCH.md` (`/log
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-13 — M7-1 — mansart-jakarta-persistence module structure created: POMs, module-info.java, service file; all modules compile successfully
 - 2026-08-13 — setup — Vibe configuration completed (agents, skills, hooks, MCP); tracker created.
