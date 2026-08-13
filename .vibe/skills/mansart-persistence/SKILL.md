@@ -67,6 +67,20 @@ private static final ThreadLocal<PersistenceContext> context = new ThreadLocal<>
 - CDI integration (required by spec)
 - Dynamic proxy generation (if ClassFile API insufficient)
 
+### 4. TDD (mandatory)
+
+Write the failing test FIRST, then the implementation, then refactor (red → green →
+refactor). No implementation code without a motivating test. Unit tests live in
+`mansart-persistence-tests` (JUnit + AssertJ); spec-level scenarios come from the TCK.
+
+### 5. CDI integration via Vauban (Build Compatible Extension)
+
+`mansart-persistence-cdi` integrates with **Vauban** (CDI 4.1 Lite) through a
+**Build Compatible Extension** — never a Portable Extension. **Mirror the existing
+`mansart-jakarta-data/mansart-data-cdi` module**: same BCE structure (discovery,
+synthesis), same registration patterns, same test approach. Read that module before
+writing any CDI code here.
+
 ## Project Structure
 
 ```
