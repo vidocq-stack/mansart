@@ -329,6 +329,94 @@ after `vibe -p` probes, check `ps aux | grep jdtls` for orphans; treat any
 `module-info.java`/surefire edit proposed in response to a test failure as suspect
 unless the error is a genuine module error (`does not read`, `does not export`).
 
+## 11. Local model: oMLX + Devstral Small 2 (MLX, Apple Silicon)
+
+Motivation: the hosted Mistral API had repeated instability (HTTP 503). The fallback
+is fully local inference on the M5 Max (128 GB) through **oMLX** (production MLX
+server, `omlx` CLI + `oMLX.app`), which exposes an **OpenAI-compatible API** on
+`127.0.0.1:8000`, protected by an API key.
+
+### What was verified before wiring
+
+1. **Tool-call parsing** — the make-or-break for any agent CLI. Devstral emits tool
+   calls in Mistral's raw format (`[TOOL_CALLS]name[ARGS]{...}`, EOS-terminated); the
+   server must convert them to OpenAI `tool_calls` JSON, otherwise Vibe hangs forever
+   on "Generating…". Verified on oMLX with a direct `curl` carrying a `tools` array:
+   the response came back with `finish_reason: "tool_calls"` and a parsed
+   `tool_calls[]` entry. (For stock `mlx_lm.server`, this needs mlx-lm ≥ 0.30.7.)
+2. **Model present**: `Devstral-Small-2-24B-Instruct-2512-4bit` already installed in
+   `~/omlx-models` (profile: temp 0.2, 131k context), among 7 exposed models.
+
+### Wiring (three pieces)
+
+`~/.vibe/.env` (Vibe's credential file, already present):
+
+```
+OMLX_API_KEY=<the key from ~/.omlx/settings.json auth.api_key>
+```
+
+`~/.vibe/config.toml` (user-level — available to all projects):
+
+```toml
+[[providers]]
+name = "omlx"
+api_base = "http://127.0.0.1:8000/v1"
+api_key_env_var = "OMLX_API_KEY"
+api_style = "openai"
+backend = "generic"
+
+[[models]]
+name = "Devstral-Small-2-24B-Instruct-2512-4bit"
+provider = "omlx"
+alias = "devstral-omlx"
+# + aliases qwen-coder-omlx (Qwen3-Coder-30B-A3B 6bit), medium-omlx (Mistral-Medium-3.5-128B-4bit)
+```
+
+`<project>/.vibe/config.toml` (project-level — mansart runs local by default;
+top-level keys must appear BEFORE the first `[[...]]` table in the file):
+
+```toml
+active_model = "qwen-next-omlx"
+```
+
+Remove that line (or use `/config` in-session) to go back to the hosted Mistral API.
+E2E verified: `vibe -p` in mansart answered from the local model and oMLX's request
+counter incremented accordingly.
+
+### Model choice vs heat (M5 Max)
+
+- `qwen-next-omlx` — **default for mansart**. Qwen3-Coder-Next 80B **MoE, ~3B active**,
+  6-bit (~65 GB on disk; downloaded from `mlx-community/Qwen3-Coder-Next-6bit` into
+  `~/omlx-models/mlx-community/`, then `omlx restart` to expose it). Big-model coding
+  quality at small-model compute: only ~3B params fire per token, so it stays fast and
+  cool despite the size. 6-bit chosen over 8-bit (84.7 GB) to leave ~60 GB headroom
+  for KV cache, macOS, jdtls, and Maven; over 4-bit (44.9 GB) for quality. Tool-call
+  parsing verified on oMLX (`finish_reason: tool_calls`).
+- `devstral-omlx` — Devstral Small 2, dense 24B, 4-bit (~13 GB): Mistral's agentic
+  coding tuning; lighter RAM footprint, but dense 24B ≈ more compute per token than
+  the MoE above.
+- `qwen-coder-omlx` — Qwen3-Coder-30B MoE ~3B active, 6-bit: smaller/cheaper fallback.
+- `medium-omlx` — Mistral-Medium-3.5-128B 4-bit (~70 GB): for hard design questions
+  only; heavy, slow, hottest. Not for routine agent loops.
+
+Additional thermal habits: one Vibe session at a time (oMLX allows 8 concurrent
+requests — parallel subagent fan-outs multiply load); the AGENTS.md context protocol
+(small tracker, ctx routing, grep-not-load) also directly reduces prefill work, which
+is where most of the heat comes from; macOS Low Power Mode is a coarse but effective
+silencer for long unattended runs. oMLX's own guards were left at their defaults
+(`memory_guard_tier: balanced`, `burst_decode_mode: balanced`, prompt cache enabled —
+the cache visibly absorbs most of Vibe's repeated system prompt/AGENTS.md prefill).
+
+### Caveats
+
+- `omlx launch` has native integrations (claude, codex, opencode, …) but **not vibe**
+  — hence the manual provider wiring above.
+- If the oMLX server is not running (`omlx start`), Vibe sessions in mansart fail at
+  the first model call; switch model via `/config` or start the server.
+- Local models are weaker than the hosted flagships: keep tasks small (the M7 task
+  granularity fits), lean on the validation gate (`./mvnw clean install`) to catch
+  model mistakes, and escalate to `medium-omlx` or the hosted API for thorny design work.
+
 ## References
 
 - [Configuration — Mistral Docs](https://docs.mistral.ai/vibe/code/cli/configuration)

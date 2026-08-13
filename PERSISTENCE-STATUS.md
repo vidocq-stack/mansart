@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-13 — M7-2 — Fixed mansart-persistence-cdi compilation: removed non-existent `vauban-cdi` dependency from pom.xml and corrected module-info.java; fixed mansart-persistence-tests module-info.java (removed invalid test dependency requires); full build green
 - 2026-08-13 — incident — MANSART-008: jdtls ECJ classes corrupted mansart-transactions `target/`; reverted Vibe's opens/add-reads workaround, killed orphaned jdtls, clean rebuild green (88 tests). Pitfall rule added to AGENTS.md.
 - 2026-08-13 — M7-1 — mansart-jakarta-persistence module structure created: POMs, module-info.java, service file; all modules compile successfully
 - 2026-08-13 — setup — Vibe configuration completed (agents, skills, hooks, MCP); tracker created.

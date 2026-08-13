@@ -1,6 +1,7 @@
 applied_migrations = [
     "bash_read_only_defaults_v1",
 ]
+active_model = "qwen-next-omlx"
 
 [[mcp_servers]]
 name = "java-lsp"
@@ -40,6 +41,7 @@ allowlist = [
     "cat",
     "cd",
     "comm",
+    "curl",
     "cut",
     "date",
     "diff",
@@ -79,3 +81,6 @@ allowlist = [
     "which",
     "xargs",
 ]
+
+[tools.ctx_ctx_batch_execute]
+permission = "always"

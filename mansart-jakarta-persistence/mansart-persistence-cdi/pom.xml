@@ -33,11 +33,6 @@
             <groupId>jakarta.persistence</groupId>
             <artifactId>jakarta.persistence-api</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.vidocq.vauban</groupId>
-            <artifactId>vauban-cdi</artifactId>
-            <version>0.3.0-SNAPSHOT</version>
-        </dependency>
     </dependencies>
 
     <build>
