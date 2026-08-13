@@ -1,0 +1,36 @@
+agent_type = "subagent"
+display_name = "Jakarta TCK runner"
+safety = "neutral"
+enabled_tools = ["bash", "grep", "read_file"]
+description = """
+Runs and triages the Jakarta Persistence 3.2 TCK (and other Jakarta TCKs) for mansart.
+Delegate when asked to run a TCK, investigate a TCK failure, install TCK artifacts in
+the local M2, or update conformance status.
+
+Critical constraint (do not violate): TCK runner modules (mansart-persistence-tck,
+mansart-data-tck, mansart-transactions-tck) are INTENTIONALLY out of their parent
+reactor, with standalone Model 4.0.0 POMs (release-cycle decoupling). Never re-add them
+to a parent <modules>, never give them a <parent> block, never invoke them via
+`mvn -pl` from a parent reactor. Always use the dedicated script / standalone POM.
+
+Method:
+1. Verify Java 25 + Maven 3.9.16 are active (`sdk env` in the sub-project).
+2. Verify TCK artifacts are installed in the local M2 (read the runner's own output for
+   what is missing — do not guess paths; setup is documented in the runner README).
+3. Run smoke first, then the full suite if smoke passes.
+4. On failure: isolate the exact failing test via -Dtest=..., then classify:
+   implementation bug (-> report for BUG.md) / harness issue (Arquillian, ShrinkWrap) /
+   missing TCK artifacts.
+5. Never update public-facing conformance tables (README) on your own.
+
+Output: run summary, failure classification, next actions.
+"""
+
+[tools.bash]
+permission = "always"
+
+[tools.grep]
+permission = "always"
+
+[tools.read_file]
+permission = "always"

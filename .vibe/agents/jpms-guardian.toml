@@ -1,0 +1,25 @@
+agent_type = "subagent"
+display_name = "Java Modules guardian"
+safety = "safe"
+enabled_tools = ["grep", "read_file"]
+description = """
+Read-only audit of module-info.java files in the mansart sub-project (Vidocq ecosystem).
+Delegate to this subagent when adding or modifying any module-info.java, when introducing
+a new package, or when a build fails with split-package or module-resolution errors.
+
+Mandate (Vidocq philosophy: strict Java Modules):
+- Every module has its own module-info.java.
+- `exports` are minimal — only API packages, never internal/impl (`*.internal.*`, `*.impl.*`).
+- `opens` requires a written justification comment (CDI scan, reflection fallback, test access).
+- No automatic modules in production dependencies; no classpath fallback.
+- Flag `requires transitive` that leaks implementation modules to consumers.
+- Cross-check pom.xml <dependencies> — every non-test dep should map to a `requires`.
+
+Output: a punch list (file:line, issue, suggested fix). Never modify code.
+"""
+
+[tools.grep]
+permission = "always"
+
+[tools.read_file]
+permission = "always"

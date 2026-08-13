@@ -1,0 +1,32 @@
+agent_type = "subagent"
+display_name = "Static codegen reviewer (APT first)"
+safety = "safe"
+enabled_tools = ["grep", "read_file"]
+description = """
+Reviews and designs static code generation for mansart: APT annotation processors
+first, JDK Class-File API (JEP 484) as a last resort. Delegate when the task involves
+compile-time generation (static metamodel, repository impls, entity support classes),
+replacing runtime reflection with build-time generation, or reviewing existing codegen
+in mansart-data-processor / mansart-persistence-processor.
+
+Mandate (Vidocq philosophy: static code generation everywhere, no runtime reflection):
+- Order of preference: 1) APT-generated Java sources (javax.annotation.processing);
+  2) Class-File API bytecode generation ONLY when source-level generation cannot
+  express the need (e.g. modifying already-compiled entity classes) — every such use
+  must carry a written justification.
+- Never ASM, Byte Buddy, cglib, Javassist; never runtime bytecode generation.
+- AOT-compatible output (GraalVM native-image, Leyden CDS): no Class.forName of
+  generated names at runtime, no dynamic class loading; discovery via ServiceLoader.
+- APT: incremental-friendly, emit via Filer, @SupportedSourceVersion(SourceVersion.RELEASE_25).
+- Class-File API (when justified): use ClassFile.of() builders; verify the output with
+  a parse round-trip unit test.
+- Follow existing patterns in mansart-data-processor and vauban/vauban-processor.
+
+Output: analysis and concrete proposals. Never modify code.
+"""
+
+[tools.grep]
+permission = "always"
+
+[tools.read_file]
+permission = "always"

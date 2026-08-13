@@ -51,3 +51,37 @@ Provide `modules/ROOT/images/<project>-logo.png` (PNG), referenced from `index.a
 Use **Java Modules** (or **Java module** for a single module) when referring to
 the Java Platform Module System. Do **not** use the abbreviation **JPMS** — in
 prose, identifiers, or documentation.
+
+## Vibe subagents and skills (`.vibe/`)
+
+When running under Mistral Vibe, this repository ships project-level configuration in `.vibe/`:
+
+- **Subagents** (`.vibe/agents/*.toml`, delegate via the `task` tool):
+  `jpms-guardian` (module-info.java audit), `classfile-codegen` (codegen review —
+  APT first, Class-File API last resort), `virtual-threads-reviewer` (concurrency
+  review), `dependency-gatekeeper`
+  (pom.xml zero-deps review), `tck-runner` (Jakarta TCK execution and triage).
+  Delegate proactively when the matching context applies.
+- **Skills** (`.vibe/skills/*/SKILL.md`, slash commands): `/mansart-persistence`
+  (implementation guidance), `/mansart-persistence-tck` (TCK workflow), `/log-bug`
+  (append to `BUG.md`), `/log-bench` (append to `BENCH.md`).
+- **MCP** (`.vibe/config.toml`): `java-lsp` — jdtls wrapped by `mcp-language-server`
+  (jdtls speaks LSP, not MCP; never launch it directly as an MCP server).
+
+## Shell Command Optimization with RTK
+
+**Rule:** Always prefix shell commands with `rtk` to reduce context tokens and improve efficiency.
+
+| Command Type       | Standard Command       | RTK Equivalent          | Benefit                          |
+|--------------------|-------------------------|-------------------------|----------------------------------|
+| Git operations     | `git status`           | `rtk git status`       | Compact, no pager, no colors     |
+|                    | `git diff`             | `rtk git diff`         | Optimized diff output            |
+| Maven builds       | `mvn test`             | `rtk mvn test`         | Only errors/warnings             |
+|                    | `mvn compile`          | `rtk mvn compile`      | Filtered logs                    |
+| File reading       | `cat file.java`        | `rtk read file.java`   | Strips comments/blank lines      |
+| Directory listing  | `ls -la`               | `rtk ls`               | Clean, token-friendly output     |
+| Test execution     | (any test command)     | `rtk test`             | Shows only failures              |
+| Dependencies       | -                       | `rtk deps`             | Summarizes project dependencies |
+| Errors only        | -                       | `rtk err <command>`    | Shows only errors/warnings      |
+
+> **Tip:** Use `rtk --help` to discover all available optimized commands.
