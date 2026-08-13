@@ -417,6 +417,61 @@ the cache visibly absorbs most of Vibe's repeated system prompt/AGENTS.md prefil
   granularity fits), lean on the validation gate (`./mvnw clean install`) to catch
   model mistakes, and escalate to `medium-omlx` or the hosted API for thorny design work.
 
+## 12. Parallel setups: OpenCode and jcode (same oMLX backend)
+
+Both alternative CLIs are wired to the same local stack so they can be trialed on
+real tasks without touching the Vibe setup. `AGENTS.md` (directives, working
+protocol, validation gate, pitfall) is read by all three tools — it is the shared
+brain; only the tool-specific glue differs.
+
+### OpenCode (verified E2E: `OK-OPENCODE` from Qwen3-Coder-Next via oMLX)
+
+- **Provider/model** — `~/.config/opencode/opencode.json`: provider `omlx`
+  (`npm: @ai-sdk/openai-compatible`, baseURL `http://127.0.0.1:8000/v1`, apiKey
+  inline) with the 4 models; default `"model": "omlx/Qwen3-Coder-Next-6bit"`.
+  Switch in-session with `/models`.
+- **MCP** — `mcp.ctx` block (context-mode `node start.mjs`, same pinned path as
+  Vibe). No `java-lsp` MCP: OpenCode has **built-in LSP** and will drive jdtls
+  itself — which means the §10 ECJ pitfall applies to OpenCode too (its jdtls also
+  compiles into `target/`; `pkill -f mcp-language-server` will NOT catch OpenCode's
+  jdtls — use `pkill -f "eclipse.jdt.ls"`).
+- **RTK** — global plugin `~/.config/opencode/plugins/rtk-rewrite.js` using the
+  `tool.execute.before` hook: bash commands go through `rtk rewrite` (exit 0/3 →
+  rewrite; 1/2 → pass through), mirroring the Vibe/Claude hooks.
+- **Subagents** — `mansart/.opencode/agents/*.md` (frontmatter: `description`,
+  `mode: subagent`, `permission: edit/bash deny` for the read-only ones): the same
+  five specialists as Vibe. Invoke with `@jpms-guardian` etc.
+- **Commands** — `mansart/.opencode/commands/log-bug.md` and `log-bench.md`
+  (`/log-bug <context>`, `$ARGUMENTS` placeholder).
+
+### jcode (verified E2E: `JCODE-OK` from Qwen3-Coder-Next via oMLX)
+
+- **Provider profile** — created with
+  `jcode provider add omlx --overwrite --base-url http://127.0.0.1:8000/v1
+  --model Qwen3-Coder-Next-6bit --api-key-stdin` (key piped from
+  `~/.omlx/settings.json`). Written to `~/.jcode/config.toml`
+  (`[providers.omlx]`, bearer auth, key in
+  `~/Library/Application Support/jcode/provider-omlx.env`); the other three oMLX
+  models added as `[[providers.omlx.models]]` entries.
+- **Run** — `jcode --provider-profile omlx run '...'` or the TUI; switch models
+  with `/model`.
+- **Known quirk** — `jcode auth-test`'s `provider_smoke` probe hits `/v1/models`
+  WITHOUT the bearer header and reports FAIL (HTTP 401) even though the real chat
+  path authenticates fine. Judge the setup by `jcode run`, not by `auth-test`.
+- **MCP** — jcode auto-discovers MCP servers (it had already cached the `outline`
+  server schemas); its config surface for custom MCP entries was not needed for
+  the trial. No hooks equivalent found yet → **no RTK rewrite under jcode**; the
+  AGENTS.md RTK table is the only nudge there.
+- jcode runs a background daemon (`jcode server`) — after config changes, restart
+  it (`jcode server stop --force`, it respawns on next run) so profiles reload.
+
+### Trial protocol suggestion
+
+Run one well-scoped M7 task per tool on a clean git state, judge on: respect of the
+validation gate, module-info discipline (MANSART-008-style temptations), token/heat
+cost (oMLX `stats.json` deltas), and friction. `PERSISTENCE-STATUS.md` session-log
+the outcome of each trial.
+
 ## References
 
 - [Configuration — Mistral Docs](https://docs.mistral.ai/vibe/code/cli/configuration)
