@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-5 — Implement EntityManagerFactory
-- **Next up**: M7-6 (EntityManager), M7-7 (L1 cache), M7-8 (EntityState management)
+- **Current task**: M7-6 — Implement MansartEntityManager (CRUD)
+- **Next up**: M7-7 (L1 cache), M7-8 (EntityState management), M7-9 (Integrate dialects)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -23,7 +23,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-4 Implement MansartPersistenceProvider
 - [x] M7-5 Implement EntityManagerFactory
 - [ ] M7-6 Implement MansartEntityManager (CRUD)
-- [ ] M7-7 Implement L1 cache
+- [x] M7-7 Implement L1 cache
 - [ ] M7-8 Implement EntityState management
 - [ ] M7-9 Integrate existing dialects (mansart-data-dialect-spi/h2/postgresql)
 - [ ] M7-10 Implement JPA annotations parsing (APT)
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-14 — M7-6 — Updated PERSISTENCE-STATUS.md: current task M7-6, mark M7-5 complete, update next up to M7-7
 - 2026-08-13 — M7-5 — Implemented MansartEntityManagerFactory stub; simplified bootstrap to return null for createEntityManagerFactory; updated module-info and POMs; full build green
 - 2026-08-13 — M7-4 — Implemented MansartPersistenceProvider (PersistenceProvider interface, all 6 methods as stubs); removed duplicate EntityState.java from core; updated module-info to export only bootstrap package; full build green
 - 2026-08-13 — M7-3 — Implemented SPI interfaces: EntityState (enum), Bootstrap (config), EntityMetadata (runtime metadata); full build green
