@@ -443,6 +443,12 @@ brain; only the tool-specific glue differs.
   five specialists as Vibe. Invoke with `@jpms-guardian` etc.
 - **Commands** — `mansart/.opencode/commands/log-bug.md` and `log-bench.md`
   (`/log-bug <context>`, `$ARGUMENTS` placeholder).
+- **Auto-approve agent** — `~/.config/opencode/agents/auto-approve.md`: global
+  primary agent with `permission: edit/bash/webfetch = allow` (equivalent of Vibe's
+  `auto-approve`). Select with `opencode --agent auto-approve`, `opencode run
+  --agent auto-approve '...'`, or Tab in the TUI. Its prompt re-asserts that
+  AGENTS.md rules and the validation gate still apply. Verified headless: bash ran
+  unprompted — and through the RTK plugin (`git status` → `rtk git status`).
 
 ### jcode (verified E2E: `JCODE-OK` from Qwen3-Coder-Next via oMLX)
 
