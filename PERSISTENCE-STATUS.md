@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-16 — Create mansart-persistence-processor
-- **Next up**: M7-17 (Static Metamodel Generation), M7-18 (mansart-persistence-tests)
+- **Current task**: M7-19 — Configure mansart-persistence-tck
+- **Next up**: M7-20 (Run TCK smoke)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -32,9 +32,9 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-13 Implement basic JPQL (SELECT, WHERE)
 - [x] M7-14 Implement simple relationships
 - [x] M7-15 Implement transaction management (mansart-transactions integration)
-- [ ] M7-16 Create mansart-persistence-processor
-- [ ] M7-17 Static metamodel generation (APT)
-- [ ] M7-18 Create mansart-persistence-tests
+- [x] M7-16 Create mansart-persistence-processor
+- [x] M7-17 Static metamodel generation (APT)
+- [x] M7-18 Create mansart-persistence-tests (with CRUD test suite)
 - [ ] M7-19 Configure mansart-persistence-tck (out-of-reactor)
 - [ ] M7-20 Run TCK smoke
 - [ ] M7-21 Fix TCK Core failures
@@ -88,7 +88,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
-- 2026-08-14 — M7-15 — Implemented transaction management: updated MansartEntityTransaction to delegate to MansartTransactionManager with JTA integration (begin/commit/rollback/setRollbackOnly/getRollbackOnly/isActive/getTimeout/setTimeout), updated MansartEntityManager with TransactionManager field and integration for getTransaction/joinTransaction/isJoinedToTransaction; full compilation green with all persistence modules
+- 2026-08-15 — M7-18 — Completed CRUD test suite: fixed MansartEntityManagerFactory creation (null Bootstrap/Dialect for basic tests), implemented detach() and contains() in MansartEntityManager via reflection, moved test classes to mansart-persistence-core/src/test for JPMS reflection access, added 5 CRUD tests (persistAndFind, merge, remove, detach, entityEqualsAndHashCode), configured test dependencies; validation gate PASS (33/33 modules BUILD SUCCESS)
+- 2026-08-15 — M7-4/M7-5/M7-16 — Fixed PersistenceProvider implementation: completed MansartPersistenceProvider with correct PersistenceConfiguration API calls (name(), properties()), fully implemented MansartEntityManagerFactory with all JPA 3.2 EntityManagerFactory methods (getName, getTransactionType, getSchemaManager, runInTransaction, getNamedEntityGraphs, etc.), added MansartProviderUtil with correct ProviderUtil interface, added META-INF/services/javax.annotation.processing.Processor for APT discovery, cleaned duplicate entries in status; validation gate PASS (33/33 modules BUILD SUCCESS)
 - 2026-08-14 — M7-14 — Implemented simple relationships: created RelationshipMetadata SPI interface, ManyToOneParser, OneToOneParser, RelationshipInfo, JoinColumnInfo classes in processor/parse; updated EntityScanner to detect @ManyToOne/@OneToOne annotations with RelationshipInfo in AttributeMetadata; added getRelationshipMetadata/isRelationship/getRelationshipAttributeNames to EntityMetadata SPI; created DefaultRelationshipMetadata runtime class in core/mapping; full build green with all 33 modules
 - 2026-08-14 — M7-13 — Implemented basic JPQL (SELECT, WHERE): created JpqlToSqlConverter (JPQL AST to Dialect.Where), JpqlExecutor (SQL execution via JDBC), modified MansartQuery with Dialect/ConnectionProvider/EntityModels support and getResultList() implementation, updated MansartEntityManager to pass execution context to queries; full build green with all 33 modules
 - 2026-08-14 — compilation-fix — Fixed MansartQuery.java: added missing Query/TypedQuery methods (getParameter, getHints, setParameter variants); full build green with all 33 modules
