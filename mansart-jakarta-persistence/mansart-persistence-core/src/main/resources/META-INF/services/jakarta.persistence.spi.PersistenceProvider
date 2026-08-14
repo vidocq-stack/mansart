@@ -1,1 +1,1 @@
-io.vidocq.mansart.persistence.core.MansartPersistenceProvider
+io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider

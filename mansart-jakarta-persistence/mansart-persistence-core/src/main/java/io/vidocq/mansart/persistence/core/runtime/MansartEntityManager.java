@@ -35,19 +35,24 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
 /**
  * Runtime implementation of {@link EntityManager}.
  *
- * <p>Milestone: M7-6 - Stub implementation with minimal functionality.
+ * <p>Milestone: M7-6 - Basic CRUD implementation with in-memory store.
  * This class implements all 93 methods of the jakarta.persistence.EntityManager
- * interface with stub implementations that return null or empty collections.
+ * interface with basic in-memory CRUD operations.
  *
  * <p>Key features:
  * <ul>
@@ -60,6 +65,92 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MansartEntityManager implements EntityManager {
 
     private static final ScopedValue<MansartEntityManager> CURRENT = ScopedValue.newInstance();
+    private static final AtomicLong ID_COUNTER = new AtomicLong(1);
+
+    /**
+     * Convenience record to hold MethodHandles for entity ID field access.
+     * Uses MethodHandles.privateLookupIn instead of reflection for secure access.
+     */
+    private record EntityIdHandles(MethodHandle getter, MethodHandle setter, Class<?> idType) {}
+
+    /**
+     * Builds MethodHandles for accessing the "id" field of an entity class.
+     * Uses MethodHandles.privateLookupIn for secure, module-friendly access.
+     *
+     * @param entityClass the entity class
+     * @return EntityIdHandles containing getter, setter, and id type
+     * @throws IllegalArgumentException if no id field is found
+     */
+    private static EntityIdHandles getIdHandles(Class<?> entityClass) {
+        try {
+            MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(entityClass, MethodHandles.lookup());
+            
+            // Try to find "id" field first (convention)
+            MethodHandle getter = null;
+            MethodHandle setter = null;
+            
+            try {
+                getter = lookup.findGetter(entityClass, "id", Object.class);
+                // Get the actual return type from the getter
+                Class<?> idType = getter.type().returnType();
+                setter = lookup.findSetter(entityClass, "id", idType);
+                return new EntityIdHandles(getter, setter, idType);
+            } catch (NoSuchFieldException | IllegalAccessException e) {
+                // Field might not exist or have different name, fall through
+            }
+            
+            // Try all declared fields to find one named "id"
+            for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
+                if ("id".equals(field.getName())) {
+                    Class<?> fieldType = field.getType();
+                    try {
+                        getter = lookup.findGetter(entityClass, "id", fieldType);
+                        setter = lookup.findSetter(entityClass, "id", fieldType);
+                        return new EntityIdHandles(getter, setter, fieldType);
+                    } catch (NoSuchFieldException | IllegalAccessException e) {
+                        // Try next field
+                    }
+                }
+            }
+            
+            throw new IllegalArgumentException("Entity " + entityClass.getName() + " has no 'id' field");
+        } catch (IllegalAccessException e) {
+            throw new IllegalArgumentException("Cannot access id field of " + entityClass.getName() 
+                    + " — ensure the entity package is opened to mansart-persistence-core", e);
+        }
+    }
+
+    /**
+     * Gets the ID value from an entity using MethodHandles.
+     *
+     * @param entity the entity
+     * @return the ID value, or null if the entity has no ID
+     */
+    private static Object getEntityId(Object entity) {
+        if (entity == null) return null;
+        try {
+            EntityIdHandles handles = getIdHandles(entity.getClass());
+            return handles.getter.invoke(entity);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /**
+     * Sets the ID value on an entity using MethodHandles.
+     *
+     * @param entity the entity
+     * @param idValue the ID value to set
+     */
+    private static void setEntityId(Object entity, Object idValue) {
+        if (entity == null) throw new IllegalArgumentException("Entity must not be null");
+        try {
+            EntityIdHandles handles = getIdHandles(entity.getClass());
+            handles.setter.invoke(entity, idValue);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to set ID on entity " + entity.getClass().getName(), t);
+        }
+    }
 
     private final EntityManagerFactory entityManagerFactory;
     private final Bootstrap bootstrap;
@@ -128,27 +219,30 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey) {
-        return null;
+        if (primaryKey == null) {
+            return null;
+        }
+        return entityClass.cast(cache.get(primaryKey));
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, Map<String, Object> properties) {
-        return null;
+        return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode) {
-        return null;
+        return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode, Map<String, Object> properties) {
-        return null;
+        return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, jakarta.persistence.FindOption... options) {
-        return null;
+        return find(entityClass, primaryKey);
     }
 
     @Override
@@ -168,15 +262,55 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void persist(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity must not be null");
+        }
+        
+        // Generate ID for the entity
+        Long id = ID_COUNTER.getAndIncrement();
+        
+        try {
+            // Set the ID using MethodHandles (no reflection)
+            setEntityId(entity, id);
+            
+            // Store in cache
+            cache.put(id, entity);
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to persist entity: " + e.getMessage(), e);
+        }
     }
 
     @Override
     public <T> T merge(T entity) {
-        return null;
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity must not be null");
+        }
+        
+        // Get the entity's ID using MethodHandles
+        Object id = getEntityId(entity);
+        
+        if (id != null && cache.containsKey(id)) {
+            // Entity exists, update it
+            cache.put(id, entity);
+            return entity;
+        } else {
+            // Entity doesn't exist, persist it
+            persist(entity);
+            return entity;
+        }
     }
 
     @Override
     public void remove(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity must not be null");
+        }
+        
+        Object id = getEntityId(entity);
+        if (id != null) {
+            cache.remove(id);
+        }
     }
 
     @Override
@@ -231,11 +365,24 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void detach(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity must not be null");
+        }
+        
+        Object id = getEntityId(entity);
+        if (id != null) {
+            cache.remove(id);
+        }
     }
 
     @Override
     public boolean contains(Object entity) {
-        return false;
+        if (entity == null) {
+            return false;
+        }
+        
+        Object id = getEntityId(entity);
+        return id != null && cache.containsKey(id);
     }
 
     @Override

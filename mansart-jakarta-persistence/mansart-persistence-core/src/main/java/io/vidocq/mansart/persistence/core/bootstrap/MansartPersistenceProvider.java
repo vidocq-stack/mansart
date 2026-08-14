@@ -13,7 +13,7 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
@@ -40,17 +40,13 @@ import io.vidocq.mansart.persistence.spi.Bootstrap;
  * <p>The provider uses the {@link Bootstrap} interface for configuration and
  * {@link EntityState} for entity state management. Dialect support is obtained
  * via {@link ServiceLoader} from {@code mansart-data-dialect-spi}.
- *
- * <p>Milestone: M7-4 - Skeleton implementation that compiles and can be extended later.
  */
 public final class MansartPersistenceProvider implements PersistenceProvider {
 
+    private final ProviderUtil providerUtil = new MansartProviderUtil();
+
     /**
      * Creates an {@link EntityManagerFactory} for the given persistence unit name and properties.
-     *
-     * <p>The persistence unit name and properties are used to configure the bootstrap.
-     * The actual implementation of {@code EntityManagerFactory} will be provided in
-     * subsequent milestones.
      *
      * @param emName the name of the persistence unit, or {@code null} if there is only
      *               one persistence unit in the application
@@ -59,7 +55,7 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public EntityManagerFactory createEntityManagerFactory(String emName, Map<?, ?> properties) {
-        return null;
+        return new io.vidocq.mansart.persistence.core.runtime.MansartEntityManagerFactory(this, emName, properties);
     }
 
     /**
@@ -70,7 +66,8 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public EntityManagerFactory createEntityManagerFactory(PersistenceConfiguration config) {
-        return null;
+        return new io.vidocq.mansart.persistence.core.runtime.MansartEntityManagerFactory(
+                this, config.name(), config.properties());
     }
 
     /**
@@ -85,7 +82,8 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public EntityManagerFactory createContainerEntityManagerFactory(PersistenceUnitInfo persistenceUnitInfo, Map<?, ?> properties) {
-        return null;
+        return new io.vidocq.mansart.persistence.core.runtime.MansartEntityManagerFactory(
+                this, persistenceUnitInfo.getPersistenceUnitName(), properties);
     }
 
     /**
@@ -99,6 +97,7 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public void generateSchema(PersistenceUnitInfo info, Map<?, ?> properties) {
+        // Schema generation is handled by dialect
     }
 
     /**
@@ -110,7 +109,7 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public boolean generateSchema(String puName, Map<?, ?> properties) {
-        return false;
+        return false; // Not implemented yet
     }
 
     /**
@@ -120,6 +119,6 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public ProviderUtil getProviderUtil() {
-        return null;
+        return providerUtil;
     }
 }
