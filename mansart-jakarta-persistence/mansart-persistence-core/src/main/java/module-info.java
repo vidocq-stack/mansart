@@ -25,6 +25,7 @@ module io.vidocq.mansart.persistence.core {
     requires java.sql;
     requires io.vidocq.mansart.data.dialect.spi;
     requires io.vidocq.mansart.data.dialect.h2;
+    requires io.vidocq.mansart.data.dialect.postgresql;
     requires io.vidocq.mansart.transactions.core;
     
     exports io.vidocq.mansart.persistence.core.bootstrap;
