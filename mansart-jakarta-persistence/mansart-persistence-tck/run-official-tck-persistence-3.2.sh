@@ -16,8 +16,8 @@ if [ -n "${SDKMAN_DIR:-}" ] && [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
     (cd .. && sdk env > /dev/null 2>&1) || true
 fi
 
-# jakarta.persistence:persistence-tck:3.2.0 is expected on Maven Central — Maven will fetch it
-# automatically when the `tck-run` profile is active. No local install needed.
+# jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT is available from Jakarta staging repo —
+# Maven will fetch it automatically when the `tck-run` profile is active.
 
 # Verify the Mansart reactor is installed.
 if [ ! -f "$HOME/.m2/repository/io/vidocq/mansart/mansart-persistence-core/0.3.0-SNAPSHOT/mansart-persistence-core-0.3.0-SNAPSHOT.jar" ]; then

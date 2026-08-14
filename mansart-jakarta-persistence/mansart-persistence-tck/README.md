@@ -19,15 +19,15 @@ Module in standalone `modelVersion 4.0.0` (without `<parent>`). Reason documente
 
 ## TCK artifact installation
 
-The `jakarta.persistence:persistence-tck:3.2.0` artifact is expected to be on Maven Central.
-If not available, it needs to be built from the [Jakarta Persistence TCK source](https://github.com/jakartaee/persistence-tck).
+The `jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT` artifact is available from the Jakarta staging repository.
+If not available in local M2, it needs to be built from the [Eclipse EE4J Persistence TCK source](https://github.com/eclipse-ee4j/ee4j/persistence-tck/persistence-tck-dist).
 
 ```xml
 <dependency>
-    <groupId>jakarta.persistence</groupId>
-    <artifactId>persistence-tck</artifactId>
-    <version>3.2.0</version>
-    <type>pom</type>
+    <groupId>jakarta.tck</groupId>
+    <artifactId>persistence-tck-dist</artifactId>
+    <version>3.2.2-SNAPSHOT</version>
+    <type>jar</type>
 </dependency>
 ```
 

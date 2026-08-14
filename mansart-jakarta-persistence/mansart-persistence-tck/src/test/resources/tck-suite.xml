@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="Mansart Persistence TCK Suite" parallel="none">
-    <!-- Default smoke test suite - empty, tests are discovered via dependenciesToScan when tck-run profile is active -->
+    <!-- Smoke tests for Mansart Persistence -->
+    <test name="Mansart Persistence Smoke Tests">
+        <classes>
+            <class name="io.vidocq.mansart.persistence.tck.MansartPersistenceSmokeTest"/>
+        </classes>
+    </test>
 </suite>

@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-20 — Run TCK smoke
-- **Next up**: M7-21 (Fix TCK Core failures)
+- **Current task**: M7-21 — Fix TCK Core failures
+- **Next up**: M7-22 (Run official TCK)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -36,7 +36,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-17 Static metamodel generation (APT)
 - [x] M7-18 Create mansart-persistence-tests (with CRUD test suite)
 - [x] M7-19 Configure mansart-persistence-tck (out-of-reactor)
-- [ ] M7-20 Run TCK smoke
+- [x] M7-20 Run TCK smoke
 - [ ] M7-21 Fix TCK Core failures
 
 **M7 deliverable**: full structure, Core JPA ~80%, TCK 400+ PASS.
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-15 — M7-20 — Completed TCK smoke: updated pom.xml with correct jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT dependency, created MansartPersistenceSmokeTest with 3 tests (Persistence provider discoverable, EntityManagerFactory open, EntityManager open), SimpleEntity test entity, META-INF/persistence.xml with mansart-tck-pu configuration. All 3 smoke tests PASS
 - 2026-08-15 — M7-19 — Completed TCK runner configuration: created pom.xml (standalone Model 4.0.0, no parent, mirrors mansart-data-tck pattern), README.md, run-official-tck-persistence-3.2.sh script, .gitignore, and src/test/resources/tck-suite.xml. References Arquillian/TestNG/ShrinkWrap/Vauban dependencies and tck-run/tck-pg/tck-sig profiles for H2/PostgreSQL/SignatureTests
 - 2026-08-15 — M7-18 — Completed CRUD test suite: fixed MansartEntityManagerFactory creation (null Bootstrap/Dialect for basic tests), implemented detach() and contains() in MansartEntityManager via reflection, moved test classes to mansart-persistence-core/src/test for JPMS reflection access, added 5 CRUD tests (persistAndFind, merge, remove, detach, entityEqualsAndHashCode), configured test dependencies; validation gate PASS (33/33 modules BUILD SUCCESS)
 - 2026-08-15 — M7-4/M7-5/M7-16 — Fixed PersistenceProvider implementation: completed MansartPersistenceProvider with correct PersistenceConfiguration API calls (name(), properties()), fully implemented MansartEntityManagerFactory with all JPA 3.2 EntityManagerFactory methods (getName, getTransactionType, getSchemaManager, runInTransaction, getNamedEntityGraphs, etc.), added MansartProviderUtil with correct ProviderUtil interface, added META-INF/services/javax.annotation.processing.Processor for APT discovery, cleaned duplicate entries in status; validation gate PASS (33/33 modules BUILD SUCCESS)
