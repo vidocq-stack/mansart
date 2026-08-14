@@ -84,6 +84,13 @@ public interface EntityMetadata {
     Class<?> getIdAttributeType();
 
     /**
+     * Returns the primary key metadata for this entity.
+     *
+     * @return the primary key metadata, never {@code null}
+     */
+    PrimaryKeyMetadata getPrimaryKeyMetadata();
+
+    /**
      * Returns whether this entity has a version attribute for optimistic locking.
      *
      * @return {@code true} if a version attribute exists, {@code false} otherwise

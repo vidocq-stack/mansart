@@ -103,6 +103,37 @@ to files, never to the conversation:
    (→ `BUG.md`), perf numbers with `/log-bench` (→ `BENCH.md`). The next session must
    be able to resume from files alone.
 
+### Local-model tool-call reliability
+
+Local models (Qwen3-Coder-Next via oMLX) emit increasingly malformed tool calls as
+the context grows — missing required keys (`SchemaError(Missing key at ["filePath"])`),
+wrong key casing, truncated JSON. Known OpenCode limitation with OpenAI-compatible
+models. Rules:
+
+- **Session hygiene**: one task per session (already the protocol). If context usage
+  passes ~40%, `/compact` or finish and start a fresh session — do not push a long
+  session through file-writing work.
+- **SchemaError fallback**: if `write`/`edit` is rejected with a SchemaError twice in
+  a row, STOP retrying the tool. Create or modify the file via bash instead:
+  `cat > path/to/File.java <<'EOF' ... EOF`. Do not loop on the failing tool.
+- **Model routing**: for write-heavy phases (scaffolding many new files), prefer
+  Devstral (`/models` in OpenCode, `/config` in Vibe) — it is tuned for agentic edit
+  formats. Qwen stays the default for reasoning-heavy coding.
+
+### State files: delegate to the `tracker` subagent
+
+`PERSISTENCE-STATUS.md`, `BUG.md`, and `BENCH.md` are updated ONLY through the
+**`tracker` subagent** (pinned to Devstral). Delegate every tracker/bug/bench update
+to it instead of editing yourself. Its rules apply to everyone:
+
+- **Edit forward only.** NEVER `git checkout` / `git reset` / `git restore` a state
+  file — a wrong entry is corrected by a new edit, not by rolling back.
+- **On a failed edit**: re-read the file and retry with exactly copied text. After
+  3 failures, STOP and report — do not blame the tool, do not rewrite the whole file.
+- **Never commit a claim the diff does not show**: check `git diff --stat` before
+  committing a state-file update; the message must describe what really changed.
+- This AGENTS.md file itself: never rewrite it wholesale — targeted edits only.
+
 ## Known pitfall: stale ECJ classes in `target/` (jdtls)
 
 The `java-lsp` MCP server runs jdtls, whose Eclipse compiler (ECJ) writes `.class`

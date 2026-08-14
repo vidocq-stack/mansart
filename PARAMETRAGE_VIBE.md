@@ -476,6 +476,21 @@ brain; only the tool-specific glue differs.
 - jcode runs a background daemon (`jcode server`) — after config changes, restart
   it (`jcode server stop --force`, it respawns on next run) so profiles reload.
 
+### Known issue: SchemaError on write/edit with local models (OpenCode)
+
+Local OpenAI-compatible models intermittently call OpenCode's `write`/`edit` tools
+with invalid argument shapes — `SchemaError(Missing key at ["filePath"])`, missing
+`content`, objects where strings are expected. Upstream issues:
+[#29142](https://github.com/anomalyco/opencode/issues/29142),
+[#24604](https://github.com/anomalyco/opencode/issues/24604),
+[#18131](https://github.com/anomalyco/opencode/issues/18131),
+[#6918](https://github.com/anomalyco/opencode/issues/6918) (qwen3-coder named).
+Frequency rises sharply with context usage (observed at ~50% of 128k). A plugin
+cannot repair the call: schema validation rejects it before `tool.execute.before`
+fires. Mitigations codified in `AGENTS.md` > "Local-model tool-call reliability":
+fresh session / `/compact` before write-heavy work, bash-heredoc fallback after two
+SchemaErrors, and switching to Devstral for scaffolding phases.
+
 ### Trial protocol suggestion
 
 Run one well-scoped M7 task per tool on a clean git state, judge on: respect of the
