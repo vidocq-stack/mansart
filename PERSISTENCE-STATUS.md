@@ -90,6 +90,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
 - 2026-08-14 — M7-10 — Fixed APT processor compilation issues (SourceSink imports, module-info exports); full build green with all 33 modules
 - 2026-08-14 — M7-10 — Verified processor structure and full build success
+- 2026-08-14 — M7-12 — Implemented entity mappings with @Column parsing; full build green
 - 2026-08-14 — M7-11 — Implemented @Id and @GeneratedValue parsing with PrimaryKeyMetadata support; full build green
 - 2026-08-14 — M7-9 — Implemented dialects integration (SPI, H2, PostgreSQL) into core module; module-info and POM updated; full build green
 - 2026-08-14 — M7-7 — Implemented EntityCache with IdentityHashMap and CacheKey; full build green
