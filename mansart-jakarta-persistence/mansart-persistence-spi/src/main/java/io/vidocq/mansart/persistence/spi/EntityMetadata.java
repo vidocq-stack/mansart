@@ -33,6 +33,7 @@ import java.util.Set;
  *   <li>Identifier attribute information</li>
  *   <li>Version attribute (for optimistic locking)</li>
  *   <li>Persistent attribute names</li>
+ *   <li>Relationship metadata</li>
  * </ul>
  *
  * <p>Instances are created at bootstrap time and used by the persistence
@@ -133,4 +134,27 @@ public interface EntityMetadata {
      * @return {@code true} if the class is an entity, {@code false} otherwise
      */
     boolean isEntity(Class<?> clazz);
+
+    /**
+     * Returns the relationship metadata for the given attribute.
+     *
+     * @param attributeName the name of the attribute
+     * @return the relationship metadata, or {@code null} if the attribute is not a relationship
+     */
+    RelationshipMetadata getRelationshipMetadata(String attributeName);
+
+    /**
+     * Returns whether the given attribute is a relationship.
+     *
+     * @param attributeName the name of the attribute
+     * @return {@code true} if the attribute is a relationship, {@code false} otherwise
+     */
+    boolean isRelationship(String attributeName);
+
+    /**
+     * Returns the set of relationship attribute names.
+     *
+     * @return unmodifiable set of relationship attribute names, never {@code null}
+     */
+    Set<String> getRelationshipAttributeNames();
 }

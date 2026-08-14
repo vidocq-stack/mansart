@@ -177,6 +177,26 @@ When running under Mistral Vibe, this repository ships project-level configurati
   (jdtls speaks LSP, not MCP; never launch it directly as an MCP server); `ctx` —
   context-mode sandbox + knowledge base (see below).
 
+### Java code intelligence: use the `java-lsp` tools
+
+The `java-lsp` MCP server (jdtls) exposes semantic tools that are faster AND cheaper
+in tokens than `find`/`grep`/`Read` chains. Prefer them for Java navigation:
+
+- **Find a symbol's definition** → `java-lsp_definition` (NOT `find -name '*.java'`
+  followed by reading whole files).
+- **Find all usages of a class/method** → `java-lsp_references` (NOT grep — grep
+  misses imports-free usages and hits comments).
+- **Check a signature/Javadoc quickly** → `java-lsp_hover` (NOT reading 300 lines of
+  the file).
+- **After editing Java code** → `java-lsp_diagnostics` on the touched files to catch
+  compile errors instantly, BEFORE running any Maven build.
+- **Rename a symbol across the codebase** → `java-lsp_rename_symbol`.
+
+`find`/`grep` stay appropriate for non-Java files, file-layout discovery, and
+text-literal searches. Reading a whole file is justified only when you are about to
+edit large parts of it. (Reminder: jdtls compiles into `target/` — the "Known
+pitfall" section applies; the validation gate's `clean` neutralizes it.)
+
 ### Context-window discipline (context-mode)
 
 For any command or fetch expected to produce **more than ~20 lines of output**

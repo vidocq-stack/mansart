@@ -61,6 +61,8 @@ public final class EntityScanner {
     private static final String VERSION_ANNOTATION = "jakarta.persistence.Version";
     private static final String TRANSIENT_ANNOTATION = "jakarta.persistence.Transient";
     private static final String COLUMN_ANNOTATION = "jakarta.persistence.Column";
+    private static final String MANY_TO_ONE_ANNOTATION = "jakarta.persistence.ManyToOne";
+    private static final String ONE_TO_ONE_ANNOTATION = "jakarta.persistence.OneToOne";
 
     private final Elements elements;
     private final Types types;
@@ -68,6 +70,8 @@ public final class EntityScanner {
 
     private final IdParser idParser = new IdParser();
     private final GeneratedValueParser generatedValueParser = new GeneratedValueParser();
+    private final ManyToOneParser manyToOneParser = new ManyToOneParser();
+    private final OneToOneParser oneToOneParser = new OneToOneParser();
 
     /**
      * Creates a new EntityScanner.
@@ -184,6 +188,20 @@ public final class EntityScanner {
         boolean isVersion = hasAnnotation(element, VERSION_ANNOTATION);
         boolean isGenerated = hasAnnotation(element, GENERATED_VALUE_ANNOTATION);
 
+        // Check for relationship annotations
+        RelationshipInfo relationshipInfo = null;
+        if (hasAnnotation(element, MANY_TO_ONE_ANNOTATION)) {
+            ManyToOneParser.ManyToOneInfo manyToOneInfo = manyToOneParser.parse(element, types);
+            if (manyToOneInfo != null) {
+                relationshipInfo = RelationshipInfo.fromManyToOne(manyToOneInfo);
+            }
+        } else if (hasAnnotation(element, ONE_TO_ONE_ANNOTATION)) {
+            OneToOneParser.OneToOneInfo oneToOneInfo = oneToOneParser.parse(element, types);
+            if (oneToOneInfo != null) {
+                relationshipInfo = RelationshipInfo.fromOneToOne(oneToOneInfo);
+            }
+        }
+
         // Extract @Id info
         IdParser.IdInfo idInfo = null;
         if (isId) {
@@ -213,7 +231,7 @@ public final class EntityScanner {
         }
 
         // Determine attribute kind
-        AttributeKind kind = determineAttributeKind(element, javaTypeFqn, isId, isVersion);
+        AttributeKind kind = determineAttributeKind(element, javaTypeFqn, isId, isVersion, relationshipInfo);
 
         return new AttributeMetadata(
                 element,
@@ -226,14 +244,17 @@ public final class EntityScanner {
                 idInfo,
                 genValueInfo,
                 columnName,
-                isColumnNullable
+                isColumnNullable,
+                relationshipInfo
         );
     }
 
     private AttributeKind determineAttributeKind(Element element, String javaTypeFqn,
-                                                  boolean isId, boolean isVersion) {
+                                                  boolean isId, boolean isVersion,
+                                                  RelationshipInfo relationshipInfo) {
         if (isId) return AttributeKind.ID;
         if (isVersion) return AttributeKind.VERSION;
+        if (relationshipInfo != null) return AttributeKind.REFERENCE;
 
         if (isTextType(javaTypeFqn)) return AttributeKind.TEXT;
         if (isBoolean(javaTypeFqn)) return AttributeKind.BOOLEAN;
@@ -370,7 +391,8 @@ public final class EntityScanner {
             IdParser.IdInfo idInfo,
             GeneratedValueParser.GeneratedValueInfo genValueInfo,
             String columnName,
-            boolean isColumnNullable
+            boolean isColumnNullable,
+            RelationshipInfo relationshipInfo
     ) {
         public AttributeMetadata {
             if (isId && idInfo == null) {

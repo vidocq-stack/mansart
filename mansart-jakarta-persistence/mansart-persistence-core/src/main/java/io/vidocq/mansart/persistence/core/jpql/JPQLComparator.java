@@ -17,20 +17,32 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-module io.vidocq.mansart.persistence.core {
-    requires io.vidocq.mansart.persistence.api;
-    requires io.vidocq.mansart.persistence.spi;
-    requires jakarta.persistence;
-    requires jakarta.transaction;
-    requires java.sql;
-    requires io.vidocq.mansart.data.dialect.spi;
-    requires io.vidocq.mansart.data.dialect.h2;
-    requires io.vidocq.mansart.data.dialect.postgresql;
-    requires io.vidocq.mansart.transactions.core;
-    
-    exports io.vidocq.mansart.persistence.core.bootstrap;
-    exports io.vidocq.mansart.persistence.core.cache;
-    exports io.vidocq.mansart.persistence.core.jpql;
-    exports io.vidocq.mansart.persistence.core.mapping;
-    exports io.vidocq.mansart.persistence.core.runtime;
+package io.vidocq.mansart.persistence.core.jpql;
+
+/**
+ * Comparison operators supported by the JPQL parser.
+ */
+public enum JPQLComparator {
+    EQUALS("= "),
+    NOT_EQUALS("<>"),
+    LESS_THAN("<"),
+    LESS_THAN_EQUAL("<="),
+    GREATER_THAN(">"),
+    GREATER_THAN_EQUAL(">="),
+    LIKE("LIKE");
+
+    private final String sqlSymbol;
+
+    JPQLComparator(String sqlSymbol) {
+        this.sqlSymbol = sqlSymbol;
+    }
+
+    /**
+     * Returns the SQL symbol to use when rendering the operator.
+     *
+     * @return the SQL operator symbol
+     */
+    public String toSqlSymbol() {
+        return sqlSymbol;
+    }
 }

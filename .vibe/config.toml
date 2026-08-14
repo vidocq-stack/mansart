@@ -1,7 +1,7 @@
 applied_migrations = [
     "bash_read_only_defaults_v1",
 ]
-active_model = "qwen-next-omlx"
+active_model = ""
 
 [[mcp_servers]]
 name = "java-lsp"
@@ -34,6 +34,7 @@ tool_timeout_sec = 120
 
 [tools.bash]
 allowlist = [
+    "./mvnw",
     "/Users/yblazart/.vibe/*",
     "/Users/yblazart/.vibe/skills/*",
     "/Users/yblazart/projects/perso/vidocq/*",
