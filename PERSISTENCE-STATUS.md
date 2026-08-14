@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-15 — Implement Transaction Management
-- **Next up**: M7-16 (Persistence Processor), M7-17 (Static Metamodel Generation)
+- **Current task**: M7-16 — Create mansart-persistence-processor
+- **Next up**: M7-17 (Static Metamodel Generation), M7-18 (mansart-persistence-tests)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -31,7 +31,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-12 Implement entity mappings
 - [x] M7-13 Implement basic JPQL (SELECT, WHERE)
 - [x] M7-14 Implement simple relationships
-- [ ] M7-15 Implement transaction management (mansart-transactions integration)
+- [x] M7-15 Implement transaction management (mansart-transactions integration)
 - [ ] M7-16 Create mansart-persistence-processor
 - [ ] M7-17 Static metamodel generation (APT)
 - [ ] M7-18 Create mansart-persistence-tests
@@ -43,7 +43,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## M8 — Advanced JPQL & Criteria API
 
-- [ ] M8-1 GROUP BY and HAVING
+- [ ] M8-1 GROUP BY et HAVING
 - [ ] M8-2 JOIN syntax (INNER, LEFT, RIGHT)
 - [ ] M8-3 Subqueries in FROM
 - [ ] M8-4 ALL/ANY/SOME predicates
@@ -59,10 +59,10 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [ ] M8-14 Named queries
 - [ ] M8-15 Native queries
 - [ ] M8-16 Complete tests
-- [ ] M8-17 Run TCK by category
-- [ ] M8-18 Fix TCK failures
+- [ ] M8-17 Exécuter TCK par catégorie
+- [ ] M8-18 Corriger échecs TCK
 
-**M8 deliverable**: full JPQL, Criteria API, TCK 1000+ PASS.
+**M8 deliverable**: full JPQL, Criteria API, TCK : 1000+ tests PASS.
 
 ## M9 — Finalization
 
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-14 — M7-15 — Implemented transaction management: updated MansartEntityTransaction to delegate to MansartTransactionManager with JTA integration (begin/commit/rollback/setRollbackOnly/getRollbackOnly/isActive/getTimeout/setTimeout), updated MansartEntityManager with TransactionManager field and integration for getTransaction/joinTransaction/isJoinedToTransaction; full compilation green with all persistence modules
 - 2026-08-14 — M7-14 — Implemented simple relationships: created RelationshipMetadata SPI interface, ManyToOneParser, OneToOneParser, RelationshipInfo, JoinColumnInfo classes in processor/parse; updated EntityScanner to detect @ManyToOne/@OneToOne annotations with RelationshipInfo in AttributeMetadata; added getRelationshipMetadata/isRelationship/getRelationshipAttributeNames to EntityMetadata SPI; created DefaultRelationshipMetadata runtime class in core/mapping; full build green with all 33 modules
 - 2026-08-14 — M7-13 — Implemented basic JPQL (SELECT, WHERE): created JpqlToSqlConverter (JPQL AST to Dialect.Where), JpqlExecutor (SQL execution via JDBC), modified MansartQuery with Dialect/ConnectionProvider/EntityModels support and getResultList() implementation, updated MansartEntityManager to pass execution context to queries; full build green with all 33 modules
 - 2026-08-14 — compilation-fix — Fixed MansartQuery.java: added missing Query/TypedQuery methods (getParameter, getHints, setParameter variants); full build green with all 33 modules

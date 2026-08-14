@@ -2,7 +2,7 @@
  * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
  * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License 2.0 which is available at
+ * terms of the Eclipse License 2.0 which is available at
  * https://www.eclipse.org/legal/epl-2.0/
  *
  * This Source Code may also be made available under the following Secondary
@@ -13,12 +13,18 @@
  *
  * It is also made available under the European Union Public Licence v. 1.2,
  * which is available at
- * https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+ * https://joinup.ec.europa.eu/collection/eupl/eupl-text-1.2
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
 package io.vidocq.mansart.persistence.core.runtime;
 
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
+import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
+import io.vidocq.mansart.persistence.spi.Bootstrap;
+import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.EntityTransaction;
@@ -36,12 +42,6 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-import io.vidocq.mansart.data.dialect.Dialect;
-import io.vidocq.mansart.data.dialect.EntityModel;
-import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
-import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
-import io.vidocq.mansart.persistence.spi.Bootstrap;
-
 /**
  * Runtime implementation of {@link EntityManager}.
  *
@@ -54,6 +54,7 @@ import io.vidocq.mansart.persistence.spi.Bootstrap;
  *   <li>ScopedValue for virtual thread support</li>
  *   <li>HashMap-based L1 cache for entities</li>
  *   <li>Dialect integration from mansart-data-dialect-spi</li>
+ *   <li>Transaction management integration with mansart-transactions</li>
  * </ul>
  */
 public class MansartEntityManager implements EntityManager {
@@ -63,8 +64,8 @@ public class MansartEntityManager implements EntityManager {
     private final EntityManagerFactory entityManagerFactory;
     private final Bootstrap bootstrap;
     private final Dialect dialect;
+    private final MansartTransactionManager transactionManager;
     private final Map<Object, Object> cache;
-    private final AtomicReference<EntityTransaction> transaction;
     private final AtomicReference<Boolean> open;
 
     private final Map<String, Class<?>> entityClasses;
@@ -98,21 +99,31 @@ public class MansartEntityManager implements EntityManager {
     public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
                                 Map<String, Class<?>> entityClasses, Map<Class<?>, EntityModel<?>> entityModels,
                                 JpqlExecutor.ConnectionProvider connectionProvider, boolean initialized) {
+        this(entityManagerFactory, bootstrap, dialect, entityClasses, entityModels, connectionProvider, initialized, null);
+    }
+
+    /**
+     * Creates a new {@code MansartEntityManager} with full configuration including transaction manager.
+     */
+    public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
+                                Map<String, Class<?>> entityClasses, Map<Class<?>, EntityModel<?>> entityModels,
+                                JpqlExecutor.ConnectionProvider connectionProvider, boolean initialized,
+                                MansartTransactionManager transactionManager) {
         this.entityManagerFactory = entityManagerFactory;
         this.bootstrap = bootstrap;
         this.dialect = dialect;
         this.cache = new HashMap<>();
-        this.transaction = new AtomicReference<>();
         this.open = new AtomicReference<>(true);
         this.entityClasses = Map.copyOf(entityClasses);
         this.entityModels = entityModels != null ? Map.copyOf(entityModels) : Map.of();
         this.connectionProvider = connectionProvider;
         this.initialized = (entityClasses != null && !entityClasses.isEmpty()) || initialized;
+        this.transactionManager = transactionManager;
     }
 
     private MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
                                  Map<String, Class<?>> entityClasses) {
-        this(entityManagerFactory, bootstrap, dialect, entityClasses, Map.of(), null, false);
+        this(entityManagerFactory, bootstrap, dialect, entityClasses, Map.of(), null, false, null);
     }
 
     @Override
@@ -354,10 +365,21 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void joinTransaction() {
+        // If there's a JTA transaction active, we can join it
+        if (transactionManager != null && transactionManager.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
+            // Transaction is already active, we're joined by default in JTA mode
+            return;
+        }
+        throw new IllegalStateException("No active JTA transaction to join");
     }
 
     @Override
     public boolean isJoinedToTransaction() {
+        if (transactionManager != null) {
+            int status = transactionManager.getStatus();
+            return status == jakarta.transaction.Status.STATUS_ACTIVE ||
+                   status == jakarta.transaction.Status.STATUS_MARKED_ROLLBACK;
+        }
         return false;
     }
 
@@ -383,7 +405,8 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public EntityTransaction getTransaction() {
-        return new MansartEntityTransaction(this);
+        // Return a new EntityTransaction that delegates to the TransactionManager
+        return new MansartEntityTransaction(this, transactionManager);
     }
 
     @Override
@@ -428,5 +451,14 @@ public class MansartEntityManager implements EntityManager {
     @Override
     public <C, T> T callWithConnection(jakarta.persistence.ConnectionFunction<C, T> function) {
         return null;
+    }
+
+    /**
+     * Returns the transaction manager used by this entity manager.
+     *
+     * @return the transaction manager, or null if not configured
+     */
+    public MansartTransactionManager getTransactionManager() {
+        return transactionManager;
     }
 }
