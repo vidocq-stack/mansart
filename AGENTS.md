@@ -152,9 +152,18 @@ error mentioning `Unresolved compilation problems`, while the sources are correc
 the strict-modules charter and fixes nothing. Instead:
 
 1. `./mvnw clean test` on the affected reactor (purges the ECJ classes), and
-2. if it recurs, stop jdtls first (`pkill -f mcp-language-server`), then wipe its
-   workspace: `rm -rf ~/.cache/jdtls/<project>-workspace`. Never wipe it while a
-   jdtls instance is running — it re-corrupts `target/` during builds.
+2. if it recurs, stop jdtls first (`pkill -f mcp-language-server`, and
+   `pkill -f "eclipse.jdt.ls"` for OpenCode's own jdtls), then wipe the workspace:
+   `rm -rf ~/.cache/jdtls/<project>-workspace`. Never wipe it while a jdtls
+   instance is running — it re-corrupts `target/` during builds.
+
+**Structural fix in place (2026-08-14)**: the `m2e-ide-output` Maven profile in the
+mansart root POM (activated only under m2e, i.e. inside jdtls — Vibe's java-lsp AND
+OpenCode's built-in LSP) redirects the IDE build to `target-ide/` (gitignored).
+jdtls can no longer write into Maven's `target/`, so this whole failure class is
+neutralized for reactor modules. NEVER remove that profile. Residual exposure: the
+out-of-reactor TCK runner POMs do not inherit it — if the symptom ever appears
+there, apply the same profile to the standalone POM.
 
 Any `module-info.java` or surefire change must be motivated by a genuine module
 error (`does not read`, `does not export`, `IllegalAccessException`) and reviewed

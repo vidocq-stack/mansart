@@ -89,4 +89,27 @@
         <module>mansart-transactions</module>
         <module>mansart-jakarta-persistence</module>
     </modules>
+
+    <profiles>
+        <!--
+            Active ONLY when the project is imported by m2e (jdtls / Eclipse define the
+            m2e.version property; Maven CLI never does). Redirects the IDE build output
+            to target-ide/ so the ECJ compiler embedded in jdtls can never pollute the
+            Maven CLI's target/ with class files — ECJ emits .class files even for
+            uncompilable code ("Unresolved compilation problems", package-less type
+            descriptors), which surefire would then execute. See BUG.md MANSART-008.
+            Inherited by every module of the mansart workspace.
+        -->
+        <profile>
+            <id>m2e-ide-output</id>
+            <activation>
+                <property>
+                    <name>m2e.version</name>
+                </property>
+            </activation>
+            <build>
+                <directory>${project.basedir}/target-ide</directory>
+            </build>
+        </profile>
+    </profiles>
 </project>

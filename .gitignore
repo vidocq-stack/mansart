@@ -1,4 +1,5 @@
 target/
+target-ide/
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 !.mvn/wrapper/maven-wrapper.properties
