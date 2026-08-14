@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-11 — Implement @Id, @GeneratedValue
-- **Next up**: M7-12 (Entity mappings), M7-13 (Basic JPQL)
+- **Current task**: M7-12 — Implement entity mappings
+- **Next up**: M7-13 (Basic JPQL), M7-14 (Simple Relationships)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -28,7 +28,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-9 Integrate existing dialects (mansart-data-dialect-spi/h2/postgresql)
 - [x] M7-10 Implement JPA annotations parsing (APT)
 - [x] M7-11 Implement @Id, @GeneratedValue
-- [ ] M7-12 Implement entity mappings
+- [x] M7-12 Implement entity mappings
 - [ ] M7-13 Implement basic JPQL (SELECT, WHERE)
 - [ ] M7-14 Implement simple relationships
 - [ ] M7-15 Implement transaction management (mansart-transactions integration)
@@ -90,7 +90,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
 - 2026-08-14 — M7-10 — Fixed APT processor compilation issues (SourceSink imports, module-info exports); full build green with all 33 modules
 - 2026-08-14 — M7-10 — Verified processor structure and full build success
-- 2026-08-14 — M7-11 — Implemented @Id and @GeneratedValue parsing with PrimaryKeyMetadata support
+- 2026-08-14 — M7-11 — Implemented @Id and @GeneratedValue parsing with PrimaryKeyMetadata support; full build green
 - 2026-08-14 — M7-9 — Implemented dialects integration (SPI, H2, PostgreSQL) into core module; module-info and POM updated; full build green
 - 2026-08-14 — M7-7 — Implemented EntityCache with IdentityHashMap and CacheKey; full build green
 - 2026-08-14 — M7-6 — Implemented MansartEntityManager (93 methods stubs) and MansartEntityTransaction; PERSISTENCE-STATUS.md updated; full build green

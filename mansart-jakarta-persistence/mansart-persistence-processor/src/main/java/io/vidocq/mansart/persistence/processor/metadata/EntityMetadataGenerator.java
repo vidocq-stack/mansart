@@ -146,8 +146,10 @@ public final class EntityMetadataGenerator {
         w.println("        List<String> _order = new ArrayList<>();");
         
         for (EntityScanner.AttributeMetadata attr : entity.attributes()) {
-            w.println("        _names.add(\"" + attr.name() + "\");");
-            w.println("        _order.add(\"" + attr.name() + "\");");
+            // Use column name if specified, otherwise use field/property name
+            String columnName = attr.columnName() != null ? attr.columnName() : attr.name();
+            w.println("        _names.add(\"" + columnName + "\");");
+            w.println("        _order.add(\"" + columnName + "\");");
         }
 
         w.println("        this.persistentAttributeNames = Collections.unmodifiableSet(_names);");

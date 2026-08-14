@@ -60,6 +60,7 @@ public final class EntityScanner {
     private static final String GENERATED_VALUE_ANNOTATION = "jakarta.persistence.GeneratedValue";
     private static final String VERSION_ANNOTATION = "jakarta.persistence.Version";
     private static final String TRANSIENT_ANNOTATION = "jakarta.persistence.Transient";
+    private static final String COLUMN_ANNOTATION = "jakarta.persistence.Column";
 
     private final Elements elements;
     private final Types types;
@@ -198,6 +199,19 @@ public final class EntityScanner {
             genValueInfo = generatedValueParser.parse(element);
         }
 
+        // Extract @Column info
+        String columnName = null;
+        boolean isColumnNullable = true;
+        if (hasAnnotation(element, COLUMN_ANNOTATION)) {
+            ColumnParser columnParser = new ColumnParser();
+            ColumnParser.ColumnInfo columnInfo = columnParser.parse(element);
+            if (columnInfo != null) {
+                columnName = columnInfo.name();
+                // For now, just use the column name if specified
+                // Nullability will be used later if needed
+            }
+        }
+
         // Determine attribute kind
         AttributeKind kind = determineAttributeKind(element, javaTypeFqn, isId, isVersion);
 
@@ -210,7 +224,9 @@ public final class EntityScanner {
                 isVersion,
                 isGenerated,
                 idInfo,
-                genValueInfo
+                genValueInfo,
+                columnName,
+                isColumnNullable
         );
     }
 
@@ -352,7 +368,9 @@ public final class EntityScanner {
             boolean isVersion,
             boolean isGenerated,
             IdParser.IdInfo idInfo,
-            GeneratedValueParser.GeneratedValueInfo genValueInfo
+            GeneratedValueParser.GeneratedValueInfo genValueInfo,
+            String columnName,
+            boolean isColumnNullable
     ) {
         public AttributeMetadata {
             if (isId && idInfo == null) {
