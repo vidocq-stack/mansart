@@ -29,12 +29,17 @@ import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
+import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 import io.vidocq.mansart.persistence.spi.Bootstrap;
 
 /**
@@ -62,6 +67,11 @@ public class MansartEntityManager implements EntityManager {
     private final AtomicReference<EntityTransaction> transaction;
     private final AtomicReference<Boolean> open;
 
+    private final Map<String, Class<?>> entityClasses;
+    private final Map<Class<?>, EntityModel<?>> entityModels;
+    private final JpqlExecutor.ConnectionProvider connectionProvider;
+    private final boolean initialized;
+
     /**
      * Creates a new {@code MansartEntityManager} instance.
      *
@@ -70,12 +80,39 @@ public class MansartEntityManager implements EntityManager {
      * @param dialect              the database dialect
      */
     public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect) {
+        this(entityManagerFactory, bootstrap, dialect, Map.of(), Map.of(), null);
+    }
+
+    /**
+     * Creates a new {@code MansartEntityManager} with an entity class registry.
+     */
+    public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
+                                Map<String, Class<?>> entityClasses, Map<Class<?>, EntityModel<?>> entityModels,
+                                JpqlExecutor.ConnectionProvider connectionProvider) {
+        this(entityManagerFactory, bootstrap, dialect, entityClasses, entityModels, connectionProvider, true);
+    }
+
+    /**
+     * Creates a new {@code MansartEntityManager} with full configuration.
+     */
+    public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
+                                Map<String, Class<?>> entityClasses, Map<Class<?>, EntityModel<?>> entityModels,
+                                JpqlExecutor.ConnectionProvider connectionProvider, boolean initialized) {
         this.entityManagerFactory = entityManagerFactory;
         this.bootstrap = bootstrap;
         this.dialect = dialect;
         this.cache = new HashMap<>();
         this.transaction = new AtomicReference<>();
         this.open = new AtomicReference<>(true);
+        this.entityClasses = Map.copyOf(entityClasses);
+        this.entityModels = entityModels != null ? Map.copyOf(entityModels) : Map.of();
+        this.connectionProvider = connectionProvider;
+        this.initialized = (entityClasses != null && !entityClasses.isEmpty()) || initialized;
+    }
+
+    private MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
+                                 Map<String, Class<?>> entityClasses) {
+        this(entityManagerFactory, bootstrap, dialect, entityClasses, Map.of(), null, false);
     }
 
     @Override
@@ -224,7 +261,25 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public Query createQuery(String qlString) {
-        return null;
+        if (qlString == null || !qlString.trim().toUpperCase().startsWith("SELECT")) {
+            throw new IllegalArgumentException("createQuery supports SELECT queries only at M7-13: " + qlString);
+        }
+        var parser = new JPQLParser(entityClasses);
+        var parsed = parser.parse(qlString, null);
+        return new MansartQuery(parsed, dialect, connectionProvider, entityModels, entityClasses);
+    }
+
+    @Override
+    public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
+        if (qlString == null || !qlString.trim().toUpperCase().startsWith("SELECT")) {
+            throw new IllegalArgumentException("createQuery supports SELECT queries only at M7-13: " + qlString);
+        }
+        var parser = new JPQLParser(entityClasses);
+        var parsed = parser.parse(qlString, resultClass);
+        // Read the Class<T> and wrap in a typed query via Generic
+        @SuppressWarnings("unchecked")
+        var typedQuery = new MansartQuery.Generic<T>(parsed, dialect, connectionProvider, entityModels, entityClasses);
+        return typedQuery;
     }
 
     @Override
@@ -244,11 +299,6 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public Query createQuery(jakarta.persistence.criteria.CriteriaDelete<?> deleteQuery) {
-        return null;
-    }
-
-    @Override
-    public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
         return null;
     }
 

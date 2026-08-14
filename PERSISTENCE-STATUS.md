@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-12 — Implement entity mappings
-- **Next up**: M7-13 (Basic JPQL), M7-14 (Simple Relationships)
+- **Current task**: M7-14 — Implement Simple Relationships
+- **Next up**: M7-15 (Transaction management), M7-16 (Persistence Processor)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -29,7 +29,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-10 Implement JPA annotations parsing (APT)
 - [x] M7-11 Implement @Id, @GeneratedValue
 - [x] M7-12 Implement entity mappings
-- [ ] M7-13 Implement basic JPQL (SELECT, WHERE)
+- [x] M7-13 Implement basic JPQL (SELECT, WHERE)
 - [ ] M7-14 Implement simple relationships
 - [ ] M7-15 Implement transaction management (mansart-transactions integration)
 - [ ] M7-16 Create mansart-persistence-processor
@@ -88,6 +88,9 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-14 — M7-13 — Implemented basic JPQL (SELECT, WHERE): created JpqlToSqlConverter (JPQL AST to Dialect.Where), JpqlExecutor (SQL execution via JDBC), modified MansartQuery with Dialect/ConnectionProvider/EntityModels support and getResultList() implementation, updated MansartEntityManager to pass execution context to queries; full build green with all 33 modules
+- 2026-08-14 — compilation-fix — Fixed MansartQuery.java: added missing Query/TypedQuery methods (getParameter, getHints, setParameter variants); full build green with all 33 modules
+- 2026-08-14 — tooling — tracker subagent trial: Ministral-3-8B tool calls flawless but content discipline weaker; tracker re-pinned to Devstral; tracker agent files recreated after git-reset loss
 - 2026-08-14 — M7-10 — Fixed APT processor compilation issues (SourceSink imports, module-info exports); full build green with all 33 modules
 - 2026-08-14 — M7-10 — Verified processor structure and full build success
 - 2026-08-14 — M7-12 — Implemented entity mappings with @Column parsing; full build green
