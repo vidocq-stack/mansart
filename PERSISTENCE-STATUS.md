@@ -14,7 +14,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - **Milestone**: M7 — Bootstrap & Core JPA
 - **Current task**: M7-24 (Analyze TCK results)
 - **Next up**: M8-1 (GROUP BY et HAVING)
-- **Blockers**: MansartEntityManager.createNativeQuery returns null (1743 TCK errors)
+- **Blockers**: TCK now progresses past setup; fails on unimplemented features (EntityGraph, StoredProcedureQuery, etc.)
 
 ## M7 — Bootstrap & Core JPA (critical)
 
@@ -91,6 +91,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M7-24 — TCK setup NPE resolved, createNativeQuery now implemented, full build green (33/33 modules), smoke tests 3/3 PASS. TCK progresses past setup, fails on unimplemented features (EntityGraph, StoredProcedureQuery, etc.)
 - 2026-08-15 — M7-24 — Fixed TCK setup NPE: corrected provider class name in persistence.xml (bootstrap -> core.bootstrap), added jpa.provider.implementation.specific.properties system property, updated H2 JDBC URL. TCK now passes setup phase, fails at createNativeQuery (not yet implemented). Smoke tests still PASS (3/3), full build BUILD SUCCESS (33/33 modules)
 - 2026-08-15 — M7-23 — Completed full Jakarta Persistence 3.2 TCK execution: configured tck-full profile with JUnit 5 support (junit-jupiter-engine, surefire-junit-platform), dependenciesToScan for TCK jars, includes pattern for Client* tests. Full TCK runs 1745 tests (2 PASS, 1743 errors, 2 skipped) - errors expected as implementation is incomplete. Full build BUILD SUCCESS (33/33 modules). TCK scoreboard updated
 - 2026-08-15 — M7-23 — TCK artifacts downloaded and installed, full suite configuration added; complete execution (400+ tests) blocked by Jakarta TS framework integration; smoke tests (3 tests) PASS

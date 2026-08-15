@@ -338,7 +338,7 @@
                                 <db.supports.sequence>true</db.supports.sequence>
                                 <persistence.second.level.caching.supported>true</persistence.second.level.caching.supported>
                                 <!-- Required by TCK PMClientBase.getPersistenceUnitProperties() -->
-                                <jpa.provider.implementation.specific.properties></jpa.provider.implementation.specific.properties>
+                                <jpa.provider.implementation.specific.properties>jakarta.persistence.schema-generation.database.action=create:jakarta.persistence.schema-generation.scripts.action=create:jakarta.persistence.schema-generation.create-database-schemas=true</jpa.provider.implementation.specific.properties>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
