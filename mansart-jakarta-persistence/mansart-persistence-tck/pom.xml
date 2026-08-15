@@ -284,6 +284,61 @@
                 </plugins>
             </build>
         </profile>
+        <!--
+          M7-22: Profile to download/build the official Jakarta Persistence 3.2 TCK.
+          The official TCK is not on Maven Central, so we need to build it from source.
+          This profile attempts to clone and build the TCK repository, then install it to local M2.
+          Requires git and network access to https://github.com/jakartaee/persistence-tck.
+          Use: mvn -Ptck-download initialize
+        -->
+        <profile>
+            <id>tck-download</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>download-tck</id>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                                <configuration>
+                                    <target>
+                                        <property name="tck.clonedir" value="${project.build.directory}/tck-source/persistence-tck"/>
+                                        <property name="tck.repo.url" value="https://github.com/jakartaee/persistence-tck.git"/>
+                                        <property name="tck.tag" value="3.2.0"/>
+                                        
+                                        <!-- Clone TCK repository -->
+                                        <exec executable="git" failonerror="false">
+                                            <arg value="clone"/>
+                                            <arg value="--depth"/>
+                                            <arg value="1"/>
+                                            <arg value="--branch"/>
+                                            <arg value="${tck.tag}"/>
+                                            <arg value="${tck.repo.url}"/>
+                                            <arg value="${tck.clonedir}"/>
+                                        </exec>
+                                        
+                                        <!-- Build TCK -->
+                                        <exec executable="mvn" dir="${tck.clonedir}" failonerror="false">
+                                            <arg value="-ntp"/>
+                                            <arg value="clean"/>
+                                            <arg value="install"/>
+                                            <arg value="-DskipTests"/>
+                                        </exec>
+                                        
+                                        <echo message="TCK build complete. Artifacts should now be in your local M2."/></target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
     <build>

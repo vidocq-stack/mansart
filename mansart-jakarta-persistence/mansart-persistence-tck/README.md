@@ -19,8 +19,36 @@ Module in standalone `modelVersion 4.0.0` (without `<parent>`). Reason documente
 
 ## TCK artifact installation
 
-The `jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT` artifact is available from the Jakarta staging repository.
-If not available in local M2, it needs to be built from the [Eclipse EE4J Persistence TCK source](https://github.com/eclipse-ee4j/ee4j/persistence-tck/persistence-tck-dist).
+**Status**: The official Jakarta Persistence 3.2 TCK is **NOT available on Maven Central**. 
+
+Two options to obtain it:
+
+### Option 1: Use existing snapshot (limited)
+The `jakarta.tck:persistence-tck-spec-tests:3.2.2-SNAPSHOT` artifact is available in local M2 from a previous build.
+However, it appears to be incomplete (only contains entity classes and signature test).
+
+### Option 2: Build from source (recommended for M7-22)
+```bash
+# Clone the official TCK repository
+git clone https://github.com/jakartaee/persistence-tck.git
+cd persistence-tck
+
+# Check out the 3.2.0 tag
+git checkout 3.2.0
+
+# Build and install
+mvn clean install -DskipTests
+
+# Then install manually to local M2
+mvn install:install-file -Dfile=persistence-tck/target/persistence-tck-3.2.0.jar \
+    -DgroupId=jakarta.persistence \
+    -DartifactId=persistence-tck \
+    -Dversion=3.2.0 \
+    -Dpackaging=jar
+```
+
+**Note**: The snapshot currently in local M2 (`3.2.2-SNAPSHOT`) was built from the Eclipse EE4J fork, not the official Jakarta repository.
+It may be incomplete. For full TCK coverage (400+ tests), build from the official source.
 
 ```xml
 <dependency>
