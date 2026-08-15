@@ -59,6 +59,29 @@ public class MansartCache implements Cache {
         cache.remove(entityClass);
     }
 
+    /**
+     * Retrieves an entity from the cache.
+     * 
+     * @param entityClass the entity class
+     * @param primaryKey the primary key
+     * @return the cached entity, or null if not found
+     */
+    public Object get(Class<?> entityClass, Object primaryKey) {
+        Map<Object, Object> entityCache = cache.get(entityClass);
+        return entityCache != null ? entityCache.get(primaryKey) : null;
+    }
+
+    /**
+     * Stores an entity in the cache.
+     * 
+     * @param entityClass the entity class
+     * @param primaryKey the primary key
+     * @param entity the entity to cache
+     */
+    public void put(Class<?> entityClass, Object primaryKey, Object entity) {
+        cache.computeIfAbsent(entityClass, k -> new HashMap<>()).put(primaryKey, entity);
+    }
+
     @Override
     public void evictAll() {
         cache.clear();

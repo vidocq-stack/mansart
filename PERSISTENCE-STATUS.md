@@ -11,7 +11,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: M8-19
+- **Current task**: M8-18
 - **Next up**: M9-8 (Optimizations)
 - **Blockers**: TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
 
@@ -64,7 +64,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M8-16 Complete tests
 - [x] M8-17 Exécuter TCK par catégorie
 - [x] M8-18 Corriger échecs TCK
-- [ ] M8-19 Cache support
+- [x] M8-19 Cache support
 
 **M8 deliverable**: full JPQL, Criteria API, TCK : 1000+ tests PASS.
 
@@ -94,6 +94,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M8-18/M8-19 — Fixed ID type conversion (Long->int/long) in persist(), implemented L2 cache with get/put methods, CacheTests improved from 0/4 to 3/4 PASS; full build green (33/33 modules)
 - 2026-08-15 — M8-18 — Implemented Cache support: created MansartCache, added getCache() to MansartEntityManagerFactory, fixed compilation; full build green (33/33 modules). CacheTests should now return non-null cache.
 - 2026-08-15 — M8-17 — TCK category analysis: 0/21 PASS, 19 errors across EntityTransaction(5), Cache(4), Entity-Basic(4), Entity-Detach(2), Annotations-Entity(2), Query-Basic(1), EMFClose(1); root causes: schema generation, cache not implemented, transaction not implemented, type casting
 - 2026-08-15 — M8-16 — Completed NativeQueryTest.java with 25 tests using direct SQL DDL/DML, fixed MansartNativeQuery parameter binding (1-based indexing) and result extraction (using rs.getObject), full build green (33/33 modules)

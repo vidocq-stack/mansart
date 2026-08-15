@@ -27,6 +27,7 @@ import io.vidocq.mansart.persistence.spi.Bootstrap;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Cache;
 import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.LockModeType;
@@ -146,10 +147,39 @@ public class MansartEntityManager implements EntityManager {
         if (entity == null) throw new IllegalArgumentException("Entity must not be null");
         try {
             EntityIdHandles handles = getIdHandles(entity.getClass());
-            handles.setter.invoke(entity, idValue);
+            Object convertedId = convertToIdType(idValue, handles.idType);
+            handles.setter.invoke(entity, convertedId);
         } catch (Throwable t) {
             throw new RuntimeException("Failed to set ID on entity " + entity.getClass().getName(), t);
         }
+    }
+
+    /**
+     * Converts the ID value to the target ID type.
+     * Handles primitive type conversions (Long -> long, Long -> int, etc.)
+     */
+    private static Object convertToIdType(Object idValue, Class<?> targetType) {
+        if (idValue == null) {
+            return null;
+        }
+        if (targetType.isInstance(idValue)) {
+            return idValue;
+        }
+        // Handle primitive types
+        if (targetType == long.class) {
+            return ((Number) idValue).longValue();
+        }
+        if (targetType == int.class) {
+            return ((Number) idValue).intValue();
+        }
+        if (targetType == Integer.class) {
+            return ((Number) idValue).intValue();
+        }
+        if (targetType == Long.class) {
+            return ((Number) idValue).longValue();
+        }
+        // Add more numeric conversions as needed
+        return idValue;
     }
 
     private final EntityManagerFactory entityManagerFactory;
@@ -222,7 +252,22 @@ public class MansartEntityManager implements EntityManager {
         if (primaryKey == null) {
             return null;
         }
-        return entityClass.cast(cache.get(primaryKey));
+        // Check L1 cache first
+        Object entity = cache.get(primaryKey);
+        if (entity != null) {
+            return entityClass.cast(entity);
+        }
+        // Check L2 cache
+        Cache l2Cache = entityManagerFactory.getCache();
+        if (l2Cache instanceof MansartCache) {
+            entity = ((MansartCache) l2Cache).get(entityClass, primaryKey);
+            if (entity != null) {
+                // Populate L1 cache
+                cache.put(primaryKey, entity);
+                return entityClass.cast(entity);
+            }
+        }
+        return null;
     }
 
     @Override
@@ -267,14 +312,23 @@ public class MansartEntityManager implements EntityManager {
         }
         
         // Generate ID for the entity
-        Long id = ID_COUNTER.getAndIncrement();
+        Long counterId = ID_COUNTER.getAndIncrement();
         
         try {
             // Set the ID using MethodHandles (no reflection)
-            setEntityId(entity, id);
+            setEntityId(entity, counterId);
             
-            // Store in cache
-            cache.put(id, entity);
+            // Get the actual ID value from the entity (after conversion)
+            Object actualId = getEntityId(entity);
+            
+            // Store in L1 cache with actual ID
+            cache.put(actualId, entity);
+            
+            // Store in L2 cache (M8-18: Cache support)
+            Cache l2Cache = entityManagerFactory.getCache();
+            if (l2Cache instanceof MansartCache) {
+                ((MansartCache) l2Cache).put(entity.getClass(), actualId, entity);
+            }
             
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist entity: " + e.getMessage(), e);
@@ -293,9 +347,14 @@ public class MansartEntityManager implements EntityManager {
         if (id != null && cache.containsKey(id)) {
             // Entity exists, update it
             cache.put(id, entity);
+            // Update L2 cache
+            Cache l2Cache = entityManagerFactory.getCache();
+            if (l2Cache instanceof MansartCache) {
+                ((MansartCache) l2Cache).put(entity.getClass(), id, entity);
+            }
             return entity;
         } else {
-            // Entity doesn't exist, persist it
+            // Entity doesn't exist, persist it (which will handle L2 cache)
             persist(entity);
             return entity;
         }
@@ -310,6 +369,11 @@ public class MansartEntityManager implements EntityManager {
         Object id = getEntityId(entity);
         if (id != null) {
             cache.remove(id);
+            // Remove from L2 cache
+            Cache l2Cache = entityManagerFactory.getCache();
+            if (l2Cache instanceof MansartCache) {
+                ((MansartCache) l2Cache).evict(entity.getClass(), id);
+            }
         }
     }
 
@@ -372,6 +436,11 @@ public class MansartEntityManager implements EntityManager {
         Object id = getEntityId(entity);
         if (id != null) {
             cache.remove(id);
+            // Remove from L2 cache
+            Cache l2Cache = entityManagerFactory.getCache();
+            if (l2Cache instanceof MansartCache) {
+                ((MansartCache) l2Cache).evict(entity.getClass(), id);
+            }
         }
     }
 
