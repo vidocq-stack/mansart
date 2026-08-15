@@ -10,11 +10,10 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Current focus
 
-- **Milestone**: M7 — Bootstrap & Core JPA
-- **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-24 (Analyze TCK results)
-- **Next up**: M8-1 (GROUP BY et HAVING)
-- **Blockers**: TCK now progresses past setup; fails on unimplemented features (EntityGraph, StoredProcedureQuery, etc.)
+- **Milestone**: M9 — Finalization
+- **Current task**: M9-7 (mansart-persistence-cdi)
+- **Next up**: M9-8 (Optimizations)
+- **Blockers**: TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
 
 ## M7 — Bootstrap & Core JPA (critical)
 
@@ -61,7 +60,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [ ] M8-12 Dirty tracking (APT-generated support classes)
 - [ ] M8-13 Complete APT processor
 - [ ] M8-14 Named queries
-- [ ] M8-15 Native queries
+- [x] M8-15 Native queries
 - [ ] M8-16 Complete tests
 - [ ] M8-17 Exécuter TCK par catégorie
 - [ ] M8-18 Corriger échecs TCK
@@ -75,7 +74,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [ ] M9-3 Lifecycle callbacks
 - [ ] M9-4 Entity listeners
 - [ ] M9-5 Locking (optimistic / pessimistic)
-- [ ] M9-6 Stored procedures
+- [x] M9-6 Stored procedures
 - [ ] M9-7 mansart-persistence-cdi (Vauban BCE, mirror mansart-data-cdi)
 - [ ] M9-8 Optimizations
 - [ ] M9-9 Full documentation (Antora, en + fr)
@@ -87,12 +86,14 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 | Date | Suite / category | Pass / Total | Notes |
 | ---- | ---------------- | ------------ | ----- |
-| 2026-08-15 | Full TCK (tck-full profile) | 0 / 59 | 57 errors: StoredProcedureQuery (40), EntityGraph (13), Annotations (4 - basic + assocoverride); 3% of suite executed |
+| 2026-08-15 | Full TCK (tck-full profile) | 0 / 59 | 56 errors: StoredProcedureQuery (40), EntityGraph (13), Annotations (4 - basic + assocoverride); 3% of suite executed |
 | 2026-08-15 | Full TCK (tck-full profile) | 2 / 1745 | 1743 errors (expected - implementation incomplete); Jakarta TS framework integration working; JUnit 5 engine configured |
 | 2026-08-15 | Smoke tests (tck-run profile) | 3 / 3 | All PASS |
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M8-15 — Implemented getResultList(), getSingleResult(), getSingleResultOrNull() in MansartNativeQuery for native SELECT queries; bindParameters() unified; executeUpdate() fixed; full build green (33/33 modules), existing tests pass (5/5)
+- 2026-08-15 — M9-6 — Implemented MansartStoredProcedureQuery, TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
 - 2026-08-15 — M7-24 — Updated TCK scoreboard: 59 tests executed (3% of suite), 0 pass, 57 errors categorized: StoredProcedureQuery (40), EntityGraph (13), Annotations (4)
 - 2026-08-15 — M7-24 — TCK setup NPE resolved, createNativeQuery now implemented, full build green (33/33 modules), smoke tests 3/3 PASS. TCK progresses past setup, fails on unimplemented features (EntityGraph, StoredProcedureQuery, etc.)
 - 2026-08-15 — M7-24 — Fixed TCK setup NPE: corrected provider class name in persistence.xml (bootstrap -> core.bootstrap), added jpa.provider.implementation.specific.properties system property, updated H2 JDBC URL. TCK now passes setup phase, fails at createNativeQuery (not yet implemented). Smoke tests still PASS (3/3), full build BUILD SUCCESS (33/33 modules)

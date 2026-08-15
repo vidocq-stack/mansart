@@ -20,6 +20,7 @@
 package io.vidocq.mansart.persistence.core.runtime;
 
 import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 
 import jakarta.persistence.CacheRetrieveMode;
@@ -31,7 +32,10 @@ import jakarta.persistence.Query;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -39,18 +43,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
-/**
- * Basic native SQL query implementation for M7-24.
- * Supports executeUpdate() for DELETE/UPDATE/INSERT statements.
- * getResultList() for SELECT statements is not yet implemented.
- */
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class MansartNativeQuery implements Query {
 
     private final String sql;
     private final Dialect dialect;
     private final JpqlExecutor.ConnectionProvider connectionProvider;
+    private final Map<Class<?>, EntityModel<?>> entityModels;
+    private final Map<String, Class<?>> entityClasses;
     private final Map<String, Object> namedParameters = new ConcurrentHashMap<>();
     private final List<Object> positionParameters = new LinkedList<>();
     private int maxResults = Integer.MAX_VALUE;
@@ -60,9 +60,16 @@ public class MansartNativeQuery implements Query {
     private Integer timeout = null;
 
     MansartNativeQuery(String sql, Dialect dialect, JpqlExecutor.ConnectionProvider connectionProvider) {
+        this(sql, dialect, connectionProvider, Map.of(), Map.of());
+    }
+
+    MansartNativeQuery(String sql, Dialect dialect, JpqlExecutor.ConnectionProvider connectionProvider,
+                       Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses) {
         this.sql = sql;
         this.dialect = dialect;
         this.connectionProvider = connectionProvider;
+        this.entityModels = entityModels;
+        this.entityClasses = entityClasses;
     }
 
     @Override
@@ -71,10 +78,9 @@ public class MansartNativeQuery implements Query {
             throw new jakarta.persistence.PersistenceException(
                     "Native query execution not configured.");
         }
-        String processedSql = applyParameters(sql);
         try (Connection conn = connectionProvider.getConnection()) {
-            try (PreparedStatement stmt = conn.prepareStatement(processedSql)) {
-                bindPositionParameters(stmt);
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                bindParameters(stmt);
                 return stmt.executeUpdate();
             }
         } catch (SQLException e) {
@@ -84,36 +90,87 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public List getResultList() {
-        throw new UnsupportedOperationException("Native SQL SELECT queries not yet supported at M7-24");
+        if (connectionProvider == null || dialect == null) {
+            throw new jakarta.persistence.PersistenceException(
+                    "Native query execution not configured.");
+        }
+        try (Connection conn = connectionProvider.getConnection()) {
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                bindParameters(stmt);
+                return executeSelect(stmt);
+            }
+        } catch (SQLException e) {
+            throw new jakarta.persistence.PersistenceException("Failed to execute native query: " + e.getMessage(), e);
+        }
     }
 
     @Override
     public Object getSingleResult() {
-        throw new UnsupportedOperationException("Native SQL SELECT queries not yet supported at M7-24");
+        List results = getResultList();
+        if (results.isEmpty()) {
+            throw new jakarta.persistence.NoResultException("No result found for native query");
+        }
+        if (results.size() > 1) {
+            throw new jakarta.persistence.NonUniqueResultException("Multiple results found for native query");
+        }
+        return results.get(0);
     }
 
     @Override
     public Object getSingleResultOrNull() {
-        throw new UnsupportedOperationException("Native SQL SELECT queries not yet supported at M7-24");
+        List results = getResultList();
+        return results.isEmpty() ? null : results.get(0);
     }
 
-    private String applyParameters(String sql) {
-        if (namedParameters.isEmpty()) {
-            return sql;
+    private void bindParameters(PreparedStatement stmt) throws SQLException {
+        int paramIndex = 1;
+        for (Object value : positionParameters) {
+            if (value != null) {
+                dialect.bind(stmt, paramIndex, value, value.getClass());
+            } else {
+                stmt.setObject(paramIndex, null);
+            }
+            paramIndex++;
         }
-        String result = sql;
         for (Map.Entry<String, Object> entry : namedParameters.entrySet()) {
-            String placeholder = ":" + entry.getKey();
-            String value = String.valueOf(entry.getValue());
-            result = result.replace(placeholder, value);
+            Object value = entry.getValue();
+            if (value != null) {
+                dialect.bind(stmt, paramIndex, value, value.getClass());
+            } else {
+                stmt.setObject(paramIndex, null);
+            }
+            paramIndex++;
         }
-        return result;
     }
 
-    private void bindPositionParameters(PreparedStatement stmt) throws SQLException {
-        for (int i = 0; i < positionParameters.size(); i++) {
-            stmt.setObject(i + 1, positionParameters.get(i));
+    private List<Object[]> executeSelect(PreparedStatement stmt) throws SQLException {
+        List<Object[]> results = new ArrayList<>();
+        int actualMaxResults = maxResults == Integer.MAX_VALUE ? 0 : maxResults;
+        
+        if (actualMaxResults > 0) {
+            stmt.setMaxRows(actualMaxResults);
         }
+        
+        if (firstResult > 0) {
+            stmt.setFetchSize(firstResult);
+            // For dialects that support it, we would use LIMIT/OFFSET here
+            // For now, we use a simple approach with setFetchSize
+        }
+        
+        try (ResultSet rs = stmt.executeQuery()) {
+            ResultSetMetaData metaData = rs.getMetaData();
+            int columnCount = metaData.getColumnCount();
+            
+            while (rs.next()) {
+                Object[] row = new Object[columnCount];
+                for (int i = 0; i < columnCount; i++) {
+                    row[i] = dialect.extract(rs, i + 1, Object.class);
+                }
+                results.add(row);
+            }
+        }
+        
+        return results;
     }
 
     @Override

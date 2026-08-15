@@ -477,17 +477,17 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public Query createNativeQuery(String sqlString) {
-        return new MansartNativeQuery(sqlString, dialect, connectionProvider);
+        return new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
     public <T> Query createNativeQuery(String sqlString, Class<T> resultClass) {
-        return new MansartNativeQuery(sqlString, dialect, connectionProvider);
+        return new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
     public Query createNativeQuery(String sqlString, String resultSetMapping) {
-        return new MansartNativeQuery(sqlString, dialect, connectionProvider);
+        return new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
