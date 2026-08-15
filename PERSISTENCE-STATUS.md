@@ -11,7 +11,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: M8-17
+- **Current task**: M8-18
 - **Next up**: M9-8 (Optimizations)
 - **Blockers**: TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
 
@@ -62,7 +62,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [ ] M8-14 Named queries
 - [x] M8-15 Native queries
 - [x] M8-16 Complete tests
-- [ ] M8-17 Exécuter TCK par catégorie
+- [x] M8-17 Exécuter TCK par catégorie
 - [ ] M8-18 Corriger échecs TCK
 
 **M8 deliverable**: full JPQL, Criteria API, TCK : 1000+ tests PASS.
@@ -89,9 +89,11 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 | 2026-08-15 | Full TCK (tck-full profile) | 0 / 59 | 56 errors: StoredProcedureQuery (40), EntityGraph (13), Annotations (4 - basic + assocoverride); 3% of suite executed |
 | 2026-08-15 | Full TCK (tck-full profile) | 2 / 1745 | 1743 errors (expected - implementation incomplete); Jakarta TS framework integration working; JUnit 5 engine configured |
 | 2026-08-15 | Smoke tests (tck-run profile) | 3 / 3 | All PASS |
+| 2026-08-15 | TCK by category (M8-17) | 0 / 21 | EntityTransaction(5), Cache(4), Entity-Basic(4), Entity-Detach(2), Annotations-Entity(2), Query-Basic(1), EMFClose(1) | All errors: schema generation, cache not implemented, transaction not implemented, type casting |
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M8-17 — TCK category analysis: 0/21 PASS, 19 errors across EntityTransaction(5), Cache(4), Entity-Basic(4), Entity-Detach(2), Annotations-Entity(2), Query-Basic(1), EMFClose(1); root causes: schema generation, cache not implemented, transaction not implemented, type casting
 - 2026-08-15 — M8-16 — Completed NativeQueryTest.java with 25 tests using direct SQL DDL/DML, fixed MansartNativeQuery parameter binding (1-based indexing) and result extraction (using rs.getObject), full build green (33/33 modules)
 - 2026-08-15 — M8-15 — Implemented getResultList(), getSingleResult(), getSingleResultOrNull() in MansartNativeQuery for native SELECT queries; bindParameters() unified; executeUpdate() fixed; full build green (33/33 modules), existing tests pass (5/5)
 - 2026-08-15 — M9-6 — Implemented MansartStoredProcedureQuery, TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
