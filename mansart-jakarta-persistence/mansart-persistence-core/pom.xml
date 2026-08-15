@@ -74,6 +74,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <argLine>
+                        --add-reads io.vidocq.mansart.persistence.core=org.junit.jupiter.api
+                        --add-reads io.vidocq.mansart.persistence.core=org.assertj.core
                         --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.jpql=ALL-UNNAMED
                         --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.runtime=ALL-UNNAMED
                         --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.cache=ALL-UNNAMED
