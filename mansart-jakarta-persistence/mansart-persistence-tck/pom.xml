@@ -193,6 +193,30 @@
 
     <profiles>
         <!--
+          Default profile: runs Mansart smoke tests (tck-suite.xml)
+        -->
+        <profile>
+            <id>default</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>src/test/resources/tck-suite.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!--
+          Smoke profile: runs Mansart smoke tests with TCK dependencies.
           Enable with `mvn -Ptck-run test` to pull in the official Jakarta Persistence 3.2 TCK suite
           alongside the Mansart smoke harness.
         -->
@@ -219,15 +243,75 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <suiteXmlFiles combine.self="override"/>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>src/test/resources/tck-suite.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        
+        <!--
+          M7-23: Full Jakarta Persistence TCK execution profile.
+          Use: mvn -Ptck-full test
+          This profile runs the complete TCK suite (400+ tests) against Mansart Persistence.
+          Requires the TCK artifacts to be installed in local M2 (M7-22).
+          
+          Note: The TCK uses the TS (Test Suite) framework from jakarta.tck:common.
+          Tests are classes named *Client* that extend PMClientBase.
+        -->
+        <profile>
+            <id>tck-full</id>
+            <dependencies>
+                <!-- Jakarta Persistence TCK artifacts -->
+                <dependency>
+                    <groupId>jakarta.tck</groupId>
+                    <artifactId>persistence-tck-spec-tests</artifactId>
+                    <version>${jakarta.persistence.tck.version}</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>jakarta.tck</groupId>
+                    <artifactId>persistence-tck-dist</artifactId>
+                    <version>${jakarta.persistence.tck.version}</version>
+                    <type>jar</type>
+                    <scope>test</scope>
+                </dependency>
+                <!-- TS Framework (Test Suite) - required for TCK execution -->
+                <dependency>
+                    <groupId>jakarta.tck</groupId>
+                    <artifactId>common</artifactId>
+                    <version>11.0.0-RC6</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>src/test/resources/tck-full-suite.xml</suiteXmlFile>
+                            </suiteXmlFiles>
                             <dependenciesToScan>
                                 <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
                             </dependenciesToScan>
-                            <includes>
-                                <include>**/standalone/entity/EntityTests.class</include>
-                            </includes>
                             <systemPropertyVariables>
                                 <jimage.dir>${project.build.directory}/jimage-cache</jimage.dir>
+                                <!-- Mansart Persistence configuration for TS framework -->
+                                <platform.mode>standalone</platform.mode>
+                                <persistence.unit.name>JPATCK</persistence.unit.name>
+                                <persistence.unit.name.2>JPATCK2</persistence.unit.name.2>
+                                <jakarta.persistence.provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</jakarta.persistence.provider>
+                                <jakarta.persistence.jdbc.driver>org.h2.Driver</jakarta.persistence.jdbc.driver>
+                                <jakarta.persistence.jdbc.url>jdbc:h2:mem:testdb</jakarta.persistence.jdbc.url>
+                                <jakarta.persistence.jdbc.user>sa</jakarta.persistence.jdbc.user>
+                                <jakarta.persistence.jdbc.password></jakarta.persistence.jdbc.password>
+                                <vehicle>standalone</vehicle>
+                                <db.supports.sequence>true</db.supports.sequence>
+                                <persistence.second.level.caching.supported>true</persistence.second.level.caching.supported>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
@@ -356,11 +440,6 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven.surefire.plugin.version}</version>
-                <configuration>
-                    <suiteXmlFiles>
-                        <suiteXmlFile>src/test/resources/tck-suite.xml</suiteXmlFile>
-                    </suiteXmlFiles>
-                </configuration>
                 <dependencies>
                     <dependency>
                         <groupId>org.apache.maven.surefire</groupId>
@@ -369,6 +448,13 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <!--
+              Note: suiteXmlFiles is intentionally NOT configured here.
+              It is defined per-profile:
+              - Default (no profile): tck-suite.xml (smoke tests)
+              - tck-full: tck-full-suite.xml (full TCK suite)
+              Profiles define their own suiteXmlFiles configuration.
+            -->
         </plugins>
     </build>
 </project>

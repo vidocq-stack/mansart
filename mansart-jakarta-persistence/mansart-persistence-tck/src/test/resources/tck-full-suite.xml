@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="Jakarta Persistence 3.2 TCK - Full Suite" parallel="none" verbose="2">
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Core Entity Tests -->
+    <!-- ==================================================== -->
+    
+    <!-- Basic Persistence Tests -->
+    <test name="EntityTests - Basic Persist" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.entitytest.persist.basic"/>
+        </packages>
+    </test>
+    
+    <test name="EntityTests - Detach" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.entitytest.detach.basic"/>
+        </packages>
+    </test>
+    
+    <!-- EntityManager Tests -->
+    <test name="EntityManagerTests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.entityManager"/>
+            <package name="ee.jakarta.tck.persistence.core.entityManager2"/>
+        </packages>
+    </test>
+    
+    <!-- EntityManagerFactory Tests -->
+    <test name="EntityManagerFactoryTests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.entityManagerFactory"/>
+            <package name="ee.jakarta.tck.persistence.core.entityManagerFactoryCloseExceptions"/>
+        </packages>
+    </test>
+    
+    <!-- EntityTransaction Tests -->
+    <test name="EntityTransactionTests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.entityTransaction"/>
+        </packages>
+    </test>
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Annotations Tests -->
+    <!-- ==================================================== -->
+    
+    <test name="AnnotationsTests - Basic" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.basic"/>
+        </packages>
+    </test>
+    
+    <test name="AnnotationsTests - Access Field" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.access.field"/>
+        </packages>
+    </test>
+    
+    <test name="AnnotationsTests - Access Property" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.access.property"/>
+        </packages>
+    </test>
+    
+    <test name="AnnotationsTests - Access MappedSuperclass" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.access.mappedsc"/>
+        </packages>
+    </test>
+    
+    <!-- Entity annotation tests -->
+    <test name="AnnotationsTests - Entity" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.entity"/>
+        </packages>
+    </test>
+    
+    <!-- ID annotation tests -->
+    <test name="AnnotationsTests - Id" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.id"/>
+        </packages>
+    </test>
+    
+    <!-- Version annotation tests -->
+    <test name="AnnotationsTests - Version" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.version"/>
+        </packages>
+    </test>
+    
+    <!-- Temporal annotation tests -->
+    <test name="AnnotationsTests - Temporal" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.temporal"/>
+        </packages>
+    </test>
+    
+    <!-- Lob annotation tests -->
+    <test name="AnnotationsTests - Lob" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.annotations.lob"/>
+        </packages>
+    </test>
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Query Tests -->
+    <!-- ==================================================== -->
+    
+    <test name="QueryTests - Basic" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.basic"/>
+        </packages>
+    </test>
+    
+    <!-- Criteria API Tests -->
+    <test name="CriteriaAPITests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.criteriaapi"/>
+        </packages>
+    </test>
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Cache Tests -->
+    <!-- ==================================================== -->
+    
+    <test name="CacheTests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.cache.basicTests"/>
+        </packages>
+    </test>
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Callback Tests -->
+    <!-- ==================================================== -->
+    
+    <test name="CallbackTests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.core.callback.common"/>
+            <package name="ee.jakarta.tck.persistence.core.callback.inheritance"/>
+            <package name="ee.jakarta.tck.persistence.core.callback.listener"/>
+            <package name="ee.jakarta.tck.persistence.core.callback.listeneroverride"/>
+            <package name="ee.jakarta.tck.persistence.core.callback.method"/>
+            <package name="ee.jakarta.tck.persistence.core.callback.methodoverride"/>
+            <package name="ee.jakarta.tck.persistence.core.callback.xml"/>
+        </packages>
+    </test>
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Signature Tests -->
+    <!-- ==================================================== -->
+    
+    <test name="SignatureTests" group-by-instances="true">
+        <packages>
+            <package name="ee.jakarta.tck.persistence.signaturetest"/>
+        </packages>
+    </test>
+    
+    <!-- ==================================================== -->
+    <!-- Jakarta Persistence TCK - Smoke Tests (Mansart) -->
+    <!-- ==================================================== -->
+    
+    <test name="Mansart Smoke Tests" group-by-instances="true">
+        <classes>
+            <class name="io.vidocq.mansart.persistence.tck.MansartPersistenceSmokeTest"/>
+        </classes>
+    </test>
+</suite>
