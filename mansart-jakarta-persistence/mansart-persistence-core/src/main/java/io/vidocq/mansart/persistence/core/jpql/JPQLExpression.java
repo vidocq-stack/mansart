@@ -158,6 +158,22 @@ public abstract class JPQLExpression {
         }
     }
 
+    /** EXISTS expression: EXISTS (subquery) */
+    public static final class ExistsExpression extends JPQLExpression {
+        private final JPQLSubquery subquery;
+
+        public ExistsExpression(JPQLSubquery subquery) {
+            this.subquery = Objects.requireNonNull(subquery, "subquery must not be null");
+        }
+
+        public JPQLSubquery subquery() { return subquery; }
+
+        @Override
+        public String toString() {
+            return "EXISTS " + subquery;
+        }
+    }
+
     /**
      * Null check: {@code path IS NULL} or {@code path IS NOT NULL}.
      */

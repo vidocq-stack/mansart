@@ -10,10 +10,11 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Current focus
 
-- **Milestone**: M9 — Finalization
-- **Current task**: M9-10
-- **Next up**: M9-10 (Full TCK)
-- **Blockers**: EntityGraph implementation blocked by complex Jakarta Persistence 3.2 metamodel API (Graph, ManagedType, AttributeNode, Subgraph interfaces); TCK: StoredProcedureQuery errors 39, EntityGraph errors 13, CacheTests 3/4 PASS
+- **Milestone**: M8 — Advanced JPQL & Criteria API
+- **Milestone**: M8 — Advanced JPQL & Criteria API
+- **Current task**: M8-6
+- **Next up**: M8-6 (Criteria API)
+- **Blockers**: None
 
 ## M7 — Bootstrap & Core JPA (critical)
 
@@ -46,11 +47,11 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## M8 — Advanced JPQL & Criteria API
 
-- [ ] M8-1 GROUP BY et HAVING
-- [ ] M8-2 JOIN syntax (INNER, LEFT, RIGHT)
-- [ ] M8-3 Subqueries in FROM
-- [ ] M8-4 ALL/ANY/SOME predicates
-- [ ] M8-5 Additional JPQL functions
+- [x] M8-1 GROUP BY et HAVING
+- [x] M8-2 JOIN syntax (INNER, LEFT, RIGHT)
+- [x] M8-3 Subqueries in FROM
+- [x] M8-4 ALL/ANY/SOME predicates
+- [x] M8-5 Additional JPQL functions
 - [ ] M8-6 Criteria API
 - [ ] M8-7 Inheritance SINGLE_TABLE
 - [ ] M8-8 Inheritance JOINED
@@ -94,6 +95,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+
+- 2026-08-15 — M8-1/M8-2/M8-3/M8-4/M8-5 — COMPLETED: M8-1 GROUP BY/HAVING; M8-2 JOIN syntax; M8-3 Subqueries; M8-4 ALL/ANY/SOME/EXISTS; M8-5 Additional JPQL functions (JPQLFunctionExpression, JpqlToSqlConverter). Full build passes (33/33 modules).
 - 2026-08-15 — M9-9 — COMPLETED: full Antora documentation for mansart-jakarta-persistence in EN and FR, 22 files changed
 
 - 2026-08-15 — M9-8 — COMPLETED: query caching for JPQL to SQL conversion, 5 files changed

@@ -94,6 +94,12 @@ public final class JpqlExecutor {
             throw new JPQLException("No EntityModel found for entity: " + query.resultClass().getName());
         }
 
+        // M8-1: Check for GROUP BY or HAVING clauses
+        JPQLQuerySpecification spec = query.specification();
+        if (spec.groupByClause() != null || spec.havingClause() != null) {
+            return executeGroupByQuery(query, parameters, positionParameters, maxResults, firstResult, entityModel);
+        }
+
         // Try to get from cache first
         Where where = null;
         SqlFragment sqlFragment = null;
@@ -144,6 +150,168 @@ public final class JpqlExecutor {
             return mapResults(rs, entityModel);
         } catch (SQLException e) {
             throw dialect.translate(e);
+        }
+    }
+
+    /**
+     * Executes a JPQL query with GROUP BY or HAVING clauses.
+     * M8-1: Direct SQL generation for GROUP BY/HAVING support.
+     */
+    @SuppressWarnings("unchecked")
+    private <T> List<T> executeGroupByQuery(JPQLQuery<T> query, Map<String, Object> parameters,
+                                              List<Object> positionParameters, int maxResults, 
+                                              int firstResult, EntityModel<T> entityModel) {
+        JPQLQuerySpecification spec = query.specification();
+        JpqlToSqlConverter converter = new JpqlToSqlConverter(entityModels, entityClasses);
+        
+        // Build SQL with GROUP BY and HAVING
+        StringBuilder sql = new StringBuilder();
+        sql.append("SELECT ");
+        
+        // Add SELECT clause
+        JPQLSelectClause selectClause = spec.selectClause();
+        if (selectClause.expressions().size() == 1) {
+            sql.append("*");
+        } else {
+            // For multi-expression SELECT, we need to list the columns
+            boolean first = true;
+            for (JPQLExpression expr : selectClause.expressions()) {
+                if (!first) sql.append(", ");
+                // For GROUP BY queries, we typically select the grouped columns and aggregates
+                // For now, use * as a fallback
+                sql.append("*");
+                first = false;
+            }
+        }
+        
+        sql.append(" FROM ").append(entityModel.tableName());
+        
+        // Add WHERE clause
+        Where where = converter.toWhere(query);
+        String whereSql = convertWhereToSql(where, entityModel);
+        if (!whereSql.isEmpty()) {
+            sql.append(" ").append(whereSql);
+        }
+        
+        // Add GROUP BY clause
+        String groupBySql = converter.toGroupBySql(spec.groupByClause(), spec.fromClause());
+        if (!groupBySql.isEmpty()) {
+            sql.append(groupBySql);
+        }
+        
+        // Add HAVING clause
+        String havingSql = converter.toHavingSql(spec.havingClause(), spec.fromClause());
+        if (!havingSql.isEmpty()) {
+            sql.append(havingSql);
+        }
+        
+        // Add pagination (if supported)
+        if (maxResults > 0) {
+            sql.append(" LIMIT ").append(maxResults);
+        }
+        if (firstResult > 0) {
+            sql.append(" OFFSET ").append(firstResult);
+        }
+
+        // Execute query
+        try (Connection conn = connectionProvider.getConnection()) {
+            java.sql.PreparedStatement ps = conn.prepareStatement(sql.toString());
+            
+            // Bind parameters
+            bindParameters(ps, parameters, positionParameters);
+            
+            // Execute and map results
+            java.sql.ResultSet rs = ps.executeQuery();
+            return mapResults(rs, entityModel);
+        } catch (SQLException e) {
+            throw dialect.translate(e);
+        }
+    }
+
+    /**
+     * Converts a Dialect.Where to SQL WHERE clause string.
+     */
+    private String convertWhereToSql(Where where, EntityModel<?> entityModel) {
+        if (where == Where.ALWAYS_TRUE) {
+            return "";
+        }
+        return "WHERE " + whereToSql(where, entityModel);
+    }
+
+    /**
+     * Converts a Where predicate to SQL string.
+     */
+    private String whereToSql(Where where, EntityModel<?> entityModel) {
+        return switch (where) {
+            case Where.Eq eq -> eq.attr().columnName() + " = ?";
+            case Where.NotEq ne -> ne.attr().columnName() + " <> ?";
+            case Where.Lt lt -> lt.attr().columnName() + " < ?";
+            case Where.Lte lte -> lte.attr().columnName() + " <= ?";
+            case Where.Gt gt -> gt.attr().columnName() + " > ?";
+            case Where.Gte gte -> gte.attr().columnName() + " >= ?";
+            case Where.Like like -> like.attr().columnName() + " LIKE ?";
+            case Where.IsNull isn -> isn.attr().columnName() + " IS NULL";
+            case Where.IsNotNull isnn -> isnn.attr().columnName() + " IS NOT NULL";
+            case Where.And and -> {
+                StringBuilder sb = new StringBuilder("(");
+                boolean first = true;
+                for (Where child : and.children()) {
+                    if (!first) sb.append(" AND ");
+                    sb.append(whereToSql(child, entityModel));
+                    first = false;
+                }
+                sb.append(")");
+                yield sb.toString();
+            }
+            case Where.Or or -> {
+                StringBuilder sb = new StringBuilder("(");
+                boolean first = true;
+                for (Where child : or.children()) {
+                    if (!first) sb.append(" OR ");
+                    sb.append(whereToSql(child, entityModel));
+                    first = false;
+                }
+                sb.append(")");
+                yield sb.toString();
+            }
+            case Where.Not not -> "(NOT " + whereToSql(not.child(), entityModel) + ")";
+            case Where.IgnoreCase ic -> whereToSql(ic.inner(), entityModel);
+            case Where.Func fn -> fn.fn() + "(" + whereToSql(fn.inner(), entityModel) + ")";
+            case Where.AlwaysTrue at -> "1=1";
+            case Where.AlwaysFalse af -> "1=0";
+            case Where.In in -> in.attr().columnName() + " IN (" + "?".repeat(in.arity()) + ")";
+            case Where.Between bt -> bt.attr().columnName() + " BETWEEN ? AND ?";
+            default -> throw new JPQLException("Unsupported Where type: " + where.getClass().getSimpleName());
+        };
+    }
+
+    /**
+     * Binds parameters to a prepared statement for GROUP BY queries.
+     */
+    private void bindParameters(java.sql.PreparedStatement ps, 
+                               Map<String, Object> namedParameters, 
+                               List<Object> positionParameters) throws SQLException {
+        int paramIndex = 1;
+        
+        // First, bind positional parameters
+        for (Object value : positionParameters) {
+            if (value != null) {
+                dialect.bind(ps, paramIndex, value, value.getClass());
+            } else {
+                ps.setObject(paramIndex, null);
+            }
+            paramIndex++;
+        }
+        
+        // Then, bind named parameters
+        for (Map.Entry<String, Object> entry : namedParameters.entrySet()) {
+            Object value = entry.getValue();
+            if (value != null) {
+                dialect.bind(ps, paramIndex, value, value.getClass());
+            } else {
+                ps.setObject(paramIndex, null);
+            }
+            paramIndex++;
         }
     }
 

@@ -305,7 +305,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
-        return null; // TODO: Implement Criteria API in M8
+        return null; // TODO: Implement Criteria API in M8-6
     }
 
     @Override

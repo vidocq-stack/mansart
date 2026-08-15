@@ -35,7 +35,9 @@ final class JPQLTokenizer {
 
     /** Token types emitted during lexing. */
     enum Type {
-        SELECT, FROM, WHERE, AND, OR, NOT, IS, NULL, LIKE, TRUE, FALSE,
+        SELECT, FROM, WHERE, GROUP, BY, HAVING, JOIN, INNER, LEFT, RIGHT, OUTER, ON, AS,
+        ALL, ANY, SOME, EXISTS,
+        AND, OR, NOT, IS, NULL, LIKE, TRUE, FALSE,
         IDENTIFIER, PATH_EXPRESSION, STRING_LITERAL, NUMBER_LITERAL,
         OP_CMP, LPAREN, RPAREN, QUESTION_MARK, STAR
     }
@@ -57,7 +59,9 @@ final class JPQLTokenizer {
     }
 
     private static final String[] KEYWORDS = {
-            "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IS", "NULL", "LIKE"
+            "SELECT", "FROM", "WHERE", "GROUP", "BY", "HAVING", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "ON", "AS",
+            "ALL", "ANY", "SOME", "EXISTS",
+            "AND", "OR", "NOT", "IS", "NULL", "LIKE"
     };
 
     private static final Map<String, Type> KEYWORD_TYPE_MAP;
@@ -72,6 +76,20 @@ final class JPQLTokenizer {
             case "SELECT" -> Type.SELECT;
             case "FROM"   -> Type.FROM;
             case "WHERE"  -> Type.WHERE;
+            case "GROUP"  -> Type.GROUP;
+            case "BY"     -> Type.BY;
+            case "HAVING" -> Type.HAVING;
+            case "JOIN"   -> Type.JOIN;
+            case "INNER"  -> Type.INNER;
+            case "LEFT"   -> Type.LEFT;
+            case "RIGHT"  -> Type.RIGHT;
+            case "OUTER"  -> Type.OUTER;
+            case "ON"     -> Type.ON;
+            case "AS"     -> Type.AS;
+            case "ALL"    -> Type.ALL;
+            case "ANY"    -> Type.ANY;
+            case "SOME"   -> Type.SOME;
+            case "EXISTS" -> Type.EXISTS;
             case "AND"    -> Type.AND;
             case "OR"     -> Type.OR;
             case "NOT"    -> Type.NOT;

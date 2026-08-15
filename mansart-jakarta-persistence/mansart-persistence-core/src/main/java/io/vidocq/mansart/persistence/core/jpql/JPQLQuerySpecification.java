@@ -27,22 +27,31 @@ import java.util.Objects;
  * Parsed representation of the JPQL {@code SELECT <projection> FROM <fromClause>} body.
  *
  * <p>Milestone: M7-13 — supports single-entity {@code FROM} with alias and optional {@code WHERE}.
+ * <p>Milestone: M8-1 — added GROUP BY and HAVING support.
  */
 public final class JPQLQuerySpecification {
 
     private final JPQLSelectClause selectClause;
     private final JPQLFromClause fromClause;
     private final JPQLWhereClause whereClause;
+    private final JPQLGroupByClause groupByClause;
+    private final JPQLHavingClause havingClause;
 
-    JPQLQuerySpecification(JPQLSelectClause selectClause, JPQLFromClause fromClause, JPQLWhereClause whereClause) {
+    JPQLQuerySpecification(JPQLSelectClause selectClause, JPQLFromClause fromClause, 
+                             JPQLWhereClause whereClause, JPQLGroupByClause groupByClause, 
+                             JPQLHavingClause havingClause) {
         this.selectClause = Objects.requireNonNull(selectClause, "selectClause must not be null");
         this.fromClause = Objects.requireNonNull(fromClause, "fromClause must not be null");
         this.whereClause = whereClause;
+        this.groupByClause = groupByClause;
+        this.havingClause = havingClause;
     }
 
     public JPQLSelectClause selectClause() { return selectClause; }
     public JPQLFromClause fromClause()  { return fromClause; }
     public JPQLWhereClause whereClause() { return whereClause; }
+    public JPQLGroupByClause groupByClause() { return groupByClause; }
+    public JPQLHavingClause havingClause() { return havingClause; }
 
     @Override
     public String toString() {
@@ -50,6 +59,8 @@ public final class JPQLQuerySpecification {
                 "select=" + selectClause +
                 ", from=" + fromClause +
                 ", where=" + whereClause +
+                ", groupBy=" + groupByClause +
+                ", having=" + havingClause +
                 '}';
     }
 }
