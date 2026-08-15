@@ -74,7 +74,8 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      * Creates an {@link EntityManagerFactory} for the given persistence unit info and properties.
      *
      * <p>This method allows the provider to use the {@link PersistenceUnitInfo} to
-     * configure the persistence unit.
+     * configure the persistence unit. The PersistenceUnitInfo is passed to the factory
+     * so it can extract entity classes for schema generation.
      *
      * @param persistenceUnitInfo persistence unit information
      * @param properties          a Map of configuration properties, or {@code null}
@@ -83,7 +84,7 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
     @Override
     public EntityManagerFactory createContainerEntityManagerFactory(PersistenceUnitInfo persistenceUnitInfo, Map<?, ?> properties) {
         return new io.vidocq.mansart.persistence.core.runtime.MansartEntityManagerFactory(
-                this, persistenceUnitInfo.getPersistenceUnitName(), properties);
+                this, persistenceUnitInfo.getPersistenceUnitName(), properties, persistenceUnitInfo);
     }
 
     /**

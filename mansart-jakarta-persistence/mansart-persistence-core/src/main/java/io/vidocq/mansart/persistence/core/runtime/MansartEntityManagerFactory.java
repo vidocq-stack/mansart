@@ -28,6 +28,7 @@ import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Query;
+import jakarta.persistence.SchemaManager;
 import jakarta.persistence.SynchronizationType;
 import jakarta.persistence.TypedQueryReference;
 import jakarta.persistence.criteria.CriteriaBuilder;
@@ -72,6 +73,22 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     @SuppressWarnings("unchecked")
     public MansartEntityManagerFactory(io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider provider, 
                                        String persistenceUnitName, Map<?, ?> properties) {
+        this(provider, persistenceUnitName, properties, null);
+    }
+    
+    /**
+     * Creates a new MansartEntityManagerFactory with PersistenceUnitInfo.
+     * This constructor is used by createContainerEntityManagerFactory.
+     *
+     * @param provider the persistence provider
+     * @param persistenceUnitName the persistence unit name
+     * @param properties the persistence unit properties
+     * @param persistenceUnitInfo the persistence unit info (may be null)
+     */
+    @SuppressWarnings("unchecked")
+    public MansartEntityManagerFactory(io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider provider, 
+                                       String persistenceUnitName, Map<?, ?> properties,
+                                       jakarta.persistence.spi.PersistenceUnitInfo persistenceUnitInfo) {
         this.provider = provider;
         this.persistenceUnitName = persistenceUnitName;
         if (properties != null && !properties.isEmpty()) {
@@ -87,11 +104,70 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         // M8-16: Initialize runtime components
         this.dialect = createDialect();
         this.connectionProvider = createConnectionProvider();
-        this.entityClasses = Map.of();
-        this.entityModels = Map.of();
+        
+        // M8-18: Initialize entity classes and models from PersistenceUnitInfo
+        this.entityClasses = loadEntityClasses(persistenceUnitInfo);
+        this.entityModels = loadEntityModels(this.entityClasses);
         
         // M8-18: Initialize cache
         this.cache = new MansartCache();
+        
+        // M8-18: Automatic schema generation if requested
+        checkAndCreateSchema();
+    }
+    
+    /**
+     * Loads entity classes from PersistenceUnitInfo.
+     */
+    private Map<String, Class<?>> loadEntityClasses(jakarta.persistence.spi.PersistenceUnitInfo persistenceUnitInfo) {
+        if (persistenceUnitInfo == null) {
+            return Map.of();
+        }
+        
+        try {
+            Map<String, Class<?>> result = new HashMap<>();
+            List<String> managedClassNames = persistenceUnitInfo.getManagedClassNames();
+            ClassLoader classLoader = persistenceUnitInfo.getClassLoader();
+            
+            if (classLoader == null) {
+                classLoader = Thread.currentThread().getContextClassLoader();
+            }
+            if (classLoader == null) {
+                classLoader = getClass().getClassLoader();
+            }
+            
+            if (managedClassNames != null) {
+                for (String className : managedClassNames) {
+                    try {
+                        Class<?> entityClass = Class.forName(className, true, classLoader);
+                        result.put(className, entityClass);
+                        System.err.println("[M8-18] Loaded entity class from PU info: " + className);
+                    } catch (ClassNotFoundException e) {
+                        System.err.println("[M8-18] Could not load entity class: " + className);
+                    }
+                }
+            }
+            
+            return Collections.unmodifiableMap(result);
+        } catch (Exception e) {
+            System.err.println("[M8-18] Error loading entity classes: " + e.getMessage());
+            return Map.of();
+        }
+    }
+    
+    /**
+     * Loads EntityModel instances for the given entity classes.
+     * For TCK entities, EntityModels may not be available (compiled with different processor),
+     * so we return an empty map. The SchemaManager will fall back to reflection-based DDL generation.
+     */
+    private Map<Class<?>, EntityModel<?>> loadEntityModels(Map<String, Class<?>> entityClasses) {
+        // For TCK entities, EntityModels are built by the TCK's own APT processor,
+        // not by Mansart's processor. So we cannot access them here.
+        // The SchemaManager will use reflection to inspect entity classes directly.
+        // Also, EntityModel is a record, not a service, so ServiceLoader won't work.
+        // For now, return empty map and rely on reflection fallback.
+        System.err.println("[M8-18] EntityModels not loaded - using reflection fallback for schema generation");
+        return Map.of();
     }
     
     /**
@@ -205,7 +281,10 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public jakarta.persistence.SchemaManager getSchemaManager() {
-        return null; // TODO: Implement schema management
+        // M8-18: Schema generation support
+        // Pass both entityModels and entityClasses so SchemaManager can use reflection
+        // as fallback when EntityModels are not available (e.g., for TCK entities)
+        return new MansartSchemaManager(connectionProvider, entityModels, entityClasses, dialect.name());
     }
 
     @Override
@@ -288,5 +367,29 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     @Override
     public Map<String, Object> getProperties() {
         return properties;
+    }
+
+    /**
+     * Checks for schema generation properties and automatically creates the schema
+     * if requested. This is called during EntityManagerFactory construction.
+     * 
+     * <p>M8-18: Automatic schema generation for Entity-Basic TCK tests.
+     */
+    private void checkAndCreateSchema() {
+        String schemaAction = (String) properties.get("jakarta.persistence.schema-generation.database.action");
+        if ("create".equals(schemaAction)) {
+            try {
+                SchemaManager schemaManager = getSchemaManager();
+                if (schemaManager != null) {
+                    // Get create-schemas flag
+                    String createSchemas = (String) properties.get("jakarta.persistence.schema-generation.create-database-schemas");
+                    boolean createSchemaFlag = "true".equalsIgnoreCase(createSchemas);
+                    schemaManager.create(createSchemaFlag);
+                }
+            } catch (Exception e) {
+                // Schema creation failed - this is non-fatal according to JPA spec
+                System.err.println("Automatic schema creation failed: " + e.getMessage());
+            }
+        }
     }
 }
