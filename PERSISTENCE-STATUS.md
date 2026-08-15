@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-22 — Download and install Jakarta Persistence 3.2 TCK
-- **Next up**: M7-23 (Run official TCK)
+- **Current task**: M7-23 (Run official Jakarta Persistence TCK)
+- **Next up**: M7-24 (Analyze TCK results)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -38,7 +38,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-19 Configure mansart-persistence-tck (out-of-reactor)
 - [x] M7-20 Run TCK smoke
 - [x] M7-21 Integrate TCK with Arquillian/Vauban (Vauban extension, DataSource producers, Archive appender, ServiceLoader)
-- [ ] M7-22 Download and install Jakarta Persistence 3.2 TCK
+- [x] M7-22 Download and install Jakarta Persistence 3.2 TCK
 - [ ] M7-23 Run official Jakarta Persistence TCK (target: 400+ PASS)
 
 **M7 deliverable**: full structure, Core JPA ~80%, TCK 400+ PASS.
@@ -89,6 +89,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M7-22 — Completed Jakarta Persistence 3.2 TCK download and installation
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
 - 2026-08-15 — M7-21 — Integrated TCK with Arquillian/Vauban: copied Vauban TCK classes (VaubanArquillianExtension, VaubanDeployableContainer, VaubanContainerConfig, VaubanTestEnricher, ContainerHolder), created persistence-specific classes (MansartTckArchiveAppender, H2DataSourceProducer, PostgresDataSourceProducer), added arquillian.xml and ServiceLoader config. Module compiles and smoke tests pass (3/3). Full clean install BUILD SUCCESS
 - 2026-08-15 — M7-21 — Verified TCK Core tests pass: ran full build with tests, all 5 TestEntityCRUDTest tests PASS (testPersistAndFind, testMerge, testRemove, testDetach, testEntityEqualsAndHashCode). Previous "No Persistence provider" errors resolved by M7-18 (tests moved to mansart-persistence-core/src/test with correct service provider path)
