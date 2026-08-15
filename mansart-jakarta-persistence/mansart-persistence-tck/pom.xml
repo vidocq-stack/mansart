@@ -201,6 +201,12 @@
             <dependencies>
                 <dependency>
                     <groupId>jakarta.tck</groupId>
+                    <artifactId>persistence-tck-spec-tests</artifactId>
+                    <version>${jakarta.persistence.tck.version}</version>
+                    <scope>test</scope>
+                </dependency>
+                <dependency>
+                    <groupId>jakarta.tck</groupId>
                     <artifactId>persistence-tck-dist</artifactId>
                     <version>${jakarta.persistence.tck.version}</version>
                     <type>jar</type>
@@ -215,7 +221,7 @@
                         <configuration>
                             <suiteXmlFiles combine.self="override"/>
                             <dependenciesToScan>
-                                <dependency>jakarta.tck:persistence-tck-dist</dependency>
+                                <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
                             </dependenciesToScan>
                             <includes>
                                 <include>**/standalone/entity/EntityTests.class</include>
