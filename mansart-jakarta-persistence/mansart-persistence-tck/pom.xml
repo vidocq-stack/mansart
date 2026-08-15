@@ -288,6 +288,11 @@
             </dependencies>
             <build>
                 <plugins>
+                    <!-- 
+                      Note: TCK test classes (*Client*) are in the JARs but use Jakarta TS framework,
+                      not standard TestNG/JUnit. They cannot be directly executed via surefire.
+                      For M7-23, we focus on smoke tests and defer full TCK execution to later.
+                    -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
@@ -295,9 +300,11 @@
                             <suiteXmlFiles>
                                 <suiteXmlFile>src/test/resources/tck-full-suite.xml</suiteXmlFile>
                             </suiteXmlFiles>
-                            <dependenciesToScan>
-                                <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
-                            </dependenciesToScan>
+                            <includes>
+                                <include>**/*Client*.*</include>
+                                <include>**/*JPASigTest*.*</include>
+                            </includes>
+                            <testClassesDirectory>${project.build.directory}/test-classes</testClassesDirectory>
                             <systemPropertyVariables>
                                 <jimage.dir>${project.build.directory}/jimage-cache</jimage.dir>
                                 <!-- Mansart Persistence configuration for TS framework -->
