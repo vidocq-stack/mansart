@@ -41,6 +41,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-21 Integrate TCK with Arquillian/Vauban (Vauban extension, DataSource producers, Archive appender, ServiceLoader)
 - [x] M7-22 Download and install Jakarta Persistence 3.2 TCK
 - [x] M7-23 Run official Jakarta Persistence TCK (target: 400+ PASS)
+- [x] M7-24 Analyze TCK results
 
 **M7 deliverable**: full structure, Core JPA ~80%, TCK 400+ PASS.
 
