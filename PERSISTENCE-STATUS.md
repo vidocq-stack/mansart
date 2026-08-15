@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-22 — Run official TCK
-- **Next up**: M7-23 (Fix remaining TCK failures)
+- **Current task**: M7-22 — Download and install Jakarta Persistence 3.2 TCK
+- **Next up**: M7-23 (Run official TCK)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -38,6 +38,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-19 Configure mansart-persistence-tck (out-of-reactor)
 - [x] M7-20 Run TCK smoke
 - [x] M7-21 Integrate TCK with Arquillian/Vauban (Vauban extension, DataSource producers, Archive appender, ServiceLoader)
+- [ ] M7-22 Download and install Jakarta Persistence 3.2 TCK
+- [ ] M7-23 Run official Jakarta Persistence TCK (target: 400+ PASS)
 
 **M7 deliverable**: full structure, Core JPA ~80%, TCK 400+ PASS.
 
@@ -83,7 +85,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 | Date | Suite / category | Pass / Total | Notes |
 | ---- | ---------------- | ------------ | ----- |
-| —    | —                | —            | first run pending (M7-20) |
+| —    | —                | —            | TCK artifact needs manual download/install (M7-22), first run pending (M7-23) |
 
 ## Session log (newest first, one line per session)
 
