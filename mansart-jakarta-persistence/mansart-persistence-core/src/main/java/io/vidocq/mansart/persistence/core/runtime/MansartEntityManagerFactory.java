@@ -89,6 +89,9 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         this.connectionProvider = createConnectionProvider();
         this.entityClasses = Map.of();
         this.entityModels = Map.of();
+        
+        // M8-18: Initialize cache
+        this.cache = new MansartCache();
     }
     
     /**
@@ -183,9 +186,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         return null; // TODO: Implement in M8
     }
 
+    private final MansartCache cache;
+
     @Override
     public jakarta.persistence.Cache getCache() {
-        return null; // TODO: Implement in M9
+        return cache;
     }
 
     @Override
