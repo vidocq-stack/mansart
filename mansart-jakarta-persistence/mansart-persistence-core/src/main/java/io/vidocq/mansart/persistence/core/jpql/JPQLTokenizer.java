@@ -167,32 +167,35 @@ final class JPQLTokenizer {
                 }
             }
 
-            // Path expression: identifier.identifier
-            if (pos + 2 < query.length() && query.charAt(pos + 1) == '.'
-                    && query.charAt(pos + 2) != '.'
-                    && Character.isJavaIdentifierStart(c)) {
-                tokens.add(readPathExpression());
-                continue;
-            }
-
+            // Note: Path expressions (identifier.identifier) are handled by the parser,
+            // not by the tokenizer. The tokenizer generates separate IDENTIFIER and '.' tokens.
+            // This is necessary because the parser needs to distinguish between path expressions
+            // and other uses of '.' (which is rare but possible in JPQL).
             // Keywords
+            boolean keywordMatched = false;
             for (String kw : KEYWORDS) {
                 if (matchesKeyword(pos, query, kw)) {
                     tokens.add(new Token(typeForKeyword(kw), kw));
                     pos += kw.length();
+                    keywordMatched = true;
                     break;
                 }
+            }
+            if (keywordMatched) {
+                continue;
             }
 
             // Single-character punctuation/ops
             switch (c) {
-                case '*'     -> tokens.add(new Token(Type.STAR, "*"));
-                case '='     -> tokens.add(new Token(Type.OP_CMP, "="));
-                case '<'     -> tokens.add(new Token(Type.OP_CMP, "<"));
-                case '>'     -> tokens.add(new Token(Type.OP_CMP, ">"));
-                case '('     -> tokens.add(new Token(Type.LPAREN, "("));
-                case ')'     -> tokens.add(new Token(Type.RPAREN, ")"));
-                case '?'     -> tokens.add(new Token(Type.QUESTION_MARK, "?"));
+                case '*'     -> { tokens.add(new Token(Type.STAR, "*")); pos++; }
+                case '='     -> { tokens.add(new Token(Type.OP_CMP, "=")); pos++; }
+                case '<'     -> { tokens.add(new Token(Type.OP_CMP, "<")); pos++; }
+                case '>'     -> { tokens.add(new Token(Type.OP_CMP, ">")); pos++; }
+                case '('     -> { tokens.add(new Token(Type.LPAREN, "(")); pos++; }
+                case ')'     -> { tokens.add(new Token(Type.RPAREN, ")")); pos++; }
+                case '?'     -> { tokens.add(new Token(Type.QUESTION_MARK, "?")); pos++; }
+                case '.'     -> { tokens.add(new Token(Type.PATH_EXPRESSION, ".")); pos++; }
+                case ','     -> { tokens.add(new Token(Type.IDENTIFIER, ",")); pos++; }
                 case '\''    -> tokens.add(readStringLiteral());
                 default -> {
                     if (Character.isJavaIdentifierStart(c)) {

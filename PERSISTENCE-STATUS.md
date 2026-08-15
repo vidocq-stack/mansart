@@ -11,7 +11,6 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M8 — Advanced JPQL & Criteria API
-- **Milestone**: M8 — Advanced JPQL & Criteria API
 - **Current task**: M8-6
 - **Next up**: M8-6 (Criteria API)
 - **Blockers**: None
@@ -97,6 +96,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 
 - 2026-08-15 — M8-1/M8-2/M8-3/M8-4/M8-5 — COMPLETED: M8-1 GROUP BY/HAVING; M8-2 JOIN syntax; M8-3 Subqueries; M8-4 ALL/ANY/SOME/EXISTS; M8-5 Additional JPQL functions (JPQLFunctionExpression, JpqlToSqlConverter). Full build passes (33/33 modules).
+- 2026-08-15 — M8-1 — FIXED: JPQLTokenizer bugs (missing pos++ for single-char tokens, missing continue after keyword match, removed premature path expression merging); moved JPQLParserGroupByTest to tests package, removed opens directives from module-info.java; all 35 mansart-persistence-core tests PASS; full build BUILD SUCCESS.
 - 2026-08-15 — M9-9 — COMPLETED: full Antora documentation for mansart-jakarta-persistence in EN and FR, 22 files changed
 
 - 2026-08-15 — M9-8 — COMPLETED: query caching for JPQL to SQL conversion, 5 files changed
