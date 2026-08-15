@@ -29,22 +29,17 @@ However, it appears to be incomplete (only contains entity classes and signature
 
 ### Option 2: Build from source (recommended for M7-22)
 ```bash
-# Clone the official TCK repository
-git clone https://github.com/jakartaee/persistence-tck.git
-cd persistence-tck
+# Clone the official Jakarta Persistence repository (contains TCK)
+git clone https://github.com/jakartaee/persistence.git
+cd persistence
 
-# Check out the 3.2.0 tag
-git checkout 3.2.0
+# Check out the TCK release tag
+git checkout 3.2.1-TCK-RELEASE
 
-# Build and install
+# Build and install the TCK
 mvn clean install -DskipTests
 
-# Then install manually to local M2
-mvn install:install-file -Dfile=persistence-tck/target/persistence-tck-3.2.0.jar \
-    -DgroupId=jakarta.persistence \
-    -DartifactId=persistence-tck \
-    -Dversion=3.2.0 \
-    -Dpackaging=jar
+# The TCK artifacts will be installed to your local M2 automatically
 ```
 
 **Note**: The snapshot currently in local M2 (`3.2.2-SNAPSHOT`) was built from the Eclipse EE4J fork, not the official Jakarta repository.

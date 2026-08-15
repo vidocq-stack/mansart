@@ -309,8 +309,9 @@
                                 <configuration>
                                     <target>
                                         <property name="tck.clonedir" value="${project.build.directory}/tck-source/persistence-tck"/>
-                                        <property name="tck.repo.url" value="https://github.com/jakartaee/persistence-tck.git"/>
-                                        <property name="tck.tag" value="3.2.0"/>
+                                        <property name="tck.repo.url" value="https://github.com/jakartaee/persistence.git"/>
+                                        <property name="tck.tag" value="3.2.1-TCK-RELEASE"/>
+                                        <property name="tck.source.dir" value="${tck.clonedir}/tck"/>
                                         
                                         <!-- Clone TCK repository -->
                                         <exec executable="git" failonerror="false">
@@ -324,7 +325,7 @@
                                         </exec>
                                         
                                         <!-- Build TCK -->
-                                        <exec executable="mvn" dir="${tck.clonedir}" failonerror="false">
+                                        <exec executable="mvn" dir="${tck.source.dir}" failonerror="false">
                                             <arg value="-ntp"/>
                                             <arg value="clean"/>
                                             <arg value="install"/>
