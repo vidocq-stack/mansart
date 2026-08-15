@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M7 — Bootstrap & Core JPA
-- **Current task**: M7-21 — Integrate TCK with Arquillian/Vauban
-- **Next up**: M7-22 (Run official TCK)
+- **Current task**: M7-22 — Run official TCK
+- **Next up**: M7-23 (Fix remaining TCK failures)
 - **Blockers**: none
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -37,7 +37,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M7-18 Create mansart-persistence-tests (with CRUD test suite)
 - [x] M7-19 Configure mansart-persistence-tck (out-of-reactor)
 - [x] M7-20 Run TCK smoke
-- [x] M7-21 Fix TCK Core failures (tests now pass after M7-18 fixes)
+- [x] M7-21 Integrate TCK with Arquillian/Vauban (Vauban extension, DataSource producers, Archive appender, ServiceLoader)
 
 **M7 deliverable**: full structure, Core JPA ~80%, TCK 400+ PASS.
 
@@ -88,6 +88,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-15 — M7-21 — Integrated TCK with Arquillian/Vauban: copied Vauban TCK classes (VaubanArquillianExtension, VaubanDeployableContainer, VaubanContainerConfig, VaubanTestEnricher, ContainerHolder), created persistence-specific classes (MansartTckArchiveAppender, H2DataSourceProducer, PostgresDataSourceProducer), added arquillian.xml and ServiceLoader config. Module compiles and smoke tests pass (3/3). Full clean install BUILD SUCCESS
 - 2026-08-15 — M7-21 — Verified TCK Core tests pass: ran full build with tests, all 5 TestEntityCRUDTest tests PASS (testPersistAndFind, testMerge, testRemove, testDetach, testEntityEqualsAndHashCode). Previous "No Persistence provider" errors resolved by M7-18 (tests moved to mansart-persistence-core/src/test with correct service provider path)
 - 2026-08-15 — M7-20 — Completed TCK smoke: updated pom.xml with correct jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT dependency, created MansartPersistenceSmokeTest with 3 tests (Persistence provider discoverable, EntityManagerFactory open, EntityManager open), SimpleEntity test entity, META-INF/persistence.xml with mansart-tck-pu configuration. All 3 smoke tests PASS
 - 2026-08-15 — M7-19 — Completed TCK runner configuration: created pom.xml (standalone Model 4.0.0, no parent, mirrors mansart-data-tck pattern), README.md, run-official-tck-persistence-3.2.sh script, .gitignore, and src/test/resources/tck-suite.xml. References Arquillian/TestNG/ShrinkWrap/Vauban dependencies and tck-run/tck-pg/tck-sig profiles for H2/PostgreSQL/SignatureTests
