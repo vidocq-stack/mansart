@@ -285,29 +285,47 @@
                     <version>11.0.0-RC6</version>
                     <scope>test</scope>
                 </dependency>
+                <!-- Servlet API - required by TCK signature tests -->
+                <dependency>
+                    <groupId>jakarta.servlet</groupId>
+                    <artifactId>jakarta.servlet-api</artifactId>
+                    <version>6.1.0</version>
+                    <scope>test</scope>
+                </dependency>
+                <!-- JUnit Jupiter Engine - required for TCK test discovery via JUnit 5 -->
+                <dependency>
+                    <groupId>org.junit.jupiter</groupId>
+                    <artifactId>junit-jupiter-engine</artifactId>
+                    <version>5.11.4</version>
+                    <scope>test</scope>
+                </dependency>
             </dependencies>
             <build>
                 <plugins>
-                    <!-- 
-                      Note: TCK test classes (*Client*) are in the JARs but use Jakarta TS framework,
-                      not standard TestNG/JUnit. They cannot be directly executed via surefire.
-                      For M7-23, we focus on smoke tests and defer full TCK execution to later.
-                    -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
+                        <version>${maven.surefire.plugin.version}</version>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.apache.maven.surefire</groupId>
+                                <artifactId>surefire-junit-platform</artifactId>
+                                <version>${maven.surefire.plugin.version}</version>
+                            </dependency>
+                        </dependencies>
                         <configuration>
-                            <suiteXmlFiles>
-                                <suiteXmlFile>src/test/resources/tck-full-suite.xml</suiteXmlFile>
-                            </suiteXmlFiles>
+                            <!-- Drop the TestNG suite XML so surefire auto-discovers JUnit 5 tests
+                                 from the TCK jars via dependenciesToScan. -->
+                            <suiteXmlFiles combine.self="override"/>
+                            <dependenciesToScan>
+                                <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
+                            </dependenciesToScan>
                             <includes>
-                                <include>**/*Client*.*</include>
-                                <include>**/*JPASigTest*.*</include>
+                                <include>**/ee/jakarta/tck/persistence/core/*/Client*.class</include>
+                                <include>**/ee/jakarta/tck/persistence/core/*/*/Client*.class</include>
                             </includes>
-                            <testClassesDirectory>${project.build.directory}/test-classes</testClassesDirectory>
                             <systemPropertyVariables>
                                 <jimage.dir>${project.build.directory}/jimage-cache</jimage.dir>
-                                <!-- Mansart Persistence configuration for TS framework -->
                                 <platform.mode>standalone</platform.mode>
                                 <persistence.unit.name>JPATCK</persistence.unit.name>
                                 <persistence.unit.name.2>JPATCK2</persistence.unit.name.2>
@@ -459,8 +477,8 @@
               Note: suiteXmlFiles is intentionally NOT configured here.
               It is defined per-profile:
               - Default (no profile): tck-suite.xml (smoke tests)
-              - tck-full: tck-full-suite.xml (full TCK suite)
-              Profiles define their own suiteXmlFiles configuration.
+              - tck-full: uses dependenciesToScan for TCK jars
+              Profiles define their own configuration.
             -->
         </plugins>
     </build>
