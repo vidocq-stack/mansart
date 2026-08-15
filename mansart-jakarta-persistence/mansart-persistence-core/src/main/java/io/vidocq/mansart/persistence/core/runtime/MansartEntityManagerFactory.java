@@ -23,6 +23,7 @@ import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.DialectFactory;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
+import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
@@ -62,6 +63,9 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private final JpqlExecutor.ConnectionProvider connectionProvider;
     private final Map<String, Class<?>> entityClasses;
     private final Map<Class<?>, EntityModel<?>> entityModels;
+    
+    // M9-8: Query cache for JPQL parsing optimization
+    private final QueryCache queryCache;
 
     /**
      * Creates a new MansartEntityManagerFactory.
@@ -111,6 +115,9 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         
         // M8-18: Initialize cache
         this.cache = new MansartCache();
+        
+        // M9-8: Initialize query cache for JPQL parsing optimization
+        this.queryCache = new QueryCache();
         
         // M8-18: Automatic schema generation if requested
         checkAndCreateSchema();
@@ -285,6 +292,15 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         // Pass both entityModels and entityClasses so SchemaManager can use reflection
         // as fallback when EntityModels are not available (e.g., for TCK entities)
         return new MansartSchemaManager(connectionProvider, entityModels, entityClasses, dialect.name());
+    }
+    
+    /**
+     * Returns the query cache for JPQL parsing optimization.
+     *
+     * @return the shared query cache instance
+     */
+    public QueryCache getQueryCache() {
+        return queryCache;
     }
 
     @Override

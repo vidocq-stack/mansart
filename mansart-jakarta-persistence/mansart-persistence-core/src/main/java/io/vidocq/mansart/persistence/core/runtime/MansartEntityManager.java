@@ -23,6 +23,7 @@ import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
+import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 import io.vidocq.mansart.persistence.spi.Bootstrap;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 import jakarta.persistence.EntityManager;
@@ -493,7 +494,8 @@ public class MansartEntityManager implements EntityManager {
         }
         var parser = new JPQLParser(entityClasses);
         var parsed = parser.parse(qlString, null);
-        return new MansartQuery(parsed, dialect, connectionProvider, entityModels, entityClasses);
+        QueryCache cache = getQueryCache();
+        return new MansartQuery(parsed, dialect, connectionProvider, entityModels, entityClasses, cache);
     }
 
     @Override
@@ -504,9 +506,21 @@ public class MansartEntityManager implements EntityManager {
         var parser = new JPQLParser(entityClasses);
         var parsed = parser.parse(qlString, resultClass);
         // Read the Class<T> and wrap in a typed query via Generic
+        QueryCache cache = getQueryCache();
         @SuppressWarnings("unchecked")
-        var typedQuery = new MansartQuery.Generic<T>(parsed, dialect, connectionProvider, entityModels, entityClasses);
+        var typedQuery = new MansartQuery.Generic<T>(parsed, dialect, connectionProvider, entityModels, entityClasses, cache);
         return typedQuery;
+    }
+    
+    /**
+     * Gets the query cache from the EntityManagerFactory.
+     * Returns null if the factory doesn't have a query cache.
+     */
+    private QueryCache getQueryCache() {
+        if (entityManagerFactory instanceof MansartEntityManagerFactory) {
+            return ((MansartEntityManagerFactory) entityManagerFactory).getQueryCache();
+        }
+        return null;
     }
 
     @Override

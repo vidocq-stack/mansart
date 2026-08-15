@@ -41,9 +41,10 @@ public final class JpqlExecutor {
     private final ConnectionProvider connectionProvider;
     private final Map<Class<?>, EntityModel<?>> entityModels;
     private final Map<String, Class<?>> entityClasses;
+    private final QueryCache queryCache;
 
     /**
-     * Creates a new JPQL executor.
+     * Creates a new JPQL executor without query caching.
      *
      * @param dialect the SQL dialect
      * @param connectionProvider provider for JDBC connections
@@ -52,10 +53,26 @@ public final class JpqlExecutor {
      */
     public JpqlExecutor(Dialect dialect, ConnectionProvider connectionProvider,
                         Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses) {
+        this(dialect, connectionProvider, entityModels, entityClasses, null);
+    }
+    
+    /**
+     * Creates a new JPQL executor with optional query caching.
+     *
+     * @param dialect the SQL dialect
+     * @param connectionProvider provider for JDBC connections
+     * @param entityModels map of entity classes to their EntityModel
+     * @param entityClasses map of entity names to entity classes
+     * @param queryCache the query cache (may be null)
+     */
+    public JpqlExecutor(Dialect dialect, ConnectionProvider connectionProvider,
+                        Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses,
+                        QueryCache queryCache) {
         this.dialect = dialect;
         this.connectionProvider = connectionProvider;
         this.entityModels = entityModels;
         this.entityClasses = entityClasses;
+        this.queryCache = queryCache;
     }
 
     /**
@@ -77,21 +94,43 @@ public final class JpqlExecutor {
             throw new JPQLException("No EntityModel found for entity: " + query.resultClass().getName());
         }
 
-        // Convert JPQL WHERE clause to Dialect.Where
-        JpqlToSqlConverter converter = new JpqlToSqlConverter(entityModels, entityClasses);
-        Where where = converter.toWhere(query);
-
-        // Create pagination
-        io.vidocq.mansart.data.dialect.Pagination pagination;
-        if (maxResults > 0 || firstResult > 0) {
-            pagination = new io.vidocq.mansart.data.dialect.Pagination.Offset(firstResult, maxResults);
-        } else {
-            pagination = io.vidocq.mansart.data.dialect.Pagination.NONE;
+        // Try to get from cache first
+        Where where = null;
+        SqlFragment sqlFragment = null;
+        
+        if (queryCache != null) {
+            JpqlToSqlConverter converter = new JpqlToSqlConverter(entityModels, entityClasses);
+            QueryCache.CacheEntry cached = queryCache.get(query, entityModel, dialect, 
+                                                          converter, maxResults, firstResult);
+            if (cached != null) {
+                where = cached.where;
+                sqlFragment = cached.sqlFragment;
+            }
         }
+        
+        // If not in cache, parse and convert
+        if (where == null) {
+            // Convert JPQL WHERE clause to Dialect.Where
+            JpqlToSqlConverter converter = new JpqlToSqlConverter(entityModels, entityClasses);
+            where = converter.toWhere(query);
 
-        // Use dialect to generate SQL
-        SqlFragment sqlFragment = dialect.select(entityModel, where, 
-            io.vidocq.mansart.data.dialect.OrderBy.NONE, pagination);
+            // Create pagination
+            io.vidocq.mansart.data.dialect.Pagination pagination;
+            if (maxResults > 0 || firstResult > 0) {
+                pagination = new io.vidocq.mansart.data.dialect.Pagination.Offset(firstResult, maxResults);
+            } else {
+                pagination = io.vidocq.mansart.data.dialect.Pagination.NONE;
+            }
+
+            // Use dialect to generate SQL
+            sqlFragment = dialect.select(entityModel, where, 
+                io.vidocq.mansart.data.dialect.OrderBy.NONE, pagination);
+            
+            // Store in cache
+            if (queryCache != null) {
+                queryCache.put(query, entityModel, dialect, where, sqlFragment, maxResults, firstResult);
+            }
+        }
 
         // Execute query
         try (Connection conn = connectionProvider.getConnection()) {

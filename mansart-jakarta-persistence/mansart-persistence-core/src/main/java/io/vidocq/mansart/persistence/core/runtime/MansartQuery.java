@@ -38,6 +38,7 @@ import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.persistence.core.jpql.JPQLQuery;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 import io.vidocq.mansart.persistence.core.jpql.JpqlToSqlConverter;
+import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 
 /**
  * Mutable query object wrapping a parsed JPQL AST for M7-13.
@@ -62,6 +63,9 @@ public class MansartQuery implements Query {
     private final JpqlExecutor.ConnectionProvider connectionProvider;
     private final Map<Class<?>, EntityModel<?>> entityModels;
     private final Map<String, Class<?>> entityClasses;
+    
+    // M9-8: Query cache for JPQL parsing optimization
+    private final QueryCache queryCache;
 
     /**
      * Creates a query with execution capability.
@@ -75,11 +79,29 @@ public class MansartQuery implements Query {
     MansartQuery(JPQLQuery<?> parsedQuery, Dialect dialect,
                 JpqlExecutor.ConnectionProvider connectionProvider,
                 Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses) {
+        this(parsedQuery, dialect, connectionProvider, entityModels, entityClasses, null);
+    }
+    
+    /**
+     * Creates a query with execution capability and query caching.
+     *
+     * @param parsedQuery the parsed JPQL query
+     * @param dialect the SQL dialect
+     * @param connectionProvider provider for JDBC connections
+     * @param entityModels map of entity classes to their EntityModel
+     * @param entityClasses map of entity names to entity classes
+     * @param queryCache the query cache for JPQL parsing optimization (may be null)
+     */
+    MansartQuery(JPQLQuery<?> parsedQuery, Dialect dialect,
+                JpqlExecutor.ConnectionProvider connectionProvider,
+                Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses,
+                QueryCache queryCache) {
         this.parsedQuery = parsedQuery;
         this.dialect = dialect;
         this.connectionProvider = connectionProvider;
         this.entityModels = entityModels;
         this.entityClasses = entityClasses;
+        this.queryCache = queryCache;
     }
 
     /**
@@ -87,7 +109,7 @@ public class MansartQuery implements Query {
      * This constructor creates a query that will throw when getResultList() is called.
      */
     MansartQuery(JPQLQuery<?> parsedQuery) {
-        this(parsedQuery, null, null, Map.of(), Map.of());
+        this(parsedQuery, null, null, Map.of(), Map.of(), null);
     }
 
     // ========================================================================
@@ -123,7 +145,8 @@ public class MansartQuery implements Query {
         }
         
         try {
-            JpqlExecutor executor = new JpqlExecutor(dialect, connectionProvider, entityModels, entityClasses);
+            // M9-8: Pass queryCache to JpqlExecutor for JPQL parsing optimization
+            JpqlExecutor executor = new JpqlExecutor(dialect, connectionProvider, entityModels, entityClasses, queryCache);
             int actualMaxResults = maxResults == Integer.MAX_VALUE ? 0 : maxResults;
             return executor.execute(parsedQuery, namedParameters, positionParameters, actualMaxResults, firstResult);
         } catch (Exception e) {
@@ -360,6 +383,15 @@ public class MansartQuery implements Query {
         Generic(JPQLQuery<V> q, Dialect dialect, JpqlExecutor.ConnectionProvider connectionProvider,
                Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses) {
             super(q, dialect, connectionProvider, entityModels, entityClasses);
+        }
+        
+        /**
+         * Creates a typed query with execution capability and query caching.
+         */
+        Generic(JPQLQuery<V> q, Dialect dialect, JpqlExecutor.ConnectionProvider connectionProvider,
+               Map<Class<?>, EntityModel<?>> entityModels, Map<String, Class<?>> entityClasses,
+               QueryCache queryCache) {
+            super(q, dialect, connectionProvider, entityModels, entityClasses, queryCache);
         }
 
         @Override
