@@ -492,22 +492,22 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createNamedStoredProcedureQuery(String name) {
-        return null;
+        return new MansartStoredProcedureQuery(name, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName) {
-        return null;
+        return new MansartStoredProcedureQuery(procedureName, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName, Class<?>... resultClasses) {
-        return null;
+        return new MansartStoredProcedureQuery(procedureName, resultClasses, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName, String... resultSetMappings) {
-        return null;
+        return new MansartStoredProcedureQuery(procedureName, resultSetMappings, dialect, connectionProvider, entityModels, entityClasses);
     }
 
     @Override
