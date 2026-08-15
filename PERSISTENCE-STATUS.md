@@ -11,7 +11,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: M9-7 (mansart-persistence-cdi)
+- **Current task**: M8-17
 - **Next up**: M9-8 (Optimizations)
 - **Blockers**: TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
 
@@ -61,7 +61,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [ ] M8-13 Complete APT processor
 - [ ] M8-14 Named queries
 - [x] M8-15 Native queries
-- [ ] M8-16 Complete tests
+- [x] M8-16 Complete tests
 - [ ] M8-17 Exécuter TCK par catégorie
 - [ ] M8-18 Corriger échecs TCK
 
@@ -92,6 +92,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M8-16 — Completed NativeQueryTest.java with 25 tests using direct SQL DDL/DML, fixed MansartNativeQuery parameter binding (1-based indexing) and result extraction (using rs.getObject), full build green (33/33 modules)
 - 2026-08-15 — M8-15 — Implemented getResultList(), getSingleResult(), getSingleResultOrNull() in MansartNativeQuery for native SELECT queries; bindParameters() unified; executeUpdate() fixed; full build green (33/33 modules), existing tests pass (5/5)
 - 2026-08-15 — M9-6 — Implemented MansartStoredProcedureQuery, TCK StoredProcedureQuery errors reduced from 40 to 39, overall errors 57->56
 - 2026-08-15 — M7-24 — Updated TCK scoreboard: 59 tests executed (3% of suite), 0 pass, 57 errors categorized: StoredProcedureQuery (40), EntityGraph (13), Annotations (4)

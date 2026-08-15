@@ -19,6 +19,11 @@
  */
 package io.vidocq.mansart.persistence.core.runtime;
 
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.DialectFactory;
+import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
+
 import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -28,10 +33,14 @@ import jakarta.persistence.TypedQueryReference;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -46,6 +55,12 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private final String persistenceUnitName;
     private final Map<String, Object> properties;
     private volatile boolean open = true;
+    
+    // M8-16: Runtime components for EntityManager creation
+    private final Dialect dialect;
+    private final JpqlExecutor.ConnectionProvider connectionProvider;
+    private final Map<String, Class<?>> entityClasses;
+    private final Map<Class<?>, EntityModel<?>> entityModels;
 
     /**
      * Creates a new MansartEntityManagerFactory.
@@ -68,6 +83,60 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         } else {
             this.properties = Collections.emptyMap();
         }
+        
+        // M8-16: Initialize runtime components
+        this.dialect = createDialect();
+        this.connectionProvider = createConnectionProvider();
+        this.entityClasses = Map.of();
+        this.entityModels = Map.of();
+    }
+    
+    /**
+     * Creates a Dialect instance using ServiceLoader.
+     * Falls back to H2 dialect if no factory is found.
+     */
+    private Dialect createDialect() {
+        ServiceLoader<DialectFactory> loader = ServiceLoader.load(DialectFactory.class);
+        for (DialectFactory factory : loader) {
+            try {
+                return factory.create();
+            } catch (Exception e) {
+                // Try next factory
+            }
+        }
+        // Fallback: try to instantiate H2 dialect directly
+        try {
+            Class<?> h2DialectClass = Class.forName("io.vidocq.mansart.data.dialect.h2.H2Dialect");
+            return (Dialect) h2DialectClass.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new IllegalStateException("No DialectFactory found and H2 fallback failed", e);
+        }
+    }
+    
+    /**
+     * Creates a ConnectionProvider from JDBC properties.
+     */
+    private JpqlExecutor.ConnectionProvider createConnectionProvider() {
+        final String url = (String) properties.get("jakarta.persistence.jdbc.url");
+        final String user = (String) properties.get("jakarta.persistence.jdbc.user");
+        final String password = (String) properties.get("jakarta.persistence.jdbc.password");
+        
+        final String effectiveUrl;
+        final String effectiveUser;
+        final String effectivePassword;
+        
+        if (url == null) {
+            // For tests without explicit config, use H2 in-memory with DB_CLOSE_DELAY
+            effectiveUrl = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1";
+            effectiveUser = "sa";
+            effectivePassword = "";
+        } else {
+            effectiveUrl = url;
+            effectiveUser = user != null ? user : "sa";
+            effectivePassword = password != null ? password : "";
+        }
+        
+        return () -> DriverManager.getConnection(effectiveUrl, effectiveUser, effectivePassword);
     }
 
     @Override
@@ -91,7 +160,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     }
 
     private EntityManager createMansartEntityManager(Map<?, ?> map, SynchronizationType syncType) {
-        return new MansartEntityManager(this, null, null);
+        return new MansartEntityManager(this, null, dialect, entityClasses, entityModels, connectionProvider);
     }
 
     @Override

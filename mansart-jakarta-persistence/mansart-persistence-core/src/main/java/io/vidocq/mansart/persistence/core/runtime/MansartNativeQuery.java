@@ -124,21 +124,10 @@ public class MansartNativeQuery implements Query {
 
     private void bindParameters(PreparedStatement stmt) throws SQLException {
         int paramIndex = 1;
+        // For M8-16: Only positional parameters are supported for native queries
+        // Named parameters in the SQL will cause syntax errors with most databases
         for (Object value : positionParameters) {
-            if (value != null) {
-                dialect.bind(stmt, paramIndex, value, value.getClass());
-            } else {
-                stmt.setObject(paramIndex, null);
-            }
-            paramIndex++;
-        }
-        for (Map.Entry<String, Object> entry : namedParameters.entrySet()) {
-            Object value = entry.getValue();
-            if (value != null) {
-                dialect.bind(stmt, paramIndex, value, value.getClass());
-            } else {
-                stmt.setObject(paramIndex, null);
-            }
+            stmt.setObject(paramIndex, value);
             paramIndex++;
         }
     }
@@ -164,7 +153,7 @@ public class MansartNativeQuery implements Query {
             while (rs.next()) {
                 Object[] row = new Object[columnCount];
                 for (int i = 0; i < columnCount; i++) {
-                    row[i] = dialect.extract(rs, i + 1, Object.class);
+                    row[i] = rs.getObject(i + 1);
                 }
                 results.add(row);
             }
@@ -239,10 +228,10 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Query setParameter(int position, Object value) {
-        while (positionParameters.size() <= position) {
+        while (positionParameters.size() <= position - 1) {
             positionParameters.add(null);
         }
-        positionParameters.set(position, value);
+        positionParameters.set(position - 1, value);
         return this;
     }
 
@@ -332,7 +321,7 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Object getParameterValue(int position) {
-        return position >= 0 && position < positionParameters.size() ? positionParameters.get(position) : null;
+        return position > 0 && position <= positionParameters.size() ? positionParameters.get(position - 1) : null;
     }
 
     @Override

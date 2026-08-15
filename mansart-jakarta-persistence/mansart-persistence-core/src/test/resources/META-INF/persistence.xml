@@ -7,7 +7,7 @@
         <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
         <class>io.vidocq.mansart.persistence.tests.TestEntity</class>
         <properties>
-            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:testdb"/>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
             <property name="jakarta.persistence.jdbc.user" value="sa"/>
             <property name="jakarta.persistence.jdbc.password" value=""/>
             <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>

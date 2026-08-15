@@ -28,6 +28,8 @@ module io.vidocq.mansart.persistence.core {
     requires io.vidocq.mansart.data.dialect.postgresql;
     requires io.vidocq.mansart.transactions.core;
     
+    uses io.vidocq.mansart.data.dialect.DialectFactory;
+    
     exports io.vidocq.mansart.persistence.core.bootstrap;
     exports io.vidocq.mansart.persistence.core.cache;
     exports io.vidocq.mansart.persistence.core.jpql;
