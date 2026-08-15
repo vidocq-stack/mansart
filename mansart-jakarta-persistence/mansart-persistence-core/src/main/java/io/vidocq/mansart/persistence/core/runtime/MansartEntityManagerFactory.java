@@ -22,6 +22,7 @@ package io.vidocq.mansart.persistence.core.runtime;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.DialectFactory;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.persistence.core.criteria.MansartCriteriaBuilder;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 
@@ -305,7 +306,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
-        return null; // TODO: Implement Criteria API in M8-6
+        return MansartCriteriaBuilder.getInstance(null);
     }
 
     @Override

@@ -21,6 +21,7 @@ package io.vidocq.mansart.persistence.core.runtime;
 
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.persistence.core.criteria.MansartCriteriaBuilder;
 import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 import io.vidocq.mansart.persistence.core.jpql.QueryCache;
@@ -646,7 +647,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
-        return null;
+        return MansartCriteriaBuilder.getInstance(null);
     }
 
     @Override

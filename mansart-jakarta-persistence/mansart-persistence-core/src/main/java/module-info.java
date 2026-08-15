@@ -32,6 +32,7 @@ module io.vidocq.mansart.persistence.core {
     
     exports io.vidocq.mansart.persistence.core.bootstrap;
     exports io.vidocq.mansart.persistence.core.cache;
+    exports io.vidocq.mansart.persistence.core.criteria;
     exports io.vidocq.mansart.persistence.core.jpql;
     exports io.vidocq.mansart.persistence.core.mapping;
     exports io.vidocq.mansart.persistence.core.runtime;
