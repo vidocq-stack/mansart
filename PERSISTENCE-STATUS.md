@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M8 — Advanced JPQL & Criteria API
-- **Current task**: M8-8
-- **Next up**: M8-8 (Inheritance JOINED)
+- **Current task**: M8-9
+- **Next up**: M8-9 (Inheritance TABLE_PER_CLASS)
 - **Blockers**: None
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -53,7 +53,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M8-5 Additional JPQL functions
 - [x] M8-6 Criteria API (Phase 1)
 - [x] M8-7 Inheritance SINGLE_TABLE (Phase 1)
-- [ ] M8-8 Inheritance JOINED
+- [x] M8-8 Inheritance JOINED (Phase 1)
 - [ ] M8-9 Inheritance TABLE_PER_CLASS
 - [ ] M8-10 @OneToMany, @ManyToMany
 - [ ] M8-11 Lazy loading (APT-generated proxy subclasses)
@@ -94,6 +94,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M8-8 — COMPLETED: Inheritance JOINED (Phase 1). Full build passes (33/33 modules), all tests pass (43/43 in mansart-persistence-core). Added Person/Student entities with JOINED strategy and 4 new tests.
 
 - 2026-08-15 — M8-7 — COMPLETED: Inheritance SINGLE_TABLE (Phase 1). Full build passes (33/33 modules), all tests pass (39/39 in mansart-persistence-core). Fix in MansartEntityManager.getIdHandles() - MethodHandles.Lookup per class in hierarchy for inherited private id fields.
 - 2026-08-15 — M8-6 — COMPLETED: Criteria API Phase 1 - Minimal stub implementation with dynamic Proxy, criteria package created and exported, wired into EntityManagerFactory and EntityManager. Full build passes (33/33 modules), all tests pass (35/35).

@@ -7,6 +7,8 @@ package io.vidocq.mansart.persistence.tests;
 
 import io.vidocq.mansart.persistence.tests.model.inheritance.Employee;
 import io.vidocq.mansart.persistence.tests.model.inheritance.Manager;
+import io.vidocq.mansart.persistence.tests.model.inheritance.Person;
+import io.vidocq.mansart.persistence.tests.model.inheritance.Student;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -80,5 +82,68 @@ public class InheritanceTest extends BasePersistenceTest {
         assertThat(found.getDepartment()).isEqualTo("HR");
         assertThat(found.getTeam()).isEqualTo("Recruitment");
         assertThat(found.getBonus()).isEqualTo(3000);
+    }
+
+    // ========== JOINED Inheritance Tests (M8-8) ==========
+
+    @Test
+    public void testJoinedPersistAndFindPerson() {
+        Person person = new Person("Bob Smith");
+        
+        em.persist(person);
+        assertThat(person.getId()).isNotNull();
+        
+        // Find the persisted person
+        Person found = em.find(Person.class, person.getId());
+        assertThat(found).isNotNull();
+        assertThat(found.getName()).isEqualTo("Bob Smith");
+    }
+
+    @Test
+    public void testJoinedPersistAndFindStudent() {
+        Student student = new Student("Alice Brown", "Harvard", "Computer Science");
+        
+        em.persist(student);
+        assertThat(student.getId()).isNotNull();
+        
+        // Find the persisted student
+        Student found = em.find(Student.class, student.getId());
+        assertThat(found).isNotNull();
+        assertThat(found.getName()).isEqualTo("Alice Brown");
+        assertThat(found.getUniversity()).isEqualTo("Harvard");
+        assertThat(found.getMajor()).isEqualTo("Computer Science");
+    }
+
+    @Test
+    public void testJoinedPolymorphicPersist() {
+        Person person = new Person("Charlie Wilson");
+        Student student = new Student("Diana Prince", "MIT", "Physics");
+        
+        em.persist(person);
+        em.persist(student);
+        
+        assertThat(person.getId()).isNotNull();
+        assertThat(student.getId()).isNotNull();
+        
+        // Both should be findable
+        Person foundPerson = em.find(Person.class, person.getId());
+        Student foundStudent = em.find(Student.class, student.getId());
+        
+        assertThat(foundPerson).isNotNull();
+        assertThat(foundStudent).isNotNull();
+    }
+
+    @Test
+    public void testJoinedInheritanceHierarchy() {
+        Student student = new Student("Eve Davis", "Stanford", "Mathematics");
+        
+        em.persist(student);
+        
+        Student found = em.find(Student.class, student.getId());
+        assertThat(found).isNotNull();
+        assertThat(found).isInstanceOf(Person.class);
+        assertThat(found.getName()).isEqualTo("Eve Davis");
+        assertThat(found.getUniversity()).isEqualTo("Stanford");
+        assertThat(found.getMajor()).isEqualTo("Mathematics");
     }
 }
