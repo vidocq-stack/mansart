@@ -85,42 +85,44 @@ public class MansartEntityManager implements EntityManager {
      * @throws IllegalArgumentException if no id field is found
      */
     private static EntityIdHandles getIdHandles(Class<?> entityClass) {
-        try {
-            MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(entityClass, MethodHandles.lookup());
-            
-            // Try to find "id" field first (convention)
-            MethodHandle getter = null;
-            MethodHandle setter = null;
-            
+        // Try to find "id" field first (convention) - check all classes in hierarchy
+        Class<?> currentClass = entityClass;
+        while (currentClass != null && currentClass != Object.class) {
             try {
-                getter = lookup.findGetter(entityClass, "id", Object.class);
-                // Get the actual return type from the getter
-                Class<?> idType = getter.type().returnType();
-                setter = lookup.findSetter(entityClass, "id", idType);
-                return new EntityIdHandles(getter, setter, idType);
-            } catch (NoSuchFieldException | IllegalAccessException e) {
-                // Field might not exist or have different name, fall through
-            }
-            
-            // Try all declared fields to find one named "id"
-            for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
-                if ("id".equals(field.getName())) {
-                    Class<?> fieldType = field.getType();
-                    try {
-                        getter = lookup.findGetter(entityClass, "id", fieldType);
-                        setter = lookup.findSetter(entityClass, "id", fieldType);
-                        return new EntityIdHandles(getter, setter, fieldType);
-                    } catch (NoSuchFieldException | IllegalAccessException e) {
-                        // Try next field
+                // Create lookup for the current class to access its private members
+                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(currentClass, MethodHandles.lookup());
+                
+                // Try getter/setter approach
+                try {
+                    MethodHandle getter = lookup.findGetter(currentClass, "id", Object.class);
+                    Class<?> idType = getter.type().returnType();
+                    MethodHandle setter = lookup.findSetter(currentClass, "id", idType);
+                    return new EntityIdHandles(getter, setter, idType);
+                } catch (NoSuchFieldException | IllegalAccessException e) {
+                    // Field might not exist in this class, try declared fields
+                }
+                
+                // Try all declared fields in current class
+                for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
+                    if ("id".equals(field.getName())) {
+                        Class<?> fieldType = field.getType();
+                        try {
+                            MethodHandle getter = lookup.findGetter(currentClass, "id", fieldType);
+                            MethodHandle setter = lookup.findSetter(currentClass, "id", fieldType);
+                            return new EntityIdHandles(getter, setter, fieldType);
+                        } catch (NoSuchFieldException | IllegalAccessException e) {
+                            // Try next field
+                        }
                     }
                 }
+            } catch (IllegalAccessException e) {
+                // Cannot access this class, try next in hierarchy
             }
             
-            throw new IllegalArgumentException("Entity " + entityClass.getName() + " has no 'id' field");
-        } catch (IllegalAccessException e) {
-            throw new IllegalArgumentException("Cannot access id field of " + entityClass.getName() 
-                    + " — ensure the entity package is opened to mansart-persistence-core", e);
+            currentClass = currentClass.getSuperclass();
         }
+        
+        throw new IllegalArgumentException("Entity " + entityClass.getName() + " has no 'id' field (including superclasses)");
     }
 
     /**

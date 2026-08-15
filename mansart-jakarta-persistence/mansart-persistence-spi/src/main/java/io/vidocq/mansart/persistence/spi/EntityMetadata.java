@@ -157,4 +157,58 @@ public interface EntityMetadata {
      * @return unmodifiable set of relationship attribute names, never {@code null}
      */
     Set<String> getRelationshipAttributeNames();
+
+    /**
+     * Returns the inheritance type for this entity.
+     *
+     * @return the inheritance type, or {@code null} if this entity is not part of an inheritance hierarchy
+     */
+    default jakarta.persistence.InheritanceType getInheritanceType() {
+        return null;
+    }
+
+    /**
+     * Returns the name of the discriminator column for this entity.
+     *
+     * @return the discriminator column name, or {@code null} if not using discriminator
+     */
+    default String getDiscriminatorColumn() {
+        return null;
+    }
+
+    /**
+     * Returns the discriminator value for this entity.
+     *
+     * @return the discriminator value, or {@code null} if not specified
+     */
+    default String getDiscriminatorValue() {
+        return null;
+    }
+
+    /**
+     * Returns whether this entity is the root of an inheritance hierarchy.
+     *
+     * @return {@code true} if this is the root entity, {@code false} otherwise
+     */
+    default boolean isInheritanceRoot() {
+        return false;
+    }
+
+    /**
+     * Returns the parent entity class if this entity extends another entity.
+     *
+     * @return the parent entity class, or {@code null} if this is a root entity or not part of an inheritance hierarchy
+     */
+    default Class<?> getParentEntityClass() {
+        return null;
+    }
+
+    /**
+     * Returns the list of direct subclass entity classes.
+     *
+     * @return unmodifiable list of subclass entity classes, never {@code null}
+     */
+    default java.util.List<Class<?>> getSubclassEntityClasses() {
+        return java.util.Collections.emptyList();
+    }
 }

@@ -309,6 +309,17 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         return MansartCriteriaBuilder.getInstance(null);
     }
 
+    /**
+     * Returns the entity metadata for the given entity class.
+     * This is a Mansart-specific method for accessing metadata at runtime.
+     */
+    public io.vidocq.mansart.persistence.spi.EntityMetadata getEntityMetadata(Class<?> entityClass) {
+        // M8-7: Return metadata for the entity
+        // For now, we need to integrate with the generated metadata
+        // This will be fully implemented in a later phase
+        return null;
+    }
+
     @Override
     public <T> T unwrap(Class<T> type) {
         if (type.isInstance(this)) {

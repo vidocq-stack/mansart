@@ -68,6 +68,7 @@ public final class EntityMetadataGenerator {
             }
 
             w.println("import io.vidocq.mansart.persistence.spi.*;");
+            w.println("import jakarta.persistence.InheritanceType;");
             w.println("import java.util.List;");
             w.println("import java.util.Set;");
             w.println("import java.util.HashMap;");
@@ -104,6 +105,12 @@ public final class EntityMetadataGenerator {
         w.println("    private final String versionAttributeName;");
         w.println("    private final Set<String> persistentAttributeNames;");
         w.println("    private final List<String> persistentAttributeOrder;");
+        // Inheritance support
+        w.println("    private final jakarta.persistence.InheritanceType inheritanceType;");
+        w.println("    private final String discriminatorColumn;");
+        w.println("    private final String discriminatorValue;");
+        w.println("    private final Class<?> parentEntityClass;");
+        w.println("    private final List<Class<?>> subclassEntityClasses;");
         w.println();
     }
 
@@ -135,6 +142,26 @@ public final class EntityMetadataGenerator {
         } else {
             w.println("        this.persistentAttributeNames = EMPTY_SET;");
             w.println("        this.persistentAttributeOrder = EMPTY_LIST;");
+        }
+
+        // Inheritance support
+        io.vidocq.mansart.persistence.processor.parse.InheritanceParser.InheritanceInfo inheritanceInfo = entity.inheritanceInfo();
+        if (inheritanceInfo != null) {
+            w.println("        this.inheritanceType = jakarta.persistence.InheritanceType." + inheritanceInfo.strategy() + ";");
+            w.println("        this.discriminatorColumn = \"" + inheritanceInfo.discriminatorColumn() + "\";");
+            w.println("        this.discriminatorValue = \"" + inheritanceInfo.discriminatorValue() + "\";");
+            if (inheritanceInfo.parentEntity() != null) {
+                w.println("        this.parentEntityClass = " + inheritanceInfo.parentEntity().getQualifiedName() + ".class;");
+            } else {
+                w.println("        this.parentEntityClass = null;");
+            }
+            w.println("        this.subclassEntityClasses = java.util.Collections.emptyList();");
+        } else {
+            w.println("        this.inheritanceType = null;");
+            w.println("        this.discriminatorColumn = null;");
+            w.println("        this.discriminatorValue = null;");
+            w.println("        this.parentEntityClass = null;");
+            w.println("        this.subclassEntityClasses = java.util.Collections.emptyList();");
         }
 
         w.println("    }");
@@ -234,6 +261,37 @@ public final class EntityMetadataGenerator {
         w.println("    @Override");
         w.println("    public boolean isEntity(Class<?> clazz) {");
         w.println("        return entityClass.equals(clazz);");
+        w.println("    }");
+        w.println();
+        
+        // Inheritance methods
+        w.println("    @Override");
+        w.println("    public jakarta.persistence.InheritanceType getInheritanceType() {");
+        w.println("        return inheritanceType;");
+        w.println("    }");
+        w.println();
+        
+        w.println("    @Override");
+        w.println("    public String getDiscriminatorColumn() {");
+        w.println("        return discriminatorColumn;");
+        w.println("    }");
+        w.println();
+        
+        w.println("    @Override");
+        w.println("    public String getDiscriminatorValue() {");
+        w.println("        return discriminatorValue;");
+        w.println("    }");
+        w.println();
+        
+        w.println("    @Override");
+        w.println("    public Class<?> getParentEntityClass() {");
+        w.println("        return parentEntityClass;");
+        w.println("    }");
+        w.println();
+        
+        w.println("    @Override");
+        w.println("    public java.util.List<Class<?>> getSubclassEntityClasses() {");
+        w.println("        return subclassEntityClasses;");
         w.println("    }");
         w.println();
     }

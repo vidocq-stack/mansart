@@ -31,6 +31,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -72,6 +73,7 @@ public final class EntityScanner {
     private final GeneratedValueParser generatedValueParser = new GeneratedValueParser();
     private final ManyToOneParser manyToOneParser = new ManyToOneParser();
     private final OneToOneParser oneToOneParser = new OneToOneParser();
+    private final InheritanceParser inheritanceParser = new InheritanceParser();
 
     /**
      * Creates a new EntityScanner.
@@ -152,13 +154,17 @@ public final class EntityScanner {
             return null;
         }
 
+        // Parse inheritance information
+        InheritanceParser.InheritanceInfo inheritanceInfo = inheritanceParser.parse(type);
+
         return new EntityMetadata(
                 type,
                 tableName,
                 schema,
                 idAttribute,
                 versionAttribute,
-                attributes
+                attributes,
+                inheritanceInfo
         );
     }
 
@@ -330,12 +336,12 @@ public final class EntityScanner {
         return "";
     }
 
-    // Helper methods
-    private boolean hasAnnotation(Element element, String annotationFqn) {
+    // Helper methods - package-private for use by parsers
+    static boolean hasAnnotation(Element element, String annotationFqn) {
         return getAnnotationMirror(element, annotationFqn) != null;
     }
 
-    private AnnotationMirror getAnnotationMirror(Element element, String annotationFqn) {
+    static AnnotationMirror getAnnotationMirror(Element element, String annotationFqn) {
         for (AnnotationMirror mirror : element.getAnnotationMirrors()) {
             if (((javax.lang.model.element.TypeElement) mirror.getAnnotationType().asElement())
                     .getQualifiedName().toString().equals(annotationFqn)) {
@@ -345,7 +351,7 @@ public final class EntityScanner {
         return null;
     }
 
-    private Map<String, AnnotationValue> getAnnotationValues(AnnotationMirror mirror) {
+    static Map<String, AnnotationValue> getAnnotationValues(AnnotationMirror mirror) {
         Map<String, AnnotationValue> values = new java.util.HashMap<>();
         ExecutableElement[] keys = mirror.getElementValues().keySet().toArray(new ExecutableElement[0]);
         for (ExecutableElement key : keys) {
@@ -361,6 +367,17 @@ public final class EntityScanner {
     }
 
     /**
+     * Returns the superclass of the given type element.
+     */
+    public static TypeElement getSuperclass(TypeElement type) {
+        TypeMirror superclass = type.getSuperclass();
+        if (superclass.getKind() == TypeKind.DECLARED) {
+            return (TypeElement) ((DeclaredType) superclass).asElement();
+        }
+        return null;
+    }
+
+    /**
      * Metadata for a scanned entity.
      */
     public record EntityMetadata(
@@ -369,7 +386,8 @@ public final class EntityScanner {
             String schema,
             AttributeMetadata idAttribute,
             AttributeMetadata versionAttribute,
-            List<AttributeMetadata> attributes
+            List<AttributeMetadata> attributes,
+            InheritanceParser.InheritanceInfo inheritanceInfo
     ) {
         public EntityMetadata {
             // defensive copies
