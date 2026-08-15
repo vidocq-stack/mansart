@@ -23,7 +23,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
-        <jakarta.persistence.tck.version>3.2.2-SNAPSHOT</jakarta.persistence.tck.version>
+        <jakarta.persistence.tck.version>3.2.1</jakarta.persistence.tck.version>
         <jakarta.cdi.version>4.1.0</jakarta.cdi.version>
         <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
 
