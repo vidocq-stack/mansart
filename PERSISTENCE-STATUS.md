@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: M9-9
-- **Next up**: M9-9 (Full documentation)
+- **Current task**: M9-10
+- **Next up**: M9-10 (Full TCK)
 - **Blockers**: EntityGraph implementation blocked by complex Jakarta Persistence 3.2 metamodel API (Graph, ManagedType, AttributeNode, Subgraph interfaces); TCK: StoredProcedureQuery errors 39, EntityGraph errors 13, CacheTests 3/4 PASS
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -78,7 +78,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M9-6 Stored procedures
 - [ ] M9-7 mansart-persistence-cdi (Vauban BCE, mirror mansart-data-cdi)
 - [x] M9-8 Optimizations
-- [ ] M9-9 Full documentation (Antora, en + fr)
+- [x] M9-9 Full documentation (Antora, en + fr)
 - [ ] M9-10 Full TCK
 
 **M9 deliverable**: complete implementation, TCK 100% conformance.
@@ -93,6 +93,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 | 2026-08-15 | TCK by category (M8-17) | 0 / 21 | EntityTransaction(5), Cache(4), Entity-Basic(4), Entity-Detach(2), Annotations-Entity(2), Query-Basic(1), EMFClose(1) | All errors: schema generation, cache not implemented, transaction not implemented, type casting |
 
 ## Session log (newest first, one line per session)
+
+- 2026-08-15 — M9-9 — COMPLETED: full Antora documentation for mansart-jakarta-persistence in EN and FR, 22 files changed
 
 - 2026-08-15 — M9-8 — COMPLETED: query caching for JPQL to SQL conversion, 5 files changed
 
