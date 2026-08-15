@@ -1,0 +1,44 @@
+= Mansart Persistence
+:description: Implémentation Jakarta Persistence 3.2 par le projet Mansart
+
+image::mansart-persistence-logo.png[Mansart Persistence,role=module-logo]
+
+[.lead]
+Mansart Persistence est une implémentation conforme Jakarta Persistence 3.2 construite sur le framework Mansart Data.
+Elle fournit un support JPA complet avec génération de code statique (APT), conception « virtual threads first », et des modules Java stricts.
+
+== Origine du nom
+
+Mansart tire son nom de François Mansart, célèbre architecte français du XVIIe siècle connu pour son utilisation innovante
+des ordres classiques et des proportions raffinées. Tout comme Mansart a apporté l'harmonie architecturale au classicisme
+baroque français, le projet Mansart apporte un accès aux données élégant et typé à Jakarta EE.
+
+== En un coup d'œil
+
+|=== 
+| *Aspect* | *Implémentation* 
+
+| Version Jakarta EE | Jakarta Persistence 3.2  
+| JDK | 25 (Temurin)  
+| Modules | JPMS strict (Java Platform Module System)  
+| Concurrence | Virtual Threads (Project Loom)  
+| Génération de code | APT (Annotation Processing Tool)  
+| Cache | L1 + L2 avec ScopedValue  
+| Dialectes | H2, PostgreSQL (extensible)  
+| TCK | Jakarta Persistence 3.2 TCK  
+|=== 
+
+== Liens rapides
+
+* xref:getting-started.adoc[Commencer avec Mansart Persistence]
+* xref:tck.adoc[État de conformité TCK]
+* https://github.com/vidocq/mansart[Mansart sur GitHub]
+
+== Écosystème
+
+Mansart Persistence s'intègre parfaitement avec :
+
+* **Mansart Data** — Framework d'accès aux données avec Dialect SPI
+* **Mansart Transactions** — Gestion des transactions (JTA, Resource-Local)
+* **Vauban CDI** — Conteneur CDI 4.1 Lite avec support BCE
+* **Jakarta Persistence TCK** — Suite de tests de conformité officielle

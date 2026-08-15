@@ -1,0 +1,73 @@
+= Concepts
+:description: Core concepts and architecture of Mansart Persistence
+
+== Architecture Overview
+
+Mansart Persistence is built on a layered architecture:
+
+=== Layer 1: Jakarta Persistence API
+The standard JPA 3.2 API that applications use.
+
+=== Layer 2: Mansart Persistence Core
+The main implementation with EntityManager, Query, and EntityManagerFactory.
+
+=== Layer 3: Mansart Data Dialects
+Database-specific SQL generation via the Dialect SPI.
+
+=== Layer 4: JDBC
+Direct database access with connection pooling.
+
+== Entity Lifecycle
+
+Entities in Mansart Persistence follow the standard JPA lifecycle:
+
+* **New** - Not yet persisted, no ID
+* **Managed** - Associated with a persistence context, changes tracked
+* **Detached** - Previously managed, no longer associated with a context
+* **Removed** - Marked for deletion
+
+== Static Metamodel
+
+Mansart uses APT (Annotation Processing Tool) to generate static metamodel classes at compile time.
+This provides type-safe JPA criteria queries without runtime reflection.
+
+[source,java]
+----
+@Entity
+public class Person {
+    @Id
+    private Long id;
+    private String name;
+}
+
+// Generated metamodel
+public class Person_ {
+    public static volatile SingularAttribute<Person, Long> id;
+    public static volatile SingularAttribute<Person, String> name;
+}
+----
+
+== Virtual Threads Support
+
+Mansart Persistence uses Java 25 Virtual Threads for all I/O operations:
+
+* Non-blocking entity loading
+* Concurrent query execution
+* ScopedValue for thread-local state (replaces ThreadLocal)
+
+== Caching
+
+=== L1 Cache
+Per-EntityManager cache for entity instances (default: HashMap-based).
+
+=== L2 Cache
+Shared cache across EntityManagers from the same factory.
+
+== Schema Generation
+
+Automatic DDL generation from entity mappings:
+
+* CREATE TABLE from @Entity classes
+* Column definitions from @Column annotations
+* Primary key constraints from @Id
+* Foreign key constraints from relationship annotations

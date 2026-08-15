@@ -1,0 +1,96 @@
+= Internes
+:description: Architecture interne et détails d'implémentation
+
+== Structure des modules
+
+Mansart Persistence est organisé en les modules suivants :
+
+|=== 
+| Module | Objectif 
+
+| mansart-persistence-api | Ré-export de l'API Jakarta Persistence 
+| mansart-persistence-spi | Interfaces de fournisseur de services 
+| mansart-persistence-core | Implémentation principale (runtime) 
+| mansart-persistence-processor | Processeur d'annotations APT 
+| mansart-persistence-tests | Tests unitaires et d'intégration 
+| mansart-persistence-tck | Exécuteur TCK et harness 
+| mansart-persistence-cdi | Intégration CDI (BCE) 
+|=== 
+
+== Modules Java (JPMS)
+
+Chaque module Mansart a son propre `module-info.java` avec des exports minimaux :
+
+* Seulement les packages API sont exportés
+* Les packages internes (`*.internal.*`, `*.impl.*`) ne sont jamais exportés
+* `opens` nécessite une justification écrite
+
+== Chargement des classes
+
+Mansart utilise ServiceLoader pour :
+
+* Découverte des dialectes (H2, PostgreSQL)
+* Découverte des extensions CDI
+* Découverte des EntityModel (pour les classes de métamodèle compilées)
+
+== Traitement JPQL
+
+=== Analyse
+Les chaînes JPQL sont analysées en un AST (Arbre de Syntaxe Abstraite) en utilisant des classes d'analyseur générées.
+
+=== Conversion
+L'AST est converti en fragments SQL spécifiques au dialecte :
+
+1. JPQLQuery AST → JpqlToSqlConverter → Dialect.Where
+2. Dialect.Where + EntityModel → Dialect.select() → SqlFragment
+3. SqlFragment → Exécution de PreparedStatement
+
+=== Mise en cache (M9-8)
+Les résultats d'analyse de requêtes sont mis en cache pour éviter le traitement redondant des mêmes requêtes.
+La clé de cache inclut : AST JPQL, classe d'entité, dialecte, paramètres de pagination.
+
+== Flux d'exécution des requêtes
+
+[source]
+----
+EntityManager.createQuery("SELECT e FROM Entity e")
+    ↓
+MansartQuery créé avec JPQLQuery analysé
+    ↓
+getResultList() appelé
+    ↓
+JpqlExecutor.execute()
+    ↓
+Vérification du QueryCache (M9-8)
+    ↓
+JpqlToSqlConverter.toWhere()
+    ↓
+Dialect.select() génère SQL
+    ↓
+ConnectionProvider.getConnection()
+    ↓
+PreparedStatement.executeQuery()
+    ↓
+Mappage des résultats vers EntityModel
+    ↓
+Retourne List<T>
+----
+
+== Intégration des transactions
+
+Mansart Persistence s'intègre avec Mansart Transactions via :
+
+* `MansartTransactionManager` pour les transactions Resource-Local
+* Portée de transaction compatible CDI
+* Propagation de contexte de transaction compatible Virtual Thread
+
+== Gestion de l'état des entités
+
+Les entités sont suivies en utilisant l'énumération `EntityState` :
+
+* `NEW` - Non persistée
+* `MANAGED` - Dans le contexte de persistance
+* `DETACHED` - Retirée du contexte
+* `REMOVED` - Marquée pour suppression
+
+Les transitions d'état sont gérées par EntityManager et synchronisées avec le cache L1.

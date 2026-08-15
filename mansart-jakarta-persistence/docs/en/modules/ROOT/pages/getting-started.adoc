@@ -1,0 +1,100 @@
+= Getting Started with Mansart Persistence
+:description: How to start using Mansart Jakarta Persistence 3.2
+
+== Prerequisites
+
+* Java 25 (Temurin recommended)
+* Maven 3.9.16+
+* H2 database (included as test dependency)
+
+== Quick Setup
+
+=== 1. Add Dependency
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-persistence-core</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+</dependency>
+----
+
+=== 2. Configure Persistence Unit
+
+Create a `META-INF/persistence.xml` file:
+
+[source,xml]
+----
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd"
+             version="3.2">
+    <persistence-unit name="example-pu">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <class>com.example.MyEntity</class>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+        </properties>
+    </persistence-unit>
+</persistence>
+----
+
+=== 3. Define Your Entity
+
+[source,java]
+----
+package com.example;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+
+@Entity
+public class MyEntity {
+    @Id
+    private Long id;
+    private String name;
+    
+    // getters and setters
+}
+----
+
+=== 4. Use EntityManager
+
+[source,java]
+----
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
+
+public class Main {
+    public static void main(String[] args) {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("example-pu");
+        EntityManager em = emf.createEntityManager();
+        
+        try {
+            MyEntity entity = new MyEntity();
+            entity.setName("Test");
+            
+            em.getTransaction().begin();
+            em.persist(entity);
+            em.getTransaction().commit();
+            
+            MyEntity found = em.find(MyEntity.class, entity.getId());
+            System.out.println("Found: " + found.getName());
+        } finally {
+            em.close();
+            emf.close();
+        }
+    }
+}
+----
+
+== Next Steps
+
+* xref:usage.adoc[Learn about usage patterns]
+* xref:concepts.adoc[Understand the core concepts]
+* xref:tck.adoc[Check TCK conformance]

@@ -1,0 +1,73 @@
+= Concepts
+:description: Concepts et architecture de base de Mansart Persistence
+
+== Aperçu de l'architecture
+
+Mansart Persistence est construit sur une architecture en couches :
+
+=== Couche 1 : API Jakarta Persistence
+L'API standard JPA 3.2 que les applications utilisent.
+
+=== Couche 2 : Mansart Persistence Core
+L'implémentation principale avec EntityManager, Query et EntityManagerFactory.
+
+=== Couche 3 : Dialectes Mansart Data
+Génération SQL spécifique à la base de données via le SPI Dialect.
+
+=== Couche 4 : JDBC
+Accès direct à la base de données avec pooling de connexions.
+
+== Cycle de vie des entités
+
+Les entités dans Mansart Persistence suivent le cycle de vie JPA standard :
+
+* **Nouvelle** - Pas encore persistée, pas d'ID
+* **Gérée** - Associée à un contexte de persistance, modifications suivies
+* **Détachée** - Précédemment gérée, plus associée à un contexte
+* **Supprimée** - Marquée pour suppression
+
+== Métamodèle statique
+
+Mansart utilise APT (Annotation Processing Tool) pour générer des classes de métamodèle statique au moment de la compilation.
+Cela permet des requêtes Criteria typées sans réflexion à l'exécution.
+
+[source,java]
+----
+@Entity
+public class Person {
+    @Id
+    private Long id;
+    private String name;
+}
+
+// Métamodèle généré
+public class Person_ {
+    public static volatile SingularAttribute<Person, Long> id;
+    public static volatile SingularAttribute<Person, String> name;
+}
+----
+
+== Support des Virtual Threads
+
+Mansart Persistence utilise les Virtual Threads de Java 25 pour toutes les opérations d'I/O :
+
+* Chargement d'entités non bloquant
+* Exécution concurrente de requêtes
+* ScopedValue pour l'état local au thread (remplace ThreadLocal)
+
+== Mise en cache
+
+=== Cache L1
+Cache par EntityManager pour les instances d'entités (par défaut : basé sur HashMap).
+
+=== Cache L2
+Cache partagé entre les EntityManagers d'une même usine.
+
+== Génération de schéma
+
+Génération automatique de DDL à partir des mappings d'entités :
+
+* CREATE TABLE à partir des classes @Entity
+* Définitions de colonnes à partir des annotations @Column
+* Contraintes de clé primaire à partir de @Id
+* Contraintes de clé étrangère à partir des annotations de relation

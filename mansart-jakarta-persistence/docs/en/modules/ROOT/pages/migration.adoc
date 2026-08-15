@@ -1,0 +1,181 @@
+= Migration
+:description: Migration guide from other JPA implementations
+
+== Migrating from Hibernate
+
+=== Dependency Change
+
+[source,xml]
+----
+<!-- Remove Hibernate -->
+<dependency>
+    <groupId>org.hibernate</groupId>
+    <artifactId>hibernate-core</artifactId>
+    <version>6.x.x.Final</version>
+</dependency>
+
+<!-- Add Mansart Persistence -->
+<dependency>
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-persistence-core</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+</dependency>
+----
+
+=== Persistence Provider Change
+
+[source,xml]
+----
+<!-- In persistence.xml -->
+<provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+----
+
+=== Configuration Differences
+
+|=== 
+| Hibernate Property | Mansart Property | Notes 
+
+| hibernate.dialect | (auto-detected via ServiceLoader) | Use mansart-data-dialect modules 
+| hibernate.show_sql | (not yet implemented) | Use logging configuration 
+| hibernate.format_sql | (not yet implemented) | - 
+| hibernate.hbm2ddl.auto | jakarta.persistence.schema-generation.database.action | create, update, validate, none 
+|=== 
+
+=== Feature Differences
+
+[cols="1,1,1"]
+|=== 
+| Feature | Hibernate | Mansart Persistence 
+
+| JPQL | Full | Basic SELECT/FROM/WHERE (M7-13, M8-) 
+| Criteria API | Full | Not yet implemented 
+| HQL | Yes | No (use JPQL) 
+| Native Queries | Yes | Yes (M8-15) 
+| Stored Procedures | Yes | Partial (M9-6) 
+| L2 Cache | Full | Basic (M8-19) 
+| Envers (Audit) | Yes | No 
+| Multi-tenancy | Yes | No 
+| Sharding | Yes | No 
+|=== 
+
+== Migrating from EclipseLink
+
+=== Dependency Change
+
+[source,xml]
+----
+<!-- Remove EclipseLink -->
+<dependency>
+    <groupId>org.eclipse.persistence</groupId>
+    <artifactId>eclipselink</artifactId>
+    <version>4.x.x</version>
+</dependency>
+
+<!-- Add Mansart Persistence -->
+<dependency>
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-persistence-core</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+</dependency>
+----
+
+=== Configuration Differences
+
+|=== 
+| EclipseLink Property | Mansart Property | Notes 
+
+| eclipselink.target-database | (auto-detected via ServiceLoader) | Use mansart-data-dialect modules 
+| eclipselink.ddl-generation | jakarta.persistence.schema-generation.database.action | - 
+| eclipselink.logging.level | (not yet implemented) | Use logging configuration 
+|=== 
+
+== Migrating from OpenJPA
+
+=== Dependency Change
+
+[source,xml]
+----
+<!-- Remove OpenJPA -->
+<dependency>
+    <groupId>org.apache.openjpa</groupId>
+    <artifactId>openjpa</artifactId>
+    <version>3.x.x</version>
+</dependency>
+
+<!-- Add Mansart Persistence -->
+<dependency>
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-persistence-core</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+</dependency>
+----
+
+== Common Migration Issues
+
+=== Metamodel Generation
+
+Mansart uses APT for static metamodel generation, similar to other implementations.
+
+If you have custom metamodel classes, you may need to:
+
+1. Remove manually created `_Entity` classes
+2. Ensure the APT processor is in the annotation processing path
+3. The processor automatically generates `Entity_`, `Embeddable_`, etc.
+
+=== Entity Listener Limitations
+
+Mansart Persistence does not yet support:
+
+* @EntityListeners
+* @PrePersist, @PostPersist, @PreUpdate, @PostUpdate, @PreRemove, @PostRemove
+* @PostLoad
+
+These are planned for M9-3 and M9-4.
+
+=== Named Queries
+
+Named queries (M8-14) are not yet fully implemented.
+Use dynamic JPQL queries or native queries as a workaround.
+
+=== Query Hints
+
+Query hints are not yet fully supported.
+Use standard JPA properties where available.
+
+== Troubleshooting
+
+=== ClassNotFoundException for Entity Classes
+
+**Cause:** Entity classes not found by the persistence provider.
+
+**Solution:** Ensure entity classes are in the persistence unit configuration:
+
+[source,xml]
+----
+<persistence-unit name="my-pu">
+    <class>com.example.MyEntity</class>
+    <!-- Add all entity classes here -->
+</persistence-unit>
+----
+
+Or use `<exclude-unlisted-classes>false</exclude-unlisted-classes>` for automatic discovery.
+
+=== Schema Generation Not Working
+
+**Cause:** Schema generation properties not set.
+
+**Solution:** Add schema generation properties:
+
+[source,xml]
+----
+<properties>
+    <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+    <property name="jakarta.persistence.schema-generation.create-database-schemas" value="true"/>
+</properties>
+----
+
+=== Connection Pool Exhausted
+
+**Cause:** Connection pooling not yet implemented (M9-8 optimization only covers query caching).
+
+**Solution:** Use external connection pooling or limit concurrent operations.

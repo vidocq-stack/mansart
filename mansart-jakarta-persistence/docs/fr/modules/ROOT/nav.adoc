@@ -1,0 +1,8 @@
+* xref:index.adoc[Mansart Persistence]
+* xref:getting-started.adoc[Pour commencer]
+* xref:usage.adoc[Utilisation]
+* xref:concepts.adoc[Concepts]
+* xref:internals.adoc[Internes]
+* xref:tck.adoc[TCK]
+* xref:reference.adoc[Référence]
+* xref:migration.adoc[Migration]

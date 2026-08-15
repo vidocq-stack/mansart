@@ -1,0 +1,81 @@
+= Usage
+:description: How to use Mansart Persistence in your applications
+
+== Entity Management
+
+=== Persisting Entities
+
+[source,java]
+----
+EntityManager em = emf.createEntityManager();
+em.getTransaction().begin();
+em.persist(myEntity);
+em.getTransaction().commit();
+----
+
+=== Finding Entities
+
+[source,java]
+----
+MyEntity found = em.find(MyEntity.class, id);
+----
+
+=== Merging Entities
+
+[source,java]
+----
+MyEntity merged = em.merge(detachedEntity);
+----
+
+=== Removing Entities
+
+[source,java]
+----
+em.remove(entity);
+----
+
+== Querying
+
+=== JPQL Queries
+
+[source,java]
+----
+TypedQuery<MyEntity> query = em.createQuery("SELECT e FROM MyEntity e WHERE e.name = :name", MyEntity.class);
+query.setParameter("name", "Test");
+List<MyEntity> results = query.getResultList();
+----
+
+=== Native Queries
+
+[source,java]
+----
+Query query = em.createNativeQuery("SELECT * FROM my_table WHERE name = ?", MyEntity.class);
+query.setParameter(1, "Test");
+List<MyEntity> results = query.getResultList();
+----
+
+== Transaction Management
+
+Mansart Persistence integrates with Mansart Transactions for both JTA and Resource-Local transaction management.
+
+=== Resource-Local Transactions
+
+[source,java]
+----
+EntityTransaction tx = em.getTransaction();
+tx.begin();
+try {
+    // perform operations
+    tx.commit();
+} catch (Exception e) {
+    if (tx.isActive()) tx.rollback();
+    throw e;
+}
+----
+
+== Best Practices
+
+* Always close EntityManager and EntityManagerFactory in finally blocks
+* Use try-with-resources for EntityManager when possible
+* Prefer TypedQuery over Query for type safety
+* Use parameter binding to prevent SQL injection

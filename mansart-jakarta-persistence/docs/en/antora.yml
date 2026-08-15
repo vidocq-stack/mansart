@@ -1,0 +1,8 @@
+name: mansart-persistence
+version: ~
+title: Mansart Jakarta Persistence 3.2
+nav:
+  - modules/ROOT/nav.adoc
+asciidoc:
+  attributes:
+    lang: en

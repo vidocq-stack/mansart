@@ -1,0 +1,97 @@
+= Référence
+:description: Référence API et options de configuration
+
+== Propriétés de configuration
+
+=== Configuration JDBC
+
+|=== 
+| Propriété | Description | Défaut 
+
+| jakarta.persistence.jdbc.url | URL de la base de données | `jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1` 
+| jakarta.persistence.jdbc.user | Nom d'utilisateur | `sa` 
+| jakarta.persistence.jdbc.password | Mot de passe | (vide) 
+| jakarta.persistence.jdbc.driver | Classe du pilote JDBC | Détection automatique 
+|=== 
+
+=== Génération de schéma
+
+|=== 
+| Propriété | Description | Défaut 
+
+| jakarta.persistence.schema-generation.database.action | Action sur le schéma : create, drop, drop-and-create, none | none 
+| jakarta.persistence.schema-generation.create-database-schemas | Créer les schémas | false 
+| jakarta.persistence.schema-generation.scripts.action | Action sur les scripts | none 
+| jakarta.persistence.schema-generation.scripts.create-target | Cible du script de création | 
+| jakarta.persistence.schema-generation.scripts.drop-target | Cible du script de suppression | 
+|=== 
+
+=== Pooling de connexions (Futur)
+
+|=== 
+| Propriété | Description | Défaut 
+
+| jakarta.persistence.jdbc.maxPoolSize | Taille maximale du pool | 10 
+| jakarta.persistence.jdbc.minPoolSize | Taille minimale du pool | 1 
+| jakarta.persistence.jdbc.maxIdleTime | Temps d'inactivité max (ms) | 30000 
+|=== 
+
+== Référence des modules
+
+=== mansart-persistence-api
+
+Ré-exporte l'API Jakarta Persistence :
+
+* `jakarta.persistence` - API JPA principale
+* `jakarta.persistence.criteria` - API Criteria
+* `jakarta.persistence.metamodel` - Métamodèle statique
+
+=== mansart-persistence-spi
+
+Interfaces de fournisseur de services :
+
+* `io.vidocq.mansart.persistence.spi.Bootstrap` - Configuration
+* `io.vidocq.mansart.persistence.spi.EntityState` - États du cycle de vie des entités
+* `io.vidocq.mansart.persistence.spi.ProviderUtil` - Chargement des classes d'entités
+
+=== mansart-persistence-core
+
+Implémentation principale :
+
+* `io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider` - Fournisseur JPA
+* `io.vidocq.mansart.persistence.core.runtime.MansartEntityManagerFactory` - Implémentation EMF
+* `io.vidocq.mansart.persistence.core.runtime.MansartEntityManager` - Implémentation EM
+* `io.vidocq.mansart.persistence.core.runtime.MansartQuery` - Implémentation Query
+* `io.vidocq.mansart.persistence.core.jpql.JpqlExecutor` - Exécution JPQL
+* `io.vidocq.mansart.persistence.core.jpql.QueryCache` - Mise en cache des requêtes (M9-8)
+
+=== mansart-persistence-processor
+
+Processeur d'annotations APT pour la génération de métamodèle statique.
+
+=== mansart-data-dialects
+
+Implémentations de dialectes :
+
+* `mansart-data-dialect-h2` - Dialecte H2
+* `mansart-data-dialect-postgresql` - Dialecte PostgreSQL
+* `mansart-data-dialect-spi` - SPI Dialecte
+
+== Configuration ServiceLoader
+
+Mansart utilise ServiceLoader pour les composants interchangeables :
+
+=== META-INF/services/io.vidocq.mansart.data.dialect.DialectFactory
+
+[source]
+----
+io.vidocq.mansart.data.dialect.h2.H2DialectFactory
+io.vidocq.mansart.data.dialect.postgresql.PostgreSQLDialectFactory
+----
+
+=== META-INF/services/jakarta.persistence.spi.PersistenceProvider
+
+[source]
+----
+io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider
+----

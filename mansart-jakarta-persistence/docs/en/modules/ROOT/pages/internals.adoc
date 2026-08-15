@@ -1,0 +1,96 @@
+= Internals
+:description: Internal architecture and implementation details
+
+== Module Structure
+
+Mansart Persistence is organized into the following modules:
+
+|=== 
+| Module | Purpose 
+
+| mansart-persistence-api | Jakarta Persistence API re-exports 
+| mansart-persistence-spi | Service Provider Interfaces 
+| mansart-persistence-core | Main implementation (runtime) 
+| mansart-persistence-processor | APT annotation processor 
+| mansart-persistence-tests | Unit and integration tests 
+| mansart-persistence-tck | TCK runner and harness 
+| mansart-persistence-cdi | CDI integration (BCE) 
+|=== 
+
+== Java Modules (JPMS)
+
+Each Mansart module has its own `module-info.java` with minimal exports:
+
+* Only API packages are exported
+* Internal packages (`*.internal.*`, `*.impl.*`) are never exported
+* `opens` requires written justification
+
+== Class Loading
+
+Mansart uses ServiceLoader for:
+
+* Dialect discovery (H2, PostgreSQL)
+* CDI extension discovery
+* EntityModel discovery (for compiled metamodel classes)
+
+== JPQL Processing
+
+=== Parsing
+JPQL strings are parsed into an AST (Abstract Syntax Tree) using generated parser classes.
+
+=== Conversion
+The AST is converted to Dialect-specific SQL fragments:
+
+1. JPQLQuery AST → JpqlToSqlConverter → Dialect.Where
+2. Dialect.Where + EntityModel → Dialect.select() → SqlFragment
+3. SqlFragment → PreparedStatement execution
+
+=== Caching (M9-8)
+Query parsing results are cached to avoid redundant processing of the same queries.
+The cache key includes: query AST, entity class, dialect, pagination settings.
+
+== Query Execution Flow
+
+[source]
+----
+EntityManager.createQuery("SELECT e FROM Entity e")
+    ↓
+MansartQuery created with parsed JPQLQuery
+    ↓
+getResultList() called
+    ↓
+JpqlExecutor.execute()
+    ↓
+Check QueryCache (M9-8)
+    ↓
+JpqlToSqlConverter.toWhere()
+    ↓
+Dialect.select() generates SQL
+    ↓
+ConnectionProvider.getConnection()
+    ↓
+PreparedStatement.executeQuery()
+    ↓
+Result mapping to EntityModel
+    ↓
+Return List<T>
+----
+
+== Transaction Integration
+
+Mansart Persistence integrates with Mansart Transactions via:
+
+* `MansartTransactionManager` for Resource-Local transactions
+* CDI-compatible transaction scoping
+* Virtual Thread-safe transaction context propagation
+
+== Entity State Management
+
+Entities are tracked using `EntityState` enum:
+
+* `NEW` - Not persisted
+* `MANAGED` - In persistence context
+* `DETACHED` - Removed from context
+* `REMOVED` - Marked for deletion
+
+State transitions are managed by the EntityManager and synchronized with the L1 cache.
