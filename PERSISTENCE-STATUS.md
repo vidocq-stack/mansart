@@ -51,7 +51,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M8-3 Subqueries in FROM
 - [x] M8-4 ALL/ANY/SOME predicates
 - [x] M8-5 Additional JPQL functions
-- [ ] M8-6 Criteria API
+- [x] M8-6 Criteria API (Phase 1)
 - [ ] M8-7 Inheritance SINGLE_TABLE
 - [ ] M8-8 Inheritance JOINED
 - [ ] M8-9 Inheritance TABLE_PER_CLASS
@@ -95,6 +95,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Session log (newest first, one line per session)
 
 
+- 2026-08-15 — M8-6 — COMPLETED: Criteria API Phase 1 - Minimal stub implementation with dynamic Proxy, criteria package created and exported, wired into EntityManagerFactory and EntityManager. Full build passes (33/33 modules), all tests pass (35/35).
 - 2026-08-15 — M8-1/M8-2/M8-3/M8-4/M8-5 — COMPLETED: M8-1 GROUP BY/HAVING; M8-2 JOIN syntax; M8-3 Subqueries; M8-4 ALL/ANY/SOME/EXISTS; M8-5 Additional JPQL functions (JPQLFunctionExpression, JpqlToSqlConverter). Full build passes (33/33 modules).
 - 2026-08-15 — M8-1 — FIXED: JPQLTokenizer bugs (missing pos++ for single-char tokens, missing continue after keyword match, removed premature path expression merging); moved JPQLParserGroupByTest to tests package, removed opens directives from module-info.java; all 35 mansart-persistence-core tests PASS; full build BUILD SUCCESS.
 - 2026-08-15 — M9-9 — COMPLETED: full Antora documentation for mansart-jakarta-persistence in EN and FR, 22 files changed

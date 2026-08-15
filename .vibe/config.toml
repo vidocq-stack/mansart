@@ -85,3 +85,9 @@ allowlist = [
 
 [tools.ctx_ctx_batch_execute]
 permission = "always"
+
+[tools.read_file]
+allowlist = [
+    "/Users/yblazart/.agents/skills/paseo/*",
+    "/Users/yblazart/.vibe/*",
+]
