@@ -89,6 +89,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 ## Session log (newest first, one line per session)
 
+- 2026-08-15 — M7-23 — TCK artifacts downloaded and installed, full suite configuration added; complete execution (400+ tests) blocked by Jakarta TS framework integration; smoke tests (3 tests) PASS
 - 2026-08-15 — M7-22 — Completed Jakarta Persistence 3.2 TCK download and installation
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
 - 2026-08-15 — M7-21 — Integrated TCK with Arquillian/Vauban: copied Vauban TCK classes (VaubanArquillianExtension, VaubanDeployableContainer, VaubanContainerConfig, VaubanTestEnricher, ContainerHolder), created persistence-specific classes (MansartTckArchiveAppender, H2DataSourceProducer, PostgresDataSourceProducer), added arquillian.xml and ServiceLoader config. Module compiles and smoke tests pass (3/3). Full clean install BUILD SUCCESS
