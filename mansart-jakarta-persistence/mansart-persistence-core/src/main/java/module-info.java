@@ -35,4 +35,11 @@ module io.vidocq.mansart.persistence.core {
     exports io.vidocq.mansart.persistence.core.jpql;
     exports io.vidocq.mansart.persistence.core.mapping;
     exports io.vidocq.mansart.persistence.core.runtime;
+
+    // Open for test framework reflection access (JUnit needs to instantiate test classes in same package as production code)
+    opens io.vidocq.mansart.persistence.core.jpql to org.junit.platform.commons;
+    opens io.vidocq.mansart.persistence.core.runtime to org.junit.platform.commons;
+    opens io.vidocq.mansart.persistence.core.cache to org.junit.platform.commons;
+    opens io.vidocq.mansart.persistence.core.mapping to org.junit.platform.commons;
+    opens io.vidocq.mansart.persistence.core.bootstrap to org.junit.platform.commons;
 }
