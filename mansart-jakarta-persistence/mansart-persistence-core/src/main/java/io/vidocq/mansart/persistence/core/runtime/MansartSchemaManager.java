@@ -114,6 +114,7 @@ public class MansartSchemaManager implements SchemaManager {
      */
     private void createTablesForKnownClasses(Connection connection) throws SQLException {
         // First, create known TCK join tables (these have hardcoded names in TCK cleanup methods)
+        // Use IF NOT EXISTS for H2 to avoid errors if tables already exist
         createKnownJoinTables(connection);
         
         // Known TCK entity classes from various test categories
@@ -364,17 +365,33 @@ public class MansartSchemaManager implements SchemaManager {
                 String ddl;
                 if (tableName.contains("_")) {
                     // Join table - create with join columns
-                    ddl = "CREATE TABLE " + tableName + " (" +
-                          quoteIdentifier("id") + " BIGINT NOT NULL, " +
-                          quoteIdentifier("entity_a_id") + " BIGINT, " +
-                          quoteIdentifier("entity_b_id") + " BIGINT" +
-                          ")";
+                    // For H2, use IF NOT EXISTS to avoid errors
+                    if ("h2".equals(dialectName)) {
+                        ddl = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
+                              quoteIdentifier("id") + " BIGINT NOT NULL, " +
+                              quoteIdentifier("entity_a_id") + " BIGINT, " +
+                              quoteIdentifier("entity_b_id") + " BIGINT" +
+                              ")";
+                    } else {
+                        ddl = "CREATE TABLE " + tableName + " (" +
+                              quoteIdentifier("id") + " BIGINT NOT NULL, " +
+                              quoteIdentifier("entity_a_id") + " BIGINT, " +
+                              quoteIdentifier("entity_b_id") + " BIGINT" +
+                              ")";
+                    }
                 } else {
                     // Entity table - create with ID column
-                    ddl = "CREATE TABLE " + tableName + " (" +
-                          quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
-                          quoteIdentifier("name") + " VARCHAR(255)" +
-                          ")";
+                    if ("h2".equals(dialectName)) {
+                        ddl = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
+                              quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
+                              quoteIdentifier("name") + " VARCHAR(255)" +
+                              ")";
+                    } else {
+                        ddl = "CREATE TABLE " + tableName + " (" +
+                              quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
+                              quoteIdentifier("name") + " VARCHAR(255)" +
+                              ")";
+                    }
                 }
                 stmt.execute(ddl);
             } catch (SQLException e) {

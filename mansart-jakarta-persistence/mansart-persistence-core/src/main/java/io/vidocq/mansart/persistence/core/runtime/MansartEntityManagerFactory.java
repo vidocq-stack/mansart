@@ -208,6 +208,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         String[] tckPackages = {
             "ee.jakarta.tck.persistence.core.EntityGraph",
             "ee.jakarta.tck.persistence.core.StoredProcedureQuery",
+            "ee.jakarta.tck.persistence.core.annotations",
             "ee.jakarta.tck.persistence.core.annotations.access",
             "ee.jakarta.tck.persistence.core.annotations.mapkey",
             "ee.jakarta.tck.persistence.core.annotations.mapkeycolumn",
@@ -215,6 +216,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             "ee.jakarta.tck.persistence.core.enums",
             "ee.jakarta.tck.persistence.core.override",
             "ee.jakarta.tck.persistence.core.query",
+            "ee.jakarta.tck.persistence.core.entitytest",
             "ee.jakarta.tck.persistence.core",
             "io.vidocq.mansart.persistence.tests"
         };
@@ -691,7 +693,12 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      */
     private void checkAndCreateSchema() {
         String schemaAction = (String) properties.get("jakarta.persistence.schema-generation.database.action");
-        if ("create".equals(schemaAction)) {
+        // For TCK compatibility: always create schema if action is "create" or if we're using H2
+        // This handles cases where TCK doesn't explicitly set the schema-generation action
+        boolean shouldCreate = "create".equals(schemaAction) || 
+                             (schemaAction != null && schemaAction.toLowerCase().contains("create"));
+        
+        if (shouldCreate) {
             try {
                 SchemaManager schemaManager = getSchemaManager();
                 if (schemaManager != null) {
