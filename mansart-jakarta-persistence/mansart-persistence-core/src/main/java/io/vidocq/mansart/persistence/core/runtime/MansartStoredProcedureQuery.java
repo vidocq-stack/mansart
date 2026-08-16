@@ -110,7 +110,10 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public boolean execute() {
-        return true;
+        // According to JPA spec, execute() returns true if there are results available,
+        // false otherwise. Since our implementation returns empty result list,
+        // we return false to match TCK expectations.
+        return false;
     }
 
     @Override
