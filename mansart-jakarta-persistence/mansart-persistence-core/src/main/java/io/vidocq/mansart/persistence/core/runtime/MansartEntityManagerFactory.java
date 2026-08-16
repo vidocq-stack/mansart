@@ -541,9 +541,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         return cache;
     }
 
+    private final MansartPersistenceUnitUtil persistenceUnitUtil = new MansartPersistenceUnitUtil();
+
     @Override
     public jakarta.persistence.PersistenceUnitUtil getPersistenceUnitUtil() {
-        return null; // TODO: Implement
+        return persistenceUnitUtil;
     }
 
     @Override
