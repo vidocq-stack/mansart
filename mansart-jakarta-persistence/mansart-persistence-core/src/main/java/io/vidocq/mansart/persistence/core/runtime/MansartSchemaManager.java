@@ -367,13 +367,13 @@ public class MansartSchemaManager implements SchemaManager {
                     // Join table - create with join columns
                     // For H2, use IF NOT EXISTS to avoid errors
                     if ("h2".equals(dialectName)) {
-                        ddl = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
+                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
                               quoteIdentifier("id") + " BIGINT NOT NULL, " +
                               quoteIdentifier("entity_a_id") + " BIGINT, " +
                               quoteIdentifier("entity_b_id") + " BIGINT" +
                               ")";
                     } else {
-                        ddl = "CREATE TABLE " + tableName + " (" +
+                        ddl = "CREATE TABLE " + quoteIdentifier(tableName) + " (" +
                               quoteIdentifier("id") + " BIGINT NOT NULL, " +
                               quoteIdentifier("entity_a_id") + " BIGINT, " +
                               quoteIdentifier("entity_b_id") + " BIGINT" +
@@ -382,12 +382,12 @@ public class MansartSchemaManager implements SchemaManager {
                 } else {
                     // Entity table - create with ID column
                     if ("h2".equals(dialectName)) {
-                        ddl = "CREATE TABLE IF NOT EXISTS " + tableName + " (" +
+                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
                               quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
                               quoteIdentifier("name") + " VARCHAR(255)" +
                               ")";
                     } else {
-                        ddl = "CREATE TABLE " + tableName + " (" +
+                        ddl = "CREATE TABLE " + quoteIdentifier(tableName) + " (" +
                               quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
                               quoteIdentifier("name") + " VARCHAR(255)" +
                               ")";

@@ -7,10 +7,12 @@ package io.vidocq.mansart.persistence.core.runtime;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
+import io.vidocq.mansart.persistence.core.runtime.MansartParameter;
 
 import jakarta.persistence.CacheRetrieveMode;
 import jakarta.persistence.CacheStoreMode;
 import jakarta.persistence.FlushModeType;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.Parameter;
 import jakarta.persistence.ParameterMode;
 import jakarta.persistence.StoredProcedureQuery;
@@ -21,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Implementation of StoredProcedureQuery for Mansart Persistence.
@@ -223,6 +226,62 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
     public StoredProcedureQuery setTimeout(Integer timeout) {
         super.setTimeout(timeout);
         return this;
+    }
+
+    @Override
+    public LockModeType getLockMode() {
+        // According to JPA spec, getLockMode() is not supported for StoredProcedureQuery
+        // and should throw IllegalStateException
+        throw new IllegalStateException("Lock mode is not supported for StoredProcedureQuery");
+    }
+
+    // M9-10: Override getParameter methods to include registered stored procedure parameters
+    @Override
+    public Set<Parameter<?>> getParameters() {
+        Set<Parameter<?>> result = new java.util.HashSet<>();
+        
+        // Add bound parameters from parent
+        result.addAll(super.getParameters());
+        
+        // Add registered output parameters
+        for (OutputParameterInfo info : outputParameters.values()) {
+            result.add(new MansartParameter<>(info.name(), info.type()));
+        }
+        for (OutputParameterInfo info : outputParametersByPosition.values()) {
+            result.add(new MansartParameter<>(info.position(), info.type()));
+        }
+        
+        return result;
+    }
+
+    @Override
+    public Parameter<?> getParameter(String name) {
+        // Check bound parameters first
+        Parameter<?> param = super.getParameter(name);
+        if (param != null) {
+            return param;
+        }
+        // Check registered output parameters
+        if (outputParameters.containsKey(name)) {
+            OutputParameterInfo info = outputParameters.get(name);
+            return new MansartParameter<>(info.name(), info.type());
+        }
+        return new MansartParameter<>(name, Object.class);
+    }
+
+    @Override
+    public Parameter<?> getParameter(int position) {
+        // Check bound parameters first
+        Parameter<?> param = super.getParameter(position);
+        if (param != null) {
+            return param;
+        }
+        // Check registered output parameters
+        if (outputParametersByPosition.containsKey(position)) {
+            OutputParameterInfo info = outputParametersByPosition.get(position);
+            return new MansartParameter<>(info.position(), info.type());
+        }
+        return new MansartParameter<>(position, Object.class);
     }
 
     public String getProcedureName() {
