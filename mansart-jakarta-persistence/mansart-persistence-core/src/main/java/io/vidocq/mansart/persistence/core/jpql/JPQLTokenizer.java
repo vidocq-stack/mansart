@@ -39,7 +39,7 @@ final class JPQLTokenizer {
         ALL, ANY, SOME, EXISTS,
         AND, OR, NOT, IS, NULL, LIKE, TRUE, FALSE,
         IDENTIFIER, PATH_EXPRESSION, STRING_LITERAL, NUMBER_LITERAL,
-        OP_CMP, LPAREN, RPAREN, QUESTION_MARK, STAR
+        OP_CMP, LPAREN, RPAREN, QUESTION_MARK, COLON, STAR
     }
 
     /** A single token: its type and associated text value. */
@@ -194,6 +194,7 @@ final class JPQLTokenizer {
                 case '('     -> { tokens.add(new Token(Type.LPAREN, "(")); pos++; }
                 case ')'     -> { tokens.add(new Token(Type.RPAREN, ")")); pos++; }
                 case '?'     -> { tokens.add(new Token(Type.QUESTION_MARK, "?")); pos++; }
+                case ':'     -> { tokens.add(new Token(Type.COLON, ":")); pos++; }
                 case '.'     -> { tokens.add(new Token(Type.PATH_EXPRESSION, ".")); pos++; }
                 case ','     -> { tokens.add(new Token(Type.IDENTIFIER, ",")); pos++; }
                 case '\''    -> tokens.add(readStringLiteral());

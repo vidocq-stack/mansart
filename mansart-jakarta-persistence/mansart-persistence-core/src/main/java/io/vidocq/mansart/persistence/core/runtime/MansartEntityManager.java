@@ -197,6 +197,7 @@ public class MansartEntityManager implements EntityManager {
     /**
      * Converts the ID value to the target ID type.
      * Handles primitive type conversions (Long -> long, Long -> int, etc.)
+     * and String conversions.
      */
     private static Object convertToIdType(Object idValue, Class<?> targetType) {
         if (idValue == null) {
@@ -217,6 +218,10 @@ public class MansartEntityManager implements EntityManager {
         }
         if (targetType == Long.class) {
             return ((Number) idValue).longValue();
+        }
+        // Handle String ID types
+        if (targetType == String.class) {
+            return String.valueOf(idValue);
         }
         // Add more numeric conversions as needed
         return idValue;

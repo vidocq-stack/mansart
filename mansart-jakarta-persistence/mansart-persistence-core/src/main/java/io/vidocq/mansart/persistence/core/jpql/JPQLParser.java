@@ -425,6 +425,16 @@ public final class JPQLParser {
                 }
             }
 
+            // Check for named parameter: :identifier
+            if (tok.type == JPQLTokenizer.Type.COLON && pos + 1 < tokens.size()) {
+                var nextTok = tokens.get(pos + 1);
+                if (nextTok.type == JPQLTokenizer.Type.IDENTIFIER) {
+                    consume(); // consume the COLON
+                    var paramNameTok = consume(); // consume the identifier
+                    return new JPQLExpression.ParameterExpression(paramNameTok.value);
+                }
+            }
+
             return switch (tok.type) {
                 case STRING_LITERAL -> {
                     consume();
