@@ -87,6 +87,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 | Date | Suite / category | Pass / Total | Notes |
 | ---- | ---------------- | ------------ | ----- |
+| 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1585 errors (reduced from 1587, 2 fewer errors); Implement getReference, getLockMode, cache modes |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1587 errors (reduced from 1592, 5 fewer errors); Implement PersistenceUnitUtil |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1592 errors (reduced from 1593, 1 fewer error); Fixed getMetamodel() in EntityManagerFactory |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1593 errors (reduced from 1596, 3 fewer errors); Parameter support implemented - MansartParameter, getParameter methods |
@@ -103,6 +104,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)
+- 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1587 to 1585 (2 fewer errors) across 1745 tests. Commit 78d5c9d - Implement getReference, getLockMode, cache modes.
 - 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1592 to 1587 (5 fewer errors) across 1745 tests. Commit 54f2431 - Implement PersistenceUnitUtil.
 - 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1593 to 1592 (1 fewer error) across 1745 tests. Commit aa2d6c4 - Fix getMetamodel() in EntityManagerFactory.
 - 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1596 to 1593 (3 fewer errors) across 1745 tests. Commit 0840277 - Implement Parameter support for Query.
