@@ -11,9 +11,9 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: M9-1
-- **Next up**: M9-2 (Bean Validation integration)
-- **Blockers**: None
+- **Current task**: M9-3
+- **Next up**: M9-3 (Lifecycle callbacks)
+- **Blockers**: M9-2 (Bean Validation integration — en cours de dev)
 
 ## M7 — Bootstrap & Core JPA (critical)
 
@@ -71,7 +71,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## M9 — Finalization
 
 - [x] M9-1 L2 cache (optional)
-- [ ] M9-2 Bean Validation integration
+- [ ] M9-2 Bean Validation integration (en attente — en cours de dev)
 - [ ] M9-3 Lifecycle callbacks
 - [ ] M9-4 Entity listeners
 - [ ] M9-5 Locking (optimistic / pessimistic)
