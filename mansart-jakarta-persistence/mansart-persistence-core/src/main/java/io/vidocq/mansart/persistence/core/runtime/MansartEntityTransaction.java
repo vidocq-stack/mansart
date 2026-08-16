@@ -69,6 +69,11 @@ public class MansartEntityTransaction implements EntityTransaction {
 
     @Override
     public void begin() {
+        // Check if transaction is already active
+        if (isActive()) {
+            throw new IllegalStateException("Transaction already active");
+        }
+        
         if (transactionManager != null) {
             try {
                 // Delegate to JTA transaction manager

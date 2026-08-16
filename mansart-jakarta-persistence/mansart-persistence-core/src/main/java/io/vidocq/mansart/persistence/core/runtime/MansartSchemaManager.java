@@ -397,7 +397,13 @@ public class MansartSchemaManager implements SchemaManager {
      * Scans for @Id, @Column, @Basic, and other JPA annotations.
      * Also creates join tables for ManyToMany relationships.
      */
-    private String generateCreateTableDDLFromClass(Class<?> entityClass, String tableName) {
+    private String generateCreateTableDDLFromClass(Class<?> entityClass, String defaultTableName) {
+        // Check for @Table annotation
+        jakarta.persistence.Table tableAnn = entityClass.getAnnotation(jakarta.persistence.Table.class);
+        String tableName = tableAnn != null && !tableAnn.name().isEmpty() 
+                ? tableAnn.name() 
+                : defaultTableName;
+        
         StringBuilder ddl = new StringBuilder();
         ddl.append("CREATE TABLE ").append(quoteIdentifier(tableName)).append(" (");
         

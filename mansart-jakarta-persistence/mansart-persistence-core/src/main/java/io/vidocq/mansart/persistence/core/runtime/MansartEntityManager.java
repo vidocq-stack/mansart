@@ -297,6 +297,9 @@ public class MansartEntityManager implements EntityManager {
     private final Map<Class<?>, EntityModel<?>> entityModels;
     private final JpqlExecutor.ConnectionProvider connectionProvider;
     private final boolean initialized;
+    
+    // Registry for named entity graphs (static to share across all EntityManagerFactories)
+    private static final Map<String, jakarta.persistence.EntityGraph<?>> namedEntityGraphs = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Creates a new {@code MansartEntityManager} instance.
@@ -306,7 +309,7 @@ public class MansartEntityManager implements EntityManager {
      * @param dialect              the database dialect
      */
     public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect) {
-        this(entityManagerFactory, bootstrap, dialect, Map.of(), Map.of(), null);
+        this(entityManagerFactory, bootstrap, dialect, Map.of(), Map.of(), null, false, null);
     }
 
     /**
@@ -315,7 +318,7 @@ public class MansartEntityManager implements EntityManager {
     public MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
                                 Map<String, Class<?>> entityClasses, Map<Class<?>, EntityModel<?>> entityModels,
                                 JpqlExecutor.ConnectionProvider connectionProvider) {
-        this(entityManagerFactory, bootstrap, dialect, entityClasses, entityModels, connectionProvider, true);
+        this(entityManagerFactory, bootstrap, dialect, entityClasses, entityModels, connectionProvider, true, null);
     }
 
     /**
@@ -345,6 +348,7 @@ public class MansartEntityManager implements EntityManager {
         this.connectionProvider = connectionProvider;
         this.initialized = (entityClasses != null && !entityClasses.isEmpty()) || initialized;
         this.transactionManager = transactionManager;
+        // namedEntityGraphs is static, no need to assign
     }
 
     private MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
@@ -780,7 +784,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public Metamodel getMetamodel() {
-        return null;
+        return MansartMetamodel.getInstance();
     }
 
     @Override
@@ -788,9 +792,8 @@ public class MansartEntityManager implements EntityManager {
         if (rootType == null) {
             throw new IllegalArgumentException("Root type cannot be null");
         }
-        // For now, return null as EntityGraph is not fully implemented
-        // In the future, this should create an entity graph for the given type
-        return null;
+        // Unnamed entity graph - name is null per JPA spec
+        return new MansartEntityGraph<>(null);
     }
 
     @Override
@@ -798,9 +801,10 @@ public class MansartEntityManager implements EntityManager {
         if (graphName == null || graphName.isEmpty()) {
             throw new IllegalArgumentException("Graph name cannot be null or empty");
         }
-        // For now, return null as EntityGraph is not fully implemented
-        // In the future, this should create a named entity graph
-        return null;
+        // Create a named entity graph and register it in the shared registry
+        MansartEntityGraph<?> graph = new MansartEntityGraph<>(graphName);
+        namedEntityGraphs.put(graphName, graph);
+        return graph;
     }
 
     @Override
@@ -808,19 +812,24 @@ public class MansartEntityManager implements EntityManager {
         if (graphName == null || graphName.isEmpty()) {
             throw new IllegalArgumentException("Graph name cannot be null or empty");
         }
-        // For now, return a stub entity graph for known TCK graph names
-        // In the future, this should look up a pre-defined named graph from @NamedEntityGraph
-        // Known TCK entity graph names that are tested
-        if ("first_last_graph".equals(graphName) || "last_salary_graph".equals(graphName)) {
-            return new MansartEntityGraph<>(graphName);
-        }
-        // For other graph names, throw IAE as per JPA spec
-        throw new IllegalArgumentException("No entity graph named '" + graphName + "' exists");
+        // Return the registered named entity graph, or null if not found
+        return namedEntityGraphs.get(graphName);
     }
 
     @Override
     public <T> List<jakarta.persistence.EntityGraph<? super T>> getEntityGraphs(Class<T> entityClass) {
-        return List.of();
+        if (entityClass == null) {
+            throw new IllegalArgumentException("entityClass cannot be null");
+        }
+        List<jakarta.persistence.EntityGraph<? super T>> result = new java.util.ArrayList<>();
+        // For Phase 1: return all named entity graphs from the factory registry
+        // TODO: filter by entityClass when we have proper graph-to-class mapping
+        for (jakarta.persistence.EntityGraph<?> graph : MansartEntityManagerFactory.getNamedEntityGraphs()) {
+            @SuppressWarnings("unchecked")
+            jakarta.persistence.EntityGraph<? super T> typedGraph = (jakarta.persistence.EntityGraph<? super T>) graph;
+            result.add(typedGraph);
+        }
+        return result;
     }
 
     @Override
