@@ -85,4 +85,40 @@ public record RelationshipInfo(
             info.mappedBy()
         );
     }
+
+    /**
+     * Creates a RelationshipInfo from OneToManyParser.OneToManyInfo.
+     */
+    public static RelationshipInfo fromOneToMany(OneToManyParser.OneToManyInfo info) {
+        return new RelationshipInfo(
+            RelationshipType.ONE_TO_MANY,
+            info.targetEntityName(),
+            info.fetchType(),
+            info.cascadeTypes(),
+            true, // OneToMany is always optional (collection can be empty)
+            info.joinColumnInfo() != null ? info.joinColumnInfo().name() : null,
+            info.joinColumnInfo() != null ? info.joinColumnInfo().referencedColumnName() : null,
+            info.joinColumnInfo() != null ? info.joinColumnInfo().nullable() : true,
+            info.orphanRemoval(),
+            info.mappedBy()
+        );
+    }
+
+    /**
+     * Creates a RelationshipInfo from ManyToManyParser.ManyToManyInfo.
+     */
+    public static RelationshipInfo fromManyToMany(ManyToManyParser.ManyToManyInfo info) {
+        return new RelationshipInfo(
+            RelationshipType.MANY_TO_MANY,
+            info.targetEntityName(),
+            info.fetchType(),
+            info.cascadeTypes(),
+            true, // ManyToMany is always optional (collection can be empty)
+            null, // Join column name from join table
+            null, // Referenced column name from join table
+            true, // Join column nullable
+            false, // ManyToMany doesn't support orphanRemoval
+            info.mappedBy()
+        );
+    }
 }

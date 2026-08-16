@@ -64,6 +64,8 @@ public final class EntityScanner {
     private static final String COLUMN_ANNOTATION = "jakarta.persistence.Column";
     private static final String MANY_TO_ONE_ANNOTATION = "jakarta.persistence.ManyToOne";
     private static final String ONE_TO_ONE_ANNOTATION = "jakarta.persistence.OneToOne";
+    private static final String ONE_TO_MANY_ANNOTATION = "jakarta.persistence.OneToMany";
+    private static final String MANY_TO_MANY_ANNOTATION = "jakarta.persistence.ManyToMany";
 
     private final Elements elements;
     private final Types types;
@@ -73,6 +75,8 @@ public final class EntityScanner {
     private final GeneratedValueParser generatedValueParser = new GeneratedValueParser();
     private final ManyToOneParser manyToOneParser = new ManyToOneParser();
     private final OneToOneParser oneToOneParser = new OneToOneParser();
+    private final OneToManyParser oneToManyParser = new OneToManyParser();
+    private final ManyToManyParser manyToManyParser = new ManyToManyParser();
     private final InheritanceParser inheritanceParser = new InheritanceParser();
 
     /**
@@ -205,6 +209,16 @@ public final class EntityScanner {
             OneToOneParser.OneToOneInfo oneToOneInfo = oneToOneParser.parse(element, types);
             if (oneToOneInfo != null) {
                 relationshipInfo = RelationshipInfo.fromOneToOne(oneToOneInfo);
+            }
+        } else if (hasAnnotation(element, ONE_TO_MANY_ANNOTATION)) {
+            OneToManyParser.OneToManyInfo oneToManyInfo = oneToManyParser.parse(element, types);
+            if (oneToManyInfo != null) {
+                relationshipInfo = RelationshipInfo.fromOneToMany(oneToManyInfo);
+            }
+        } else if (hasAnnotation(element, MANY_TO_MANY_ANNOTATION)) {
+            ManyToManyParser.ManyToManyInfo manyToManyInfo = manyToManyParser.parse(element, types);
+            if (manyToManyInfo != null) {
+                relationshipInfo = RelationshipInfo.fromManyToMany(manyToManyInfo);
             }
         }
 
