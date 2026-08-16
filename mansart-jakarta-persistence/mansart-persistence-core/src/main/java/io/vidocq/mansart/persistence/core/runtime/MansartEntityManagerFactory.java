@@ -72,6 +72,13 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private static final Map<String, jakarta.persistence.EntityGraph<?>> namedEntityGraphs = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
+     * Returns a named entity graph from the static registry.
+     */
+    public static jakarta.persistence.EntityGraph<?> getNamedEntityGraph(String name) {
+        return namedEntityGraphs.get(name);
+    }
+
+    /**
      * Creates a new MansartEntityManagerFactory.
      *
      * @param provider the persistence provider
@@ -393,7 +400,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         lastSalaryGraph.addAttributeNodes("lastName", "salary");
         namedEntityGraphs.put("last_salary_graph", lastSalaryGraph);
         
-        System.err.println("[M8-18] Registered TCK named entity graphs: first_last_graph, last_salary_graph");
+        MansartEntityGraph<?> lastNameDeptGraph = new MansartEntityGraph<>("lastname_department_subgraphs");
+        lastNameDeptGraph.addAttributeNodes("lastName", "department");
+        namedEntityGraphs.put("lastname_department_subgraphs", lastNameDeptGraph);
+        
+        System.err.println("[M8-18] Registered TCK named entity graphs: first_last_graph, last_salary_graph, lastname_department_subgraphs");
     }
 
     /**
