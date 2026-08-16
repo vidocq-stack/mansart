@@ -25,8 +25,35 @@ public class MansartCriteriaBuilder {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                String methodName = method.getName();
+                
+                // Phase 1: Return non-null proxy stubs for essential methods
+                switch (methodName) {
+                    case "createQuery":
+                        if (args == null || args.length == 0) {
+                            return MansartCriteriaQuery.getProxy();
+                        } else {
+                            return MansartCriteriaQuery.getProxy();
+                        }
+                    case "createTupleQuery":
+                        return MansartCriteriaQuery.getProxy();
+                    case "createCriteriaUpdate":
+                        return MansartCriteriaUpdate.getProxy();
+                    case "createCriteriaDelete":
+                        return MansartCriteriaDelete.getProxy();
+                    case "literal":
+                        return MansartExpression.getProxy();
+                    case "parameter":
+                        if (args.length == 1) {
+                            return MansartParameterExpression.getProxy();
+                        } else {
+                            return MansartParameterExpression.getProxy();
+                        }
+                }
+                
+                // All other methods throw UnsupportedOperationException
                 throw new UnsupportedOperationException(
-                    "Criteria API Phase 1: Not yet implemented - " + method.getName());
+                    "Criteria API Phase 1: Not yet implemented - " + methodName);
             }
         };
         INSTANCE = (CriteriaBuilder) Proxy.newProxyInstance(
