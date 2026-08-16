@@ -531,7 +531,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public Metamodel getMetamodel() {
-        return null; // TODO: Implement in M8
+        return MansartMetamodel.getInstance();
     }
 
     private final MansartCache cache;
