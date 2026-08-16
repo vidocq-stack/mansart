@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M8 — Advanced JPQL & Criteria API
-- **Current task**: M8-9
-- **Next up**: M8-9 (Inheritance TABLE_PER_CLASS)
+- **Current task**: M8-10
+- **Next up**: M8-10 (@OneToMany, @ManyToMany)
 - **Blockers**: None
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -54,7 +54,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M8-6 Criteria API (Phase 1)
 - [x] M8-7 Inheritance SINGLE_TABLE (Phase 1)
 - [x] M8-8 Inheritance JOINED (Phase 1)
-- [ ] M8-9 Inheritance TABLE_PER_CLASS
+- [x] M8-9 Inheritance TABLE_PER_CLASS
 - [ ] M8-10 @OneToMany, @ManyToMany
 - [ ] M8-11 Lazy loading (APT-generated proxy subclasses)
 - [ ] M8-12 Dirty tracking (APT-generated support classes)
@@ -93,6 +93,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 | 2026-08-15 | TCK by category (M8-17) | 0 / 21 | EntityTransaction(5), Cache(4), Entity-Basic(4), Entity-Detach(2), Annotations-Entity(2), Query-Basic(1), EMFClose(1) | All errors: schema generation, cache not implemented, transaction not implemented, type casting |
 
 ## Session log (newest first, one line per session)
+- 2026-08-16 — M8-9 — COMPLETED: Inheritance TABLE_PER_CLASS (Phase 1). Full build passes (33/33 modules), all tests pass (47/47 in mansart-persistence-core). Added Vehicle/Car entities with TABLE_PER_CLASS strategy and 4 new tests.
 
 - 2026-08-15 — M8-8 — COMPLETED: Inheritance JOINED (Phase 1). Full build passes (33/33 modules), all tests pass (43/43 in mansart-persistence-core). Added Person/Student entities with JOINED strategy and 4 new tests.
 

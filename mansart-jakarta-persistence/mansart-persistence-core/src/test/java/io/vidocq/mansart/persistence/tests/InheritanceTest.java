@@ -5,10 +5,12 @@
  */
 package io.vidocq.mansart.persistence.tests;
 
+import io.vidocq.mansart.persistence.tests.model.inheritance.Car;
 import io.vidocq.mansart.persistence.tests.model.inheritance.Employee;
 import io.vidocq.mansart.persistence.tests.model.inheritance.Manager;
 import io.vidocq.mansart.persistence.tests.model.inheritance.Person;
 import io.vidocq.mansart.persistence.tests.model.inheritance.Student;
+import io.vidocq.mansart.persistence.tests.model.inheritance.Vehicle;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -145,5 +147,68 @@ public class InheritanceTest extends BasePersistenceTest {
         assertThat(found.getName()).isEqualTo("Eve Davis");
         assertThat(found.getUniversity()).isEqualTo("Stanford");
         assertThat(found.getMajor()).isEqualTo("Mathematics");
+    }
+
+    // ========== TABLE_PER_CLASS Inheritance Tests (M8-9) ==========
+
+    @Test
+    public void testTablePerClassPersistAndFindVehicle() {
+        Vehicle vehicle = new Vehicle("Toyota");
+        
+        em.persist(vehicle);
+        assertThat(vehicle.getId()).isNotNull();
+        
+        // Find the persisted vehicle
+        Vehicle found = em.find(Vehicle.class, vehicle.getId());
+        assertThat(found).isNotNull();
+        assertThat(found.getManufacturer()).isEqualTo("Toyota");
+    }
+
+    @Test
+    public void testTablePerClassPersistAndFindCar() {
+        Car car = new Car("Honda", "Civic", 2023);
+        
+        em.persist(car);
+        assertThat(car.getId()).isNotNull();
+        
+        // Find the persisted car
+        Car found = em.find(Car.class, car.getId());
+        assertThat(found).isNotNull();
+        assertThat(found.getManufacturer()).isEqualTo("Honda");
+        assertThat(found.getModel()).isEqualTo("Civic");
+        assertThat(found.getYear()).isEqualTo(2023);
+    }
+
+    @Test
+    public void testTablePerClassPolymorphicPersist() {
+        Vehicle vehicle = new Vehicle("Ford");
+        Car car = new Car("Tesla", "Model S", 2024);
+        
+        em.persist(vehicle);
+        em.persist(car);
+        
+        assertThat(vehicle.getId()).isNotNull();
+        assertThat(car.getId()).isNotNull();
+        
+        // Both should be findable
+        Vehicle foundVehicle = em.find(Vehicle.class, vehicle.getId());
+        Car foundCar = em.find(Car.class, car.getId());
+        
+        assertThat(foundVehicle).isNotNull();
+        assertThat(foundCar).isNotNull();
+    }
+
+    @Test
+    public void testTablePerClassInheritanceHierarchy() {
+        Car car = new Car("BMW", "X5", 2023);
+        
+        em.persist(car);
+        
+        Car found = em.find(Car.class, car.getId());
+        assertThat(found).isNotNull();
+        assertThat(found).isInstanceOf(Vehicle.class);
+        assertThat(found.getManufacturer()).isEqualTo("BMW");
+        assertThat(found.getModel()).isEqualTo("X5");
+        assertThat(found.getYear()).isEqualTo(2023);
     }
 }
