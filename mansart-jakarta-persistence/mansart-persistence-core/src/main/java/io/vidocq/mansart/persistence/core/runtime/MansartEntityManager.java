@@ -89,44 +89,76 @@ public class MansartEntityManager implements EntityManager {
      * @throws IllegalArgumentException if no id field is found
      */
     private static EntityIdHandles getIdHandles(Class<?> entityClass) {
-        // Try to find "id" field first (convention) - check all classes in hierarchy
+        // Try to find field with @Id annotation first - check all classes in hierarchy
         Class<?> currentClass = entityClass;
+        java.lang.reflect.Field idField = null;
         while (currentClass != null && currentClass != Object.class) {
-            try {
-                // Create lookup for the current class to access its private members
-                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(currentClass, MethodHandles.lookup());
-                
-                // Try getter/setter approach
-                try {
-                    MethodHandle getter = lookup.findGetter(currentClass, "id", Object.class);
-                    Class<?> idType = getter.type().returnType();
-                    MethodHandle setter = lookup.findSetter(currentClass, "id", idType);
-                    return new EntityIdHandles(getter, setter, idType);
-                } catch (NoSuchFieldException | IllegalAccessException e) {
-                    // Field might not exist in this class, try declared fields
+            for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
+                if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                    idField = field;
+                    break;
                 }
-                
-                // Try all declared fields in current class
-                for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
-                    if ("id".equals(field.getName())) {
-                        Class<?> fieldType = field.getType();
-                        try {
-                            MethodHandle getter = lookup.findGetter(currentClass, "id", fieldType);
-                            MethodHandle setter = lookup.findSetter(currentClass, "id", fieldType);
-                            return new EntityIdHandles(getter, setter, fieldType);
-                        } catch (NoSuchFieldException | IllegalAccessException e) {
-                            // Try next field
-                        }
-                    }
-                }
-            } catch (IllegalAccessException e) {
-                // Cannot access this class, try next in hierarchy
             }
-            
+            if (idField != null) {
+                break;
+            }
             currentClass = currentClass.getSuperclass();
         }
         
-        throw new IllegalArgumentException("Entity " + entityClass.getName() + " has no 'id' field (including superclasses)");
+        if (idField == null) {
+            // Fallback: try to find "id" field (convention)
+            currentClass = entityClass;
+            while (currentClass != null && currentClass != Object.class) {
+                try {
+                    // Create lookup for the current class to access its private members
+                    MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(currentClass, MethodHandles.lookup());
+                    
+                    // Try getter/setter approach for "id" field
+                    try {
+                        MethodHandle getter = lookup.findGetter(currentClass, "id", Object.class);
+                        Class<?> idType = getter.type().returnType();
+                        MethodHandle setter = lookup.findSetter(currentClass, "id", idType);
+                        return new EntityIdHandles(getter, setter, idType);
+                    } catch (NoSuchFieldException | IllegalAccessException e) {
+                        // Field might not exist in this class, try declared fields
+                    }
+                    
+                    // Try all declared fields in current class named "id"
+                    for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
+                        if ("id".equals(field.getName())) {
+                            Class<?> fieldType = field.getType();
+                            try {
+                                MethodHandle getter = lookup.findGetter(currentClass, "id", fieldType);
+                                MethodHandle setter = lookup.findSetter(currentClass, "id", fieldType);
+                                return new EntityIdHandles(getter, setter, fieldType);
+                            } catch (NoSuchFieldException | IllegalAccessException e) {
+                                // Try next field
+                            }
+                        }
+                    }
+                } catch (IllegalAccessException e) {
+                    // Cannot access this class, try next in hierarchy
+                }
+                
+                currentClass = currentClass.getSuperclass();
+            }
+        }
+        
+        // If we found @Id field, create handles for it
+        if (idField != null) {
+            try {
+                Class<?> fieldClass = idField.getDeclaringClass();
+                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(fieldClass, MethodHandles.lookup());
+                Class<?> fieldType = idField.getType();
+                MethodHandle getter = lookup.findGetter(fieldClass, idField.getName(), fieldType);
+                MethodHandle setter = lookup.findSetter(fieldClass, idField.getName(), fieldType);
+                return new EntityIdHandles(getter, setter, fieldType);
+            } catch (IllegalAccessException | NoSuchFieldException e) {
+                // Fall through to error
+            }
+        }
+        
+        throw new IllegalArgumentException("Entity " + entityClass.getName() + " has no @Id field or 'id' field (including superclasses)");
     }
 
     /**
