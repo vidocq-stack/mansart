@@ -657,7 +657,7 @@ public class MansartEntityManager implements EntityManager {
         var parser = new JPQLParser(entityClasses);
         var parsed = parser.parse(qlString, null);
         QueryCache cache = getQueryCache();
-        return new MansartQuery(parsed, dialect, connectionProvider, entityModels, entityClasses, cache);
+        return new MansartQuery(parsed, qlString, dialect, connectionProvider, entityModels, entityClasses, cache);
     }
 
     @Override
@@ -670,7 +670,7 @@ public class MansartEntityManager implements EntityManager {
         // Read the Class<T> and wrap in a typed query via Generic
         QueryCache cache = getQueryCache();
         @SuppressWarnings("unchecked")
-        var typedQuery = new MansartQuery.Generic<T>(parsed, dialect, connectionProvider, entityModels, entityClasses, cache);
+        var typedQuery = new MansartQuery.Generic<T>(parsed, qlString, dialect, connectionProvider, entityModels, entityClasses, cache);
         return typedQuery;
     }
     

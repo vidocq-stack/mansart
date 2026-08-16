@@ -11,35 +11,36 @@ import java.lang.reflect.Proxy;
 import java.util.*;
 
 /**
- * Factory for Expression proxy stubs for JPA 3.2.
+ * Factory for Predicate proxy stubs for JPA 3.2.
  * Phase 1: Returns proxy instances with smart defaults for common TCK methods.
  */
-public class MansartExpression<T> {
+public class MansartPredicate {
 
     @SuppressWarnings("unchecked")
-    public static <T> Expression<T> getProxy() {
+    public static Predicate getProxy() {
         InvocationHandler handler = new InvocationHandler() {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                 String methodName = method.getName();
                 
                 switch (methodName) {
-                    case "getJavaType": return Object.class;
+                    case "getJavaType": return Boolean.class;
                     case "getAlias": return null;
                     case "isCompoundSelection": return false;
                     case "getCompoundSelectionItems": return Collections.emptyList();
-                    case "isNull": return MansartPredicate.getProxy();
-                    case "isNotNull": return MansartPredicate.getProxy();
-                    case "in": return proxy; // Expression<T> chainable
+                    case "not": return proxy;
+                    case "asExpression": return MansartExpression.getProxy();
+                    case "getOperator": return null;
+                    case "getExpression": return null;
+                    case "getExpressions": return Collections.emptyList();
                 }
                 
-                // Chainable methods returning Expression or Selection: return self
+                // Chainable methods: return self
                 Class<?> returnType = method.getReturnType();
-                if (returnType == Expression.class || returnType == Selection.class ||
-                    returnType == Predicate.class || returnType == Order.class) {
-                    // For Predicate, return a predicate proxy
-                    if (returnType == Predicate.class) {
-                        return MansartPredicate.getProxy();
+                if (returnType == Predicate.class || returnType == Expression.class ||
+                    returnType == Selection.class) {
+                    if (returnType == Expression.class) {
+                        return MansartExpression.getProxy();
                     }
                     return proxy;
                 }
@@ -47,9 +48,9 @@ public class MansartExpression<T> {
                 throw new UnsupportedOperationException("Criteria API Phase 1: " + methodName);
             }
         };
-        return (Expression<T>) Proxy.newProxyInstance(
-            Expression.class.getClassLoader(),
-            new Class<?>[] { Expression.class, Selection.class, jakarta.persistence.TupleElement.class },
+        return (Predicate) Proxy.newProxyInstance(
+            Predicate.class.getClassLoader(),
+            new Class<?>[] { Predicate.class, Expression.class, Selection.class, jakarta.persistence.TupleElement.class },
             handler
         );
     }
