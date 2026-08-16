@@ -53,6 +53,7 @@ public class MansartQuery implements Query {
     private final JPQLQuery parsedQuery;
     private final Map<String, Object> namedParameters = new ConcurrentHashMap<>();
     private final List<Object> positionParameters = java.util.Collections.synchronizedList(new java.util.LinkedList<>());
+    private final Map<String, Object> hints = new ConcurrentHashMap<>();
     private int maxResults = Integer.MAX_VALUE;
     private int firstResult = 0;
     private FlushModeType flushMode;
@@ -236,40 +237,85 @@ public class MansartQuery implements Query {
 
     @Override
     public Parameter<?> getParameter(int position) {
-        throw new UnsupportedOperationException("Not implemented at M7-13");
+        // Positional parameters start at 1
+        if (position > 0 && position <= positionParameters.size()) {
+            Object value = positionParameters.get(position - 1);
+            if (value != null) {
+                return new MansartParameter<>(position, value.getClass());
+            }
+        }
+        return null;
     }
 
     @Override
     public <T> Parameter<T> getParameter(int position, Class<T> type) {
-        throw new UnsupportedOperationException("Not implemented at M7-13");
+        // Return parameter at position with the specified type
+        if (position > 0 && position <= positionParameters.size()) {
+            Object value = positionParameters.get(position - 1);
+            if (value != null) {
+                return new MansartParameter<>(position, type);
+            }
+        }
+        return null;
     }
 
     @Override
     public Parameter<?> getParameter(String name) {
-        throw new UnsupportedOperationException("Not implemented at M7-13");
+        // Return named parameter with its actual type
+        if (name != null && namedParameters.containsKey(name)) {
+            Object value = namedParameters.get(name);
+            if (value != null) {
+                return new MansartParameter<>(name, value.getClass());
+            }
+        }
+        return null;
     }
 
     @Override
     public <T> Parameter<T> getParameter(String name, Class<T> type) {
-        throw new UnsupportedOperationException("Not implemented at M7-13");
+        // Return named parameter with the specified type
+        if (name != null && namedParameters.containsKey(name)) {
+            return new MansartParameter<>(name, type);
+        }
+        return null;
     }
 
     @Override
     public Set<Parameter<?>> getParameters() {
-        // Return named parameters as Parameter instances
-        // For now, return empty set - TCK parameter tests will need proper implementation
-        return Set.of();
+        // Return all named and positional parameters as Parameter instances
+        Set<Parameter<?>> result = new java.util.HashSet<>();
+        
+        // Add named parameters
+        for (Map.Entry<String, Object> entry : namedParameters.entrySet()) {
+            Object value = entry.getValue();
+            if (value != null) {
+                result.add(new MansartParameter<>(entry.getKey(), value.getClass()));
+            }
+        }
+        
+        // Add positional parameters
+        for (int i = 0; i < positionParameters.size(); i++) {
+            Object value = positionParameters.get(i);
+            if (value != null) {
+                result.add(new MansartParameter<>(i + 1, value.getClass()));
+            }
+        }
+        
+        return result;
     }
 
 
 
     @Override
     public Map<String, Object> getHints() {
-        throw new UnsupportedOperationException("Not implemented at M7-13");
+        return java.util.Collections.unmodifiableMap(hints);
     }
 
     @Override
     public Query setHint(String hintName, Object value) {
+        if (hintName != null) {
+            hints.put(hintName, value);
+        }
         return this;
     }
 
@@ -487,7 +533,7 @@ public class MansartQuery implements Query {
 
         @Override
         public Map<String, Object> getHints() {
-            throw new UnsupportedOperationException("Not implemented at M7-13");
+            return super.getHints();
         }
 
         @Override
