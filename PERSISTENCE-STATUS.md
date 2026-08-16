@@ -87,6 +87,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 | Date | Suite / category | Pass / Total | Notes |
 | ---- | ---------------- | ------------ | ----- |
+| 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1593 errors (reduced from 1596, 3 fewer errors); Parameter support implemented - MansartParameter, getParameter methods |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1596 errors (reduced from 1599, 3 fewer errors); EntityGraph issues fixed - removed DEBUG prints, fixed createEntityGraph/getEntityGraph/getEntityGraphs |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1599 errors (reduced from 1601, 2 fewer errors); EntityGraph issues fixed - unified registry |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1601 errors (reduced from 1610, 9 fewer errors); EntityGraph support implemented |
@@ -100,6 +101,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)
+- 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1596 to 1593 (3 fewer errors) across 1745 tests. Commit 0840277 - Implement Parameter support for Query.
 - 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1599 to 1596 (3 fewer errors) across 1745 tests. Commit 803de76 - Fix EntityGraph issues - remove DEBUG prints, fix EntityGraph methods.
 - 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1601 to 1599 (2 fewer errors) across 1745 tests. Commit c02c14c - Fix EntityGraph issues - unify registry.
 - 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1610 to 1601 (9 fewer errors) across 1745 tests. Commit 5293d66 - Implement EntityGraph support for TCK. Full build BUILD SUCCESS (33/33 modules).
