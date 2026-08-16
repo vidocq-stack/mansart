@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: M9-3
-- **Next up**: M9-3 (Lifecycle callbacks)
+- **Current task**: M9-4
+- **Next up**: M9-4 (Entity listeners)
 - **Blockers**: M9-2 (Bean Validation integration — en cours de dev)
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -72,7 +72,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 - [x] M9-1 L2 cache (optional)
 - [ ] M9-2 Bean Validation integration (en attente — en cours de dev)
-- [ ] M9-3 Lifecycle callbacks
+- [x] M9-3 Lifecycle callbacks
 - [ ] M9-4 Entity listeners
 - [ ] M9-5 Locking (optimistic / pessimistic)
 - [x] M9-6 Stored procedures
@@ -92,6 +92,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 | 2026-08-15 | Smoke tests (tck-run profile) | 3 / 3 | All PASS |
 | 2026-08-15 | TCK by category (M8-17) | 0 / 21 | EntityTransaction(5), Cache(4), Entity-Basic(4), Entity-Detach(2), Annotations-Entity(2), Query-Basic(1), EMFClose(1) | All errors: schema generation, cache not implemented, transaction not implemented, type casting |
 
+- 2026-08-16 — M9-3 — COMPLETED: Lifecycle callbacks implementation. Created LifecycleCallbackManager with MethodHandles-based invocation, integrated callbacks into persist/merge/remove/find methods, added 5 tests in LifecycleCallbackTest. Full build passes (33/33 modules), all tests pass (67/67 in mansart-persistence-core).
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)

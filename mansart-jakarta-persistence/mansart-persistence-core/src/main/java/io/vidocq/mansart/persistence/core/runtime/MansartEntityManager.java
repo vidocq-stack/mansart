@@ -192,6 +192,7 @@ public class MansartEntityManager implements EntityManager {
     private final MansartTransactionManager transactionManager;
     private final Map<Object, Object> cache;
     private final AtomicReference<Boolean> open;
+    private final LifecycleCallbackManager lifecycleCallbackManager;
 
     private final Map<String, Class<?>> entityClasses;
     private final Map<Class<?>, EntityModel<?>> entityModels;
@@ -239,6 +240,7 @@ public class MansartEntityManager implements EntityManager {
         this.dialect = dialect;
         this.cache = new HashMap<>();
         this.open = new AtomicReference<>(true);
+        this.lifecycleCallbackManager = new LifecycleCallbackManager();
         this.entityClasses = Map.copyOf(entityClasses);
         this.entityModels = entityModels != null ? Map.copyOf(entityModels) : Map.of();
         this.connectionProvider = connectionProvider;
@@ -259,6 +261,8 @@ public class MansartEntityManager implements EntityManager {
         // Check L1 cache first
         Object entity = cache.get(primaryKey);
         if (entity != null) {
+            // Invoke PostLoad callback (M9-3)
+            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
             return entityClass.cast(entity);
         }
         // Check L2 cache
@@ -268,6 +272,8 @@ public class MansartEntityManager implements EntityManager {
             if (entity != null) {
                 // Populate L1 cache
                 cache.put(primaryKey, entity);
+                // Invoke PostLoad callback (M9-3)
+                lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
                 return entityClass.cast(entity);
             }
         }
@@ -315,6 +321,9 @@ public class MansartEntityManager implements EntityManager {
             throw new IllegalArgumentException("Entity must not be null");
         }
         
+        // Invoke PrePersist callback (M9-3)
+        lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_PERSIST);
+        
         // Generate ID for the entity
         Long counterId = ID_COUNTER.getAndIncrement();
         
@@ -334,6 +343,9 @@ public class MansartEntityManager implements EntityManager {
                 ((MansartCache) l2Cache).put(entity.getClass(), actualId, entity);
             }
             
+            // Invoke PostPersist callback (M9-3)
+            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_PERSIST);
+            
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist entity: " + e.getMessage(), e);
         }
@@ -350,15 +362,22 @@ public class MansartEntityManager implements EntityManager {
         
         if (id != null && cache.containsKey(id)) {
             // Entity exists, update it
+            // Invoke PreUpdate callback (M9-3)
+            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_UPDATE);
+            
             cache.put(id, entity);
             // Update L2 cache
             Cache l2Cache = entityManagerFactory.getCache();
             if (l2Cache instanceof MansartCache) {
                 ((MansartCache) l2Cache).put(entity.getClass(), id, entity);
             }
+            
+            // Invoke PostUpdate callback (M9-3)
+            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_UPDATE);
+            
             return entity;
         } else {
-            // Entity doesn't exist, persist it (which will handle L2 cache)
+            // Entity doesn't exist, persist it (which will handle L2 cache and callbacks)
             persist(entity);
             return entity;
         }
@@ -370,6 +389,9 @@ public class MansartEntityManager implements EntityManager {
             throw new IllegalArgumentException("Entity must not be null");
         }
         
+        // Invoke PreRemove callback (M9-3)
+        lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_REMOVE);
+        
         Object id = getEntityId(entity);
         if (id != null) {
             cache.remove(id);
@@ -379,6 +401,9 @@ public class MansartEntityManager implements EntityManager {
                 ((MansartCache) l2Cache).evict(entity.getClass(), id);
             }
         }
+        
+        // Invoke PostRemove callback (M9-3)
+        lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_REMOVE);
     }
 
     @Override
