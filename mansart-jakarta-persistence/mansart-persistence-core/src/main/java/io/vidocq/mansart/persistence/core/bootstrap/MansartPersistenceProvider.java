@@ -55,7 +55,46 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public EntityManagerFactory createEntityManagerFactory(String emName, Map<?, ?> properties) {
+        // Try to find PersistenceUnitInfo from persistence.xml on classpath
+        jakarta.persistence.spi.PersistenceUnitInfo persistenceUnitInfo = findPersistenceUnitInfo(emName, properties);
+        if (persistenceUnitInfo != null) {
+            return createContainerEntityManagerFactory(persistenceUnitInfo, properties);
+        }
+        // Fallback to simple factory creation
         return new io.vidocq.mansart.persistence.core.runtime.MansartEntityManagerFactory(this, emName, properties);
+    }
+    
+    /**
+     * Finds PersistenceUnitInfo by parsing persistence.xml from classpath.
+     * Returns null if not found.
+     */
+    private jakarta.persistence.spi.PersistenceUnitInfo findPersistenceUnitInfo(String emName, Map<?, ?> properties) {
+        try {
+            java.net.URL resource = getClass().getClassLoader().getResource("META-INF/persistence.xml");
+            if (resource == null) {
+                return null;
+            }
+            
+            javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            javax.xml.parsers.DocumentBuilder builder = factory.newDocumentBuilder();
+            org.w3c.dom.Document doc = builder.parse(resource.openStream());
+            
+            org.w3c.dom.NodeList puNodes = doc.getElementsByTagName("persistence-unit");
+            for (int i = 0; i < puNodes.getLength(); i++) {
+                org.w3c.dom.Node puNode = puNodes.item(i);
+                if (puNode.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+                    org.w3c.dom.Element puElement = (org.w3c.dom.Element) puNode;
+                    String name = puElement.getAttribute("name");
+                    if (emName == null || emName.equals(name)) {
+                        return new SimplePersistenceUnitInfo(name, puElement, getClass().getClassLoader());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[M8-18] Error finding PersistenceUnitInfo: " + e.getMessage());
+        }
+        return null;
     }
 
     /**

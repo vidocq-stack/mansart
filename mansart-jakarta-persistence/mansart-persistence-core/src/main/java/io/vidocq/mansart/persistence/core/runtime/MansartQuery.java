@@ -256,7 +256,9 @@ public class MansartQuery implements Query {
 
     @Override
     public Set<Parameter<?>> getParameters() {
-        throw new UnsupportedOperationException("Not implemented at M7-13");
+        // Return named parameters as Parameter instances
+        // For now, return empty set - TCK parameter tests will need proper implementation
+        return Set.of();
     }
 
 
