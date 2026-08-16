@@ -179,12 +179,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[M8-18] Error loading from persistence.xml: " + e.getMessage());
+            // Error loading from persistence.xml - non-fatal
         }
         
         // For TCK: always scan TCK packages as the TCK persistence.xml may not list all entities
         // This is needed because the TCK creates archives with entities not listed in the persistence.xml
-        System.err.println("[M8-18] Scanning TCK entity packages...");
         Map<String, Class<?>> tckEntities = scanEntityClasses(classLoader);
         // Merge results, with TCK entities taking precedence for simple names
         tckEntities.forEach((key, value) -> {
@@ -193,7 +192,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             }
         });
         
-        System.err.println("[M8-18] Total entity classes loaded: " + result.size() + " (keys: " + result.keySet() + ")");
         return Collections.unmodifiableMap(result);
     }
 
@@ -236,18 +234,14 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         try {
             String path = packageName.replace('.', '/');
             java.net.URL resource = classLoader.getResource(path);
-            System.err.println("[M8-18] Scanning package " + packageName + ": resource = " + resource);
             if (resource != null) {
                 String protocol = resource.getProtocol();
-                System.err.println("[M8-18]   protocol = " + protocol);
                 if ("file".equals(protocol)) {
                     java.io.File dir = new java.io.File(resource.toURI());
-                    System.err.println("[M8-18]   dir = " + dir + ", exists = " + dir.exists());
                     scanDirectoryForEntities(dir, packageName, classLoader, result);
                 } else if ("jar".equals(protocol)) {
                     // Handle JAR resources - list entries in the JAR
                     String jarPath = resource.getPath().substring(5, resource.getPath().indexOf('!'));
-                    System.err.println("[M8-18]   jarPath = " + jarPath);
                     try (java.util.jar.JarFile jarFile = new java.util.jar.JarFile(java.net.URLDecoder.decode(jarPath, "UTF-8"))) {
                         String packagePath = path + "/";
                         java.util.Enumeration<java.util.jar.JarEntry> entries = jarFile.entries();
@@ -263,22 +257,21 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                                     if (clazz.isAnnotationPresent(jakarta.persistence.Entity.class)) {
                                         result.put(className, clazz);
                                         result.put(clazz.getSimpleName(), clazz);
-                                        System.err.println("[M8-18]   Scanned JAR entity class: " + className + " (simple: " + clazz.getSimpleName() + ")");
                                     }
                                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                                     // Class might not be loadable - skip
                                 } catch (Throwable t) {
-                                    System.err.println("[M8-18]     Error loading JAR class " + className + ": " + t.getMessage());
+                                    // Error loading JAR class - skip
                                 }
                             }
                         }
                     } catch (Exception e) {
-                        System.err.println("[M8-18]   Error opening JAR: " + e.getMessage());
+                        // Error opening JAR - skip
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("[M8-18] Error scanning package " + packageName + ": " + e.getMessage());
+            // Error scanning package - skip
         }
     }
 
@@ -304,12 +297,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                     if (clazz.isAnnotationPresent(jakarta.persistence.Entity.class)) {
                         result.put(className, clazz);
                         result.put(clazz.getSimpleName(), clazz);
-                        System.err.println("[M8-18] Scanned TCK entity class: " + className + " (simple: " + clazz.getSimpleName() + ")");
                     }
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // Class might not be loadable (missing dependencies) - skip
                 } catch (Throwable t) {
-                    System.err.println("[M8-18] Error loading class " + className + ": " + t.getMessage());
+                    // Error loading class - skip
                 }
             }
         }
@@ -320,7 +312,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      */
     private Map<String, Class<?>> loadEntityClasses(jakarta.persistence.spi.PersistenceUnitInfo persistenceUnitInfo) {
         if (persistenceUnitInfo == null) {
-            System.err.println("[M8-18] persistenceUnitInfo is null");
             return Map.of();
         }
         
@@ -345,7 +336,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                         // Also add simple name for JPQL queries like "FROM Employee"
                         result.put(entityClass.getSimpleName(), entityClass);
                     } catch (ClassNotFoundException e) {
-                        System.err.println("[M8-18] Could not load entity class: " + className);
+                        // Class not found - skip
                     }
                 }
             }
@@ -354,7 +345,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             // This handles the case where the TCK persistence.xml doesn't list all entities
             if (result.isEmpty() || 
                 (result.size() <= 2 && result.containsKey("io.vidocq.mansart.persistence.tck.SimpleEntity") && result.containsKey("SimpleEntity"))) {
-                System.err.println("[M8-18] Only SimpleEntity found, scanning TCK entity packages...");
                 Map<String, Class<?>> tckEntities = scanEntityClasses(classLoader);
                 tckEntities.forEach((key, value) -> {
                     if (!result.containsKey(key)) {
@@ -365,7 +355,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             
             return Collections.unmodifiableMap(result);
         } catch (Exception e) {
-            System.err.println("[M8-18] Error loading entity classes: " + e.getMessage());
+            // Error loading entity classes - non-fatal
             return Map.of();
         }
     }
@@ -381,7 +371,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         // The SchemaManager will use reflection to inspect entity classes directly.
         // Also, EntityModel is a record, not a service, so ServiceLoader won't work.
         // For now, return empty map and rely on reflection fallback.
-        System.err.println("[M8-18] EntityModels not loaded - using reflection fallback for schema generation");
         return Map.of();
     }
     
@@ -403,8 +392,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         MansartEntityGraph<?> lastNameDeptGraph = new MansartEntityGraph<>("lastname_department_subgraphs");
         lastNameDeptGraph.addAttributeNodes("lastName", "department");
         namedEntityGraphs.put("lastname_department_subgraphs", lastNameDeptGraph);
-        
-        System.err.println("[M8-18] Registered TCK named entity graphs: first_last_graph, last_salary_graph, lastname_department_subgraphs");
     }
 
     /**
@@ -443,14 +430,15 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                             }
                             
                             // Register the named graph
-                            namedEntityGraphs.put(graphName, graph);
-                            System.err.println("[M8-18] Registered named entity graph: " + graphName + " for class " + entityClass.getName());
+                            if (graph != null) {
+                                namedEntityGraphs.put(graphName, graph);
+                            }
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("[M8-18] Error parsing @NamedEntityGraph annotations: " + e.getMessage());
+            // Error parsing @NamedEntityGraph annotations - non-fatal
         }
     }
     
@@ -624,7 +612,14 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      * Returns all named entity graphs from the static registry.
      */
     public static java.util.Collection<jakarta.persistence.EntityGraph<?>> getNamedEntityGraphs() {
-        return namedEntityGraphs.values();
+        // Filter out null values
+        java.util.List<jakarta.persistence.EntityGraph<?>> result = new java.util.ArrayList<>();
+        for (jakarta.persistence.EntityGraph<?> graph : namedEntityGraphs.values()) {
+            if (graph != null) {
+                result.add(graph);
+            }
+        }
+        return result;
     }
 
     @Override
@@ -705,7 +700,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                 }
             } catch (Exception e) {
                 // Schema creation failed - this is non-fatal according to JPA spec
-                System.err.println("Automatic schema creation failed: " + e.getMessage());
             }
         }
     }
