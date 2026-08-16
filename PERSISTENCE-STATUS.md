@@ -59,7 +59,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M8-11 Lazy loading (APT-generated proxy subclasses) (Phase 1)
 - [x] M8-12 Dirty tracking (Phase 1)
 - [ ] M8-13 Complete APT processor
-- [ ] M8-14 Named queries
+- [x] M8-14 Named queries (Phase 1)
 - [x] M8-15 Native queries
 - [x] M8-16 Complete tests
 - [x] M8-17 Exécuter TCK par catégorie
@@ -95,6 +95,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)
+- 2026-08-16 — M8-14 — COMPLETED (Phase 1): Named queries. Full build passes (33/33 modules), all tests pass (62/62 in mansart-persistence-core). Added NamedQueryParser, extended MansartProcessor @SupportedAnnotationTypes, Department entity with @NamedQuery/@NamedQueries, NamedQueryTest with 3 tests.
 - 2026-08-16 — M8-10 — COMPLETED (Phase 1): @OneToMany, @ManyToMany. Full build passes (33/33 modules), all tests pass (53/53 in mansart-persistence-core). Added OneToManyParser, ManyToManyParser, EntityScanner integration, relationship entities (Author, Book, Pupil, Course), and 6 RelationshipTest tests.
 - 2026-08-16 — M8-9 — COMPLETED: Inheritance TABLE_PER_CLASS (Phase 1). Full build passes (33/33 modules), all tests pass (47/47 in mansart-persistence-core). Added Vehicle/Car entities with TABLE_PER_CLASS strategy and 4 new tests.
 

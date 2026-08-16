@@ -80,6 +80,7 @@ public final class EntityScanner {
     private final OneToManyParser oneToManyParser = new OneToManyParser();
     private final ManyToManyParser manyToManyParser = new ManyToManyParser();
     private final InheritanceParser inheritanceParser = new InheritanceParser();
+    private final NamedQueryParser namedQueryParser = new NamedQueryParser();
 
     /**
      * Creates a new EntityScanner.

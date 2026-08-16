@@ -61,6 +61,8 @@ import java.util.Set;
     "jakarta.persistence.Table",
     "jakarta.persistence.SequenceGenerator",
     "jakarta.persistence.TableGenerator",
+    "jakarta.persistence.NamedQuery",
+    "jakarta.persistence.NamedQueries",
     "jakarta.persistence.ManyToOne",
     "jakarta.persistence.OneToMany",
     "jakarta.persistence.ManyToMany",
