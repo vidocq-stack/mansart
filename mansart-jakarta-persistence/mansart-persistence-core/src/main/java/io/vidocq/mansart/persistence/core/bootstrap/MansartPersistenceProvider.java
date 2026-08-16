@@ -92,7 +92,7 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[M8-18] Error finding PersistenceUnitInfo: " + e.getMessage());
+            // Error finding PersistenceUnitInfo - non-fatal
         }
         return null;
     }

@@ -70,7 +70,7 @@ public class MansartSchemaManager implements SchemaManager {
                 createTables(connection);
             }
         } catch (SQLException e) {
-            System.err.println("Schema creation failed: " + e.getMessage());
+            // Schema creation failed - non-fatal per JPA spec
         }
     }
 
@@ -83,7 +83,6 @@ public class MansartSchemaManager implements SchemaManager {
                 if (ddl != null && !ddl.isEmpty()) {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
-                        System.err.println("[M8-18] Created table from EntityModel: " + tableName);
                     }
                 }
             }
@@ -97,7 +96,6 @@ public class MansartSchemaManager implements SchemaManager {
                 if (ddl != null && !ddl.isEmpty()) {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
-                        System.err.println("[M8-18] Created table from entityClass: " + tableName + " (" + entityClass.getName() + ")");
                     }
                 }
             }
@@ -106,7 +104,6 @@ public class MansartSchemaManager implements SchemaManager {
         // Always try to create tables for known TCK classes
         // This is needed because TCK entity classes are loaded dynamically via Arquillian
         // and may not be in entityClasses
-        System.err.println("[M8-18] SchemaManager.create(): Trying known TCK classes.");
         createTablesForKnownClasses(connection);
     }
 
@@ -187,7 +184,6 @@ public class MansartSchemaManager implements SchemaManager {
                               ")";
                 try (Statement stmt = connection.createStatement()) {
                     stmt.execute(ddl);
-                    System.err.println("[M8-18] Created table for TCK entity: " + tableName + " from " + className);
                 }
             } catch (ClassNotFoundException e) {
                 // Entity class not loaded yet - try with default class loader
@@ -201,11 +197,9 @@ public class MansartSchemaManager implements SchemaManager {
                                   ")";
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
-                        System.err.println("[M8-18] Created table for TCK entity (default CL): " + tableName + " from " + className);
                     }
                 } catch (ClassNotFoundException e2) {
                     // Entity class truly not available - this is expected for optional test categories
-                    System.err.println("[M8-18] TCK entity class not found: " + className);
                 }
             }
         }
@@ -383,10 +377,8 @@ public class MansartSchemaManager implements SchemaManager {
                           ")";
                 }
                 stmt.execute(ddl);
-                System.err.println("[M8-18] Created known TCK table: " + tableName);
             } catch (SQLException e) {
                 // Table might already exist - this is OK
-                System.err.println("[M8-18] Table " + tableName + " may already exist: " + e.getMessage());
             }
         }
     }
@@ -563,7 +555,7 @@ public class MansartSchemaManager implements SchemaManager {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Schema drop failed: " + e.getMessage());
+            // Schema drop failed - non-fatal
         }
     }
 
@@ -603,7 +595,7 @@ public class MansartSchemaManager implements SchemaManager {
                 }
             }
         } catch (SQLException e) {
-            System.err.println("Schema truncate failed: " + e.getMessage());
+            // Schema truncate failed - non-fatal
         }
     }
 
