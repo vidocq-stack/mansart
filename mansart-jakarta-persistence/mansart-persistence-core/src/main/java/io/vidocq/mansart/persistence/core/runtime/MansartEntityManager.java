@@ -19,8 +19,10 @@
  */
 package io.vidocq.mansart.persistence.core.runtime;
 
+import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.dialect.SqlFragment;
 import io.vidocq.mansart.persistence.core.criteria.MansartCriteriaBuilder;
 import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
@@ -28,7 +30,6 @@ import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 import io.vidocq.mansart.persistence.spi.Bootstrap;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 
-import java.sql.Connection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Cache;
@@ -462,6 +463,12 @@ public class MansartEntityManager implements EntityManager {
             // Get the actual ID value from the entity (after conversion)
             Object actualId = getEntityId(entity);
             
+            // Execute INSERT in database (M9-10: Phase 1 - DB persistence for TCK)
+            // This ensures JPQL queries can find persisted entities
+            if (dialect != null && connectionProvider != null) {
+                executeInsert(entity, actualId);
+            }
+            
             // Store in L1 cache with actual ID
             cache.put(actualId, entity);
             
@@ -477,6 +484,218 @@ public class MansartEntityManager implements EntityManager {
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist entity: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Executes INSERT statement for the entity in the database (M9-10: Phase 1).
+     * Uses dialect.insert() to generate SQL and binds attribute values.
+     * This ensures that JPQL queries can find persisted entities in the database.
+     *
+     * @param entity the entity to insert
+     * @param id the ID value to use for the entity
+     * @throws SQLException if the insert fails
+     */
+    @SuppressWarnings("unchecked")
+    private void executeInsert(Object entity, Object id) throws SQLException {
+        Class<?> entityClass = entity.getClass();
+        
+        // Try to get EntityModel from APT-generated models
+        EntityModel<Object> entityModel = (EntityModel<Object>) entityModels.get(entityClass);
+        
+        if (entityModel != null) {
+            // Use dialect-based insert with EntityModel
+            executeInsertWithEntityModel(entity, id, entityModel);
+        } else {
+            // Fallback: use reflection-based insert for entities without EntityModel
+            // This handles TCK entities and any entities compiled with different APT processor
+            executeInsertWithReflection(entity, id, entityClass);
+        }
+    }
+    
+    /**
+     * Executes INSERT using EntityModel and dialect.
+     */
+    @SuppressWarnings("unchecked")
+    private void executeInsertWithEntityModel(Object entity, Object id, EntityModel<Object> entityModel) throws SQLException {
+        io.vidocq.mansart.data.dialect.SqlFragment insertFragment = dialect.insert(entityModel, true);
+        String idColumnName = entityModel.id().columnName();
+        
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (java.sql.PreparedStatement ps = connection.prepareStatement(
+                    insertFragment.sql(), new String[]{idColumnName})) {
+                
+                int paramIndex = 1;
+                for (Attribute<Object, ?> attr : entityModel.attributes()) {
+                    if (attr == entityModel.id() && entityModel.id().generated()) {
+                        continue;
+                    }
+                    
+                    Object value;
+                    try {
+                        value = attr.getter().invoke(entity);
+                    } catch (Throwable t) {
+                        value = null;
+                    }
+                    
+                    dialect.bind(ps, paramIndex++, value, attr.javaType());
+                }
+                
+                ps.executeUpdate();
+                
+                if (entityModel.id().generated()) {
+                    try (java.sql.ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            Object generatedKey = dialect.extract(keys, 1, entityModel.id().javaType());
+                            try {
+                                entityModel.id().setter().invoke(entity, generatedKey);
+                            } catch (Throwable t) {
+                                // Ignore
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Fallback: executes INSERT using reflection to inspect entity fields.
+     * Used when EntityModel is not available (e.g., TCK entities).
+     */
+    private void executeInsertWithReflection(Object entity, Object id, Class<?> entityClass) throws SQLException {
+        // Get table name from @Table annotation or use class name
+        String tableName = getTableNameFromAnnotation(entityClass);
+        if (tableName == null || tableName.isEmpty()) {
+            tableName = entityClass.getSimpleName().toLowerCase();
+        }
+        
+        // Collect all persistent fields
+        java.util.List<java.lang.reflect.Field> columns = new java.util.ArrayList<>();
+        java.util.List<Object> values = new java.util.ArrayList<>();
+        
+        // Find ID field first
+        java.lang.reflect.Field idField = null;
+        for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
+            field.setAccessible(true);
+            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                idField = field;
+                break;
+            }
+        }
+        
+        // Add ID first
+        if (idField != null) {
+            columns.add(idField);
+            values.add(id);
+        }
+        
+        // Add other persistent fields
+        String idFieldName = idField != null ? idField.getName() : null;
+        for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
+            // Use field name comparison since getDeclaredFields() returns new Field objects each time
+            if (idFieldName != null && idFieldName.equals(field.getName())) continue;
+            
+            field.setAccessible(true);
+            
+            // Skip transient fields
+            if (field.isAnnotationPresent(jakarta.persistence.Transient.class)) {
+                continue;
+            }
+            
+            // Skip relationship fields (for now, simplified)
+            if (field.isAnnotationPresent(jakarta.persistence.OneToMany.class) ||
+                field.isAnnotationPresent(jakarta.persistence.ManyToOne.class) ||
+                field.isAnnotationPresent(jakarta.persistence.ManyToMany.class) ||
+                field.isAnnotationPresent(jakarta.persistence.OneToOne.class)) {
+                continue;
+            }
+            
+            columns.add(field);
+            try {
+                values.add(field.get(entity));
+            } catch (IllegalAccessException e) {
+                values.add(null);
+            }
+        }
+        
+        // Build INSERT SQL
+        // For H2: when table names are created with quotes in schema generation,
+        // we must use the exact same case with quotes in INSERT statements
+        // Column names are always quoted to avoid SQL keyword conflicts
+        StringBuilder sql = new StringBuilder("INSERT INTO ");
+        
+        // Table name: always quote to preserve case (H2 is case-sensitive with quotes)
+        String quotedTableName = "\"" + tableName + "\"";
+        sql.append(quotedTableName).append(" (");
+        
+        // Column names: always quote to avoid SQL keyword conflicts
+        for (int i = 0; i < columns.size(); i++) {
+            if (i > 0) sql.append(", ");
+            String columnName = getColumnName(columns.get(i));
+            sql.append("\"").append(columnName).append("\"");
+        }
+        sql.append(") VALUES (");
+        
+        // Placeholders
+        for (int i = 0; i < columns.size(); i++) {
+            if (i > 0) sql.append(", ");
+            sql.append("?");
+        }
+        sql.append(")");
+        
+        String insertSql = sql.toString();
+        
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (java.sql.PreparedStatement ps = connection.prepareStatement(insertSql)) {
+                for (int i = 0; i < values.size(); i++) {
+                    dialect.bind(ps, i + 1, values.get(i), values.get(i) != null ? values.get(i).getClass() : Object.class);
+                }
+                ps.executeUpdate();
+            }
+        }
+    }
+    
+    /**
+     * Gets table name from @Table annotation or @Entity name.
+     * In JPA, if no @Table is specified, the default table name is the entity name.
+     */
+    private String getTableNameFromAnnotation(Class<?> entityClass) {
+        // Check @Table annotation first
+        jakarta.persistence.Table tableAnn = entityClass.getAnnotation(jakarta.persistence.Table.class);
+        if (tableAnn != null && !tableAnn.name().isEmpty()) {
+            return tableAnn.name();
+        }
+        
+        // Check @Entity annotation for name
+        jakarta.persistence.Entity entityAnn = entityClass.getAnnotation(jakarta.persistence.Entity.class);
+        if (entityAnn != null && !entityAnn.name().isEmpty()) {
+            return entityAnn.name();
+        }
+        
+        // Default to simple class name
+        return entityClass.getSimpleName();
+    }
+    
+    /**
+     * Gets column name from @Column annotation or field name.
+     */
+    private String getColumnName(java.lang.reflect.Field field) {
+        jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+        return columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
+    }
+    
+    /**
+     * Quotes SQL identifier for the current dialect.
+     * For H2: don't quote table names (H2 stores unquoted identifiers in uppercase)
+     * but do quote column names to avoid SQL keyword conflicts.
+     */
+    private String quoteIdentifier(String identifier) {
+        if ("postgresql".equals(dialect.name())) {
+            return "\"" + identifier + "\"";
+        }
+        // For H2 and other dialects: don't quote identifiers to use uppercase table names
+        // H2 stores unquoted identifiers in UPPER CASE
+        return identifier;
     }
 
     @Override

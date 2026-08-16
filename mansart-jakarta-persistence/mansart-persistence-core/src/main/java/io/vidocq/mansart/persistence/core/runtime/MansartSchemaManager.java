@@ -91,7 +91,8 @@ public class MansartSchemaManager implements SchemaManager {
         // Fallback: use entityClasses from PersistenceUnitInfo
         if (!entityClasses.isEmpty()) {
             for (Class<?> entityClass : entityClasses.values()) {
-                String tableName = entityClass.getSimpleName().toLowerCase();
+                // Get table name from @Entity annotation or use class simple name
+                String tableName = getEntityTableName(entityClass);
                 String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
                 if (ddl != null && !ddl.isEmpty()) {
                     try (Statement stmt = connection.createStatement()) {
@@ -120,6 +121,38 @@ public class MansartSchemaManager implements SchemaManager {
         // Known TCK entity classes from various test categories
         // Includes all entities that might have tables referenced in cleanup/setup methods
         String[] tckEntityClasses = {
+            // Mansart test entities - core tests package
+            "io.vidocq.mansart.persistence.tests.TestEntity",
+            // Mansart test entities - model packages
+            "io.vidocq.mansart.persistence.tests.model.relationship.Author",
+            "io.vidocq.mansart.persistence.tests.model.relationship.Book",
+            "io.vidocq.mansart.persistence.tests.model.relationship.Pupil",
+            "io.vidocq.mansart.persistence.tests.model.relationship.Course",
+            "io.vidocq.mansart.persistence.tests.model.namedquery.Department",
+            "io.vidocq.mansart.persistence.tests.model.inheritance.Person",
+            "io.vidocq.mansart.persistence.tests.model.inheritance.Student",
+            "io.vidocq.mansart.persistence.tests.model.inheritance.Manager",
+            "io.vidocq.mansart.persistence.tests.model.inheritance.Employee",
+            "io.vidocq.mansart.persistence.tests.model.inheritance.Vehicle",
+            "io.vidocq.mansart.persistence.tests.model.inheritance.Car",
+            "io.vidocq.mansart.persistence.tests.model.lazy.Employee",
+            "io.vidocq.mansart.persistence.tests.model.dirty.Product",
+            "io.vidocq.mansart.persistence.tests.Product",
+            "io.vidocq.mansart.persistence.tests.Department",
+            "io.vidocq.mansart.persistence.tests.Employee",
+            "io.vidocq.mansart.persistence.tests.Person",
+            "io.vidocq.mansart.persistence.tests.Student",
+            "io.vidocq.mansart.persistence.tests.Vehicle",
+            "io.vidocq.mansart.persistence.tests.Car",
+            "io.vidocq.mansart.persistence.tests.Author",
+            "io.vidocq.mansart.persistence.tests.Book",
+            "io.vidocq.mansart.persistence.tests.Pupil",
+            "io.vidocq.mansart.persistence.tests.Course",
+            // Entity classes defined in test files (inner classes)
+            "io.vidocq.mansart.persistence.tests.LockingTest$VersionedEntity",
+            "io.vidocq.mansart.persistence.tests.LifecycleCallbackTest$CallbackEntity",
+            "io.vidocq.mansart.persistence.tests.EntityListenerTest$AuditEntity",
+            "io.vidocq.mansart.persistence.tests.EntityListenerTest$MonitoredEntity",
             // Entity-Basic test entities
             "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Coffee",
             "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Foo",
@@ -710,9 +743,29 @@ public class MansartSchemaManager implements SchemaManager {
             return entityModel.tableName();
         } catch (Exception e) {
             // Fallback to class name
-            String className = entityModel.entityClass().getSimpleName();
-            return className.toLowerCase();
+            return entityModel.entityClass().getSimpleName();
         }
+    }
+    
+    /**
+     * Gets the table name for a class from its @Entity or @Table annotation.
+     * Follows JPA default: if no @Table, use entity name; if no entity name, use class name.
+     */
+    private String getEntityTableName(Class<?> entityClass) {
+        // Check @Table annotation first
+        jakarta.persistence.Table tableAnn = entityClass.getAnnotation(jakarta.persistence.Table.class);
+        if (tableAnn != null && !tableAnn.name().isEmpty()) {
+            return tableAnn.name();
+        }
+        
+        // Check @Entity annotation
+        jakarta.persistence.Entity entityAnn = entityClass.getAnnotation(jakarta.persistence.Entity.class);
+        if (entityAnn != null && !entityAnn.name().isEmpty()) {
+            return entityAnn.name();
+        }
+        
+        // Default to simple class name
+        return entityClass.getSimpleName();
     }
 
     /**

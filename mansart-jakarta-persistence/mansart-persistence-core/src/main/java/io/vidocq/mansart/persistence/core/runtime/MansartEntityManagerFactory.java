@@ -692,11 +692,19 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      * <p>M8-18: Automatic schema generation for Entity-Basic TCK tests.
      */
     private void checkAndCreateSchema() {
+        // Check properties from PersistenceUnitInfo
         String schemaAction = (String) properties.get("jakarta.persistence.schema-generation.database.action");
+        
+        // Also check system properties (TCK sets these via surefire systemPropertyVariables)
+        if (schemaAction == null || schemaAction.isEmpty()) {
+            schemaAction = System.getProperty("jakarta.persistence.schema-generation.database.action");
+        }
+        
         // For TCK compatibility: always create schema if action is "create" or if we're using H2
         // This handles cases where TCK doesn't explicitly set the schema-generation action
         boolean shouldCreate = "create".equals(schemaAction) || 
-                             (schemaAction != null && schemaAction.toLowerCase().contains("create"));
+                             (schemaAction != null && schemaAction.toLowerCase().contains("create")) ||
+                             (dialect != null && "H2".equalsIgnoreCase(dialect.name()));
         
         if (shouldCreate) {
             try {
