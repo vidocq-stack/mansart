@@ -778,17 +778,32 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> jakarta.persistence.EntityGraph<T> createEntityGraph(Class<T> rootType) {
+        if (rootType == null) {
+            throw new IllegalArgumentException("Root type cannot be null");
+        }
+        // For now, return null as EntityGraph is not fully implemented
+        // In the future, this should create an entity graph for the given type
         return null;
     }
 
     @Override
     public jakarta.persistence.EntityGraph<?> createEntityGraph(String graphName) {
+        if (graphName == null || graphName.isEmpty()) {
+            throw new IllegalArgumentException("Graph name cannot be null or empty");
+        }
+        // For now, return null as EntityGraph is not fully implemented
+        // In the future, this should create a named entity graph
         return null;
     }
 
     @Override
     public jakarta.persistence.EntityGraph<?> getEntityGraph(String graphName) {
-        return null;
+        if (graphName == null || graphName.isEmpty()) {
+            throw new IllegalArgumentException("Graph name cannot be null or empty");
+        }
+        // For now, throw IAE for any graph name as EntityGraph is not fully implemented
+        // In the future, this should look up a pre-defined named graph
+        throw new IllegalArgumentException("No entity graph named '" + graphName + "' exists");
     }
 
     @Override
