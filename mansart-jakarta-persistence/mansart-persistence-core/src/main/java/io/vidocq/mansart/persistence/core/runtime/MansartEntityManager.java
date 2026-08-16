@@ -27,6 +27,8 @@ import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 import io.vidocq.mansart.persistence.spi.Bootstrap;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
+
+import java.sql.Connection;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Cache;
@@ -570,11 +572,12 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void setFlushMode(FlushModeType flushMode) {
+        this.flushMode = flushMode != null ? flushMode : FlushModeType.AUTO;
     }
 
     @Override
     public FlushModeType getFlushMode() {
-        return FlushModeType.AUTO; // Default flush mode
+        return flushMode;
     }
 
     @Override
@@ -617,6 +620,7 @@ public class MansartEntityManager implements EntityManager {
 
     private jakarta.persistence.CacheRetrieveMode cacheRetrieveMode = jakarta.persistence.CacheRetrieveMode.USE;
     private jakarta.persistence.CacheStoreMode cacheStoreMode = jakarta.persistence.CacheStoreMode.USE;
+    private FlushModeType flushMode = FlushModeType.AUTO;
 
     @Override
     public void setCacheRetrieveMode(jakarta.persistence.CacheRetrieveMode cacheRetrieveMode) {
@@ -913,7 +917,14 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <C, T> T callWithConnection(jakarta.persistence.ConnectionFunction<C, T> function) {
-        return null;
+        if (function == null) return null;
+        try (Connection conn = connectionProvider.getConnection()) {
+            @SuppressWarnings("unchecked")
+            T result = function.apply((C) conn);
+            return result;
+        } catch (Exception e) {
+            throw new jakarta.persistence.PersistenceException("Error in callWithConnection", e);
+        }
     }
 
     /**
