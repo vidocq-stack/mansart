@@ -616,9 +616,11 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public Query createQuery(String qlString) {
-        if (qlString == null || !qlString.trim().toUpperCase().startsWith("SELECT")) {
-            throw new IllegalArgumentException("createQuery supports SELECT queries only at M7-13: " + qlString);
+        if (qlString == null || qlString.trim().isEmpty()) {
+            throw new IllegalArgumentException("Query string must not be null or empty");
         }
+        // Parse any JPQL query (SELECT, UPDATE, DELETE)
+        // Note: Parser may need to be enhanced to support UPDATE/DELETE syntax
         var parser = new JPQLParser(entityClasses);
         var parsed = parser.parse(qlString, null);
         QueryCache cache = getQueryCache();
@@ -627,8 +629,8 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
-        if (qlString == null || !qlString.trim().toUpperCase().startsWith("SELECT")) {
-            throw new IllegalArgumentException("createQuery supports SELECT queries only at M7-13: " + qlString);
+        if (qlString == null || qlString.trim().isEmpty()) {
+            throw new IllegalArgumentException("Query string must not be null or empty");
         }
         var parser = new JPQLParser(entityClasses);
         var parsed = parser.parse(qlString, resultClass);
