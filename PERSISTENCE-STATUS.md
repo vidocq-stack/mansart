@@ -87,7 +87,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 | Date | Suite / category | Pass / Total | Notes |
 | ---- | ---------------- | ------------ | ----- |
-| 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1611 errors (reduced from 1632, 20 fewer errors); remaining errors primarily in: Criteria API (234), Unknown entities (15), EntityGraph (3) |
+| 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1610 errors (reduced from 1632, 22 fewer errors); remaining errors primarily in: Criteria API (234), Unknown entities (11), EntityGraph (3) |
 | 2026-08-15 | Full TCK (tck-full profile) | 0 / 59 | 56 errors: StoredProcedureQuery (40), EntityGraph (13), Annotations (4 - basic + assocoverride); 3% of suite executed |
 | 2026-08-15 | Full TCK (tck-full profile) | 2 / 1745 | 1743 errors (expected - implementation incomplete); Jakarta TS framework integration working; JUnit 5 engine configured |
 | 2026-08-15 | Smoke tests (tck-run profile) | 3 / 3 | All PASS |
@@ -97,7 +97,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)
-- 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1632 to 1611 (20 fewer errors) across 1745 tests. Added COLON token support to JPQLTokenizer for named parameters (:name), fixed String ID type conversion in convertToIdType. Remaining errors primarily in: Criteria API (234), Unknown entities (15), EntityGraph (3). Smoke tests 3/3 PASS.
+- 2026-08-16 — M9-10 — IN PROGRESS: Full TCK execution. Reduced errors from 1632 to 1610 (22 fewer errors) across 1745 tests. Added JPQL named parameter support (:name), fixed String ID type conversion, removed SELECT-only restriction from createQuery, added UPDATE/DELETE/SET tokens, added arithmetic operators (+, -), extended parser for UPDATE/DELETE queries. Remaining errors primarily in: Criteria API (234), Unknown entities (11), EntityGraph (3). Smoke tests 3/3 PASS.
 - 2026-08-16 — M9-7 — COMPLETED: mansart-persistence-cdi implementation. Created BuildCompatibleExtension (MansartPersistenceExtension), producer (MansartPersistenceProducer) for EntityManagerFactory and EntityManager, module-info.java with Vauban integration. Mirror of mansart-data-cdi. Full build passes (33/33 modules).
 - 2026-08-16 — M9-5 — COMPLETED: Locking implementation (optimistic/pessimistic). Added stub implementations for lock() methods with LockModeType support, implemented find() variants with lock mode, added 8 tests in LockingTest with @Version support. Full build passes (33/33 modules), all tests pass (80/80 in mansart-persistence-core).
 - 2026-08-16 — M9-4 — COMPLETED: Entity listeners implementation. Extended LifecycleCallbackManager to detect @EntityListeners annotation and invoke listener callbacks with entity parameter, added 5 tests in EntityListenerTest. Full build passes (33/33 modules), all tests pass (72/72 in mansart-persistence-core).

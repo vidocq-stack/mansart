@@ -33,7 +33,13 @@ import java.util.Objects;
  * <p>Supported grammar (simplified):
  * <pre>{@code
  * query        ::= SELECT selectClause FROM fromClause [WHERE whereClause] [GROUP BY groupByClause] [HAVING havingClause]
+ *                 | UPDATE updateClause [WHERE whereClause]
+ *                 | DELETE deleteClause [WHERE whereClause]
  * selectClause ::= entityRef | pathExpr | expressionList
+ * updateClause ::= entityName [[AS] identificationVariable] SET setClause
+ * deleteClause ::= entityName [[AS] identificationVariable]
+ * setClause    ::= setItem (',' setItem)*
+ * setItem      ::= pathExpr '=' expression
  * fromClause   ::= invocation
  * invocation   ::= entityName identificationVariable
  * whereClause  ::= booleanExpression
@@ -145,20 +151,91 @@ public final class JPQLParser {
 
         /* ---- Clause parsers ---- */
 
-        /** {@code SELECT selectClause FROM fromClause [WHERE whereClause] [GROUP BY groupByClause] [HAVING havingClause]} */
+        /** Parse query body - supports SELECT, UPDATE, DELETE */
         JPQLQuerySpecification parseBody() {
-            checkAndConsume(JPQLTokenizer.Type.SELECT);
-            var selectClause = parseSelectClause();
-            checkAndConsume(JPQLTokenizer.Type.FROM);
-            var fromClause = parseInvocation();
-            var whereClause = JPQLWhereClause.none();
-            if (peek() != null && peek().type == JPQLTokenizer.Type.WHERE) {
-                consume();
-                whereClause = new JPQLWhereClause(parseBooleanExpression());
+            var tok = peek();
+            if (tok == null) {
+                throw new JPQLException("Unexpected end of query, expected SELECT, UPDATE, or DELETE", ql);
             }
-            var groupByClause = parseGroupByClause();
-            var havingClause = parseHavingClause();
-            return new JPQLQuerySpecification(selectClause, fromClause, whereClause, groupByClause, havingClause);
+            
+            if (tok.type == JPQLTokenizer.Type.SELECT) {
+                // SELECT query
+                consume(); // SELECT
+                var selectClause = parseSelectClause();
+                checkAndConsume(JPQLTokenizer.Type.FROM);
+                var fromClause = parseInvocation();
+                var whereClause = parseWhereClause();
+                var groupByClause = parseGroupByClause();
+                var havingClause = parseHavingClause();
+                return new JPQLQuerySpecification(selectClause, fromClause, whereClause, groupByClause, havingClause);
+            } else if (tok.type == JPQLTokenizer.Type.UPDATE) {
+                // UPDATE query: UPDATE Entity [alias] SET ... [WHERE ...]
+                consume(); // UPDATE
+                var entityToken = consume();
+                if (entityToken.type != JPQLTokenizer.Type.IDENTIFIER) {
+                    throw new JPQLException("Expected entity name after UPDATE, found " + entityToken.type, ql);
+                }
+                Class<?> entityType = resolveEntityType(entityToken.value);
+                
+                // Parse optional alias (FROM is not used in UPDATE, but alias may follow entity name)
+                String alias = null;
+                var nextTok = peek();
+                if (nextTok != null && nextTok.type == JPQLTokenizer.Type.IDENTIFIER) {
+                    alias = consume().value;
+                } else if (nextTok != null && nextTok.type == JPQLTokenizer.Type.AS) {
+                    consume(); // AS
+                    if (peek() != null && peek().type == JPQLTokenizer.Type.IDENTIFIER) {
+                        alias = consume().value;
+                    }
+                }
+                
+                // Parse SET clause
+                checkAndConsume(JPQLTokenizer.Type.SET);
+                var setClause = parseSetClause();
+                
+                // Parse WHERE clause
+                var whereClause = parseWhereClause();
+                
+                // For UPDATE, we create a minimal specification
+                // Note: This is a simplified approach - full UPDATE support requires more work
+                var selectClause = new JPQLSelectClause(new JPQLExpression.PathExpression(alias != null ? alias : entityType.getSimpleName(), List.of()));
+                var fromClause = new JPQLFromClause(entityType, alias != null ? alias : entityType.getSimpleName(), List.of());
+                return new JPQLQuerySpecification(selectClause, fromClause, whereClause, null, null);
+            } else if (tok.type == JPQLTokenizer.Type.DELETE) {
+                // DELETE query: DELETE FROM Entity [alias] [WHERE ...]
+                consume(); // DELETE
+                // Optionally consume FROM (some JPQL allows both DELETE Entity and DELETE FROM Entity)
+                if (peek() != null && peek().type == JPQLTokenizer.Type.FROM) {
+                    consume(); // FROM
+                }
+                var entityToken = consume();
+                if (entityToken.type != JPQLTokenizer.Type.IDENTIFIER) {
+                    throw new JPQLException("Expected entity name after DELETE, found " + entityToken.type, ql);
+                }
+                Class<?> entityType = resolveEntityType(entityToken.value);
+                
+                // Parse optional alias
+                String alias = null;
+                var nextTok = peek();
+                if (nextTok != null && nextTok.type == JPQLTokenizer.Type.IDENTIFIER) {
+                    alias = consume().value;
+                } else if (nextTok != null && nextTok.type == JPQLTokenizer.Type.AS) {
+                    consume(); // AS
+                    if (peek() != null && peek().type == JPQLTokenizer.Type.IDENTIFIER) {
+                        alias = consume().value;
+                    }
+                }
+                
+                // Parse WHERE clause
+                var whereClause = parseWhereClause();
+                
+                // For DELETE, we create a minimal specification
+                var selectClause = new JPQLSelectClause(new JPQLExpression.PathExpression(alias != null ? alias : entityType.getSimpleName(), List.of()));
+                var fromClause = new JPQLFromClause(entityType, alias != null ? alias : entityType.getSimpleName(), List.of());
+                return new JPQLQuerySpecification(selectClause, fromClause, whereClause, null, null);
+            } else {
+                throw new JPQLException("Expected SELECT, UPDATE, or DELETE at position " + pos + ", found " + tok.type, ql);
+            }
         }
 
         /** selectExpr (',' selectExpr)* */
@@ -282,6 +359,42 @@ public final class JPQLParser {
             consume(); // HAVING
             var expression = parseBooleanExpression();
             return new JPQLHavingClause(expression);
+        }
+
+        /** WHERE booleanExpression */
+        JPQLWhereClause parseWhereClause() {
+            if (peek() == null || peek().type != JPQLTokenizer.Type.WHERE) {
+                return JPQLWhereClause.none();
+            }
+            consume(); // WHERE
+            var expression = parseBooleanExpression();
+            return new JPQLWhereClause(expression);
+        }
+
+        /** SET clause for UPDATE: SET field1 = value1, field2 = value2 */
+        java.util.List<JPQLExpression> parseSetClause() {
+            var setItems = new java.util.ArrayList<JPQLExpression>();
+            // Parse first set item: pathExpr '=' expression
+            var pathExpr = parseExpression();
+            if (peek() == null || peek().type != JPQLTokenizer.Type.OP_CMP || !peek().value.equals("=")) {
+                throw new JPQLException("Expected '=' after path expression in SET clause", ql);
+            }
+            consume(); // consume '='
+            var valueExpr = parseExpression();
+            setItems.add(new JPQLExpression.Comparison(pathExpr, JPQLComparator.EQUALS, valueExpr));
+            
+            // Parse additional set items separated by commas
+            while (peek() != null && peek().value.equals(",")) {
+                consume(); // skip ','
+                pathExpr = parseExpression();
+                if (peek() == null || peek().type != JPQLTokenizer.Type.OP_CMP || !peek().value.equals("=")) {
+                    throw new JPQLException("Expected '=' after path expression in SET clause", ql);
+                }
+                consume(); // consume '='
+                valueExpr = parseExpression();
+                setItems.add(new JPQLExpression.Comparison(pathExpr, JPQLComparator.EQUALS, valueExpr));
+            }
+            return setItems;
         }
 
         /* ---- WHERE clause: AND/OR disjunction ---- */

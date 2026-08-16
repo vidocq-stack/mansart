@@ -38,8 +38,9 @@ final class JPQLTokenizer {
         SELECT, FROM, WHERE, GROUP, BY, HAVING, JOIN, INNER, LEFT, RIGHT, OUTER, ON, AS,
         ALL, ANY, SOME, EXISTS,
         AND, OR, NOT, IS, NULL, LIKE, TRUE, FALSE,
+        UPDATE, DELETE, SET,
         IDENTIFIER, PATH_EXPRESSION, STRING_LITERAL, NUMBER_LITERAL,
-        OP_CMP, LPAREN, RPAREN, QUESTION_MARK, COLON, STAR
+        OP_CMP, OP_ARITH, LPAREN, RPAREN, QUESTION_MARK, COLON, STAR
     }
 
     /** A single token: its type and associated text value. */
@@ -61,7 +62,8 @@ final class JPQLTokenizer {
     private static final String[] KEYWORDS = {
             "SELECT", "FROM", "WHERE", "GROUP", "BY", "HAVING", "JOIN", "INNER", "LEFT", "RIGHT", "OUTER", "ON", "AS",
             "ALL", "ANY", "SOME", "EXISTS",
-            "AND", "OR", "NOT", "IS", "NULL", "LIKE"
+            "AND", "OR", "NOT", "IS", "NULL", "LIKE",
+            "UPDATE", "DELETE", "SET"
     };
 
     private static final Map<String, Type> KEYWORD_TYPE_MAP;
@@ -98,6 +100,9 @@ final class JPQLTokenizer {
             case "LIKE"   -> Type.LIKE;
             case "TRUE"   -> Type.TRUE;
             case "FALSE"  -> Type.FALSE;
+            case "UPDATE" -> Type.UPDATE;
+            case "DELETE" -> Type.DELETE;
+            case "SET"    -> Type.SET;
             default       -> Type.IDENTIFIER;
         };
     }
@@ -191,6 +196,8 @@ final class JPQLTokenizer {
                 case '='     -> { tokens.add(new Token(Type.OP_CMP, "=")); pos++; }
                 case '<'     -> { tokens.add(new Token(Type.OP_CMP, "<")); pos++; }
                 case '>'     -> { tokens.add(new Token(Type.OP_CMP, ">")); pos++; }
+                case '+'     -> { tokens.add(new Token(Type.OP_ARITH, "+")); pos++; }
+                case '-'     -> { tokens.add(new Token(Type.OP_ARITH, "-")); pos++; }
                 case '('     -> { tokens.add(new Token(Type.LPAREN, "(")); pos++; }
                 case ')'     -> { tokens.add(new Token(Type.RPAREN, ")")); pos++; }
                 case '?'     -> { tokens.add(new Token(Type.QUESTION_MARK, "?")); pos++; }
