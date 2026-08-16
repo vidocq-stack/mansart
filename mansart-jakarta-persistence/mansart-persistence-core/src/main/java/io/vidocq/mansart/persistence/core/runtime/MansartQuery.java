@@ -427,7 +427,7 @@ public class MansartQuery implements Query {
 
     @Override
     public LockModeType getLockMode() {
-        return null;
+        return LockModeType.NONE; // Default for regular queries
     }
 
     @Override
@@ -453,12 +453,12 @@ public class MansartQuery implements Query {
 
     @Override
     public jakarta.persistence.CacheRetrieveMode getCacheRetrieveMode() {
-        return null;
+        return jakarta.persistence.CacheRetrieveMode.USE; // Default
     }
 
     @Override
     public jakarta.persistence.CacheStoreMode getCacheStoreMode() {
-        return null;
+        return jakarta.persistence.CacheStoreMode.USE; // Default
     }
 
     @Override
