@@ -403,17 +403,37 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T find(jakarta.persistence.EntityGraph<T> entityGraph, Object primaryKey, jakarta.persistence.FindOption... options) {
-        return null;
+        // EntityGraph and FindOption parameters are ignored for now
+        // Proper implementation would use the entity graph for lazy loading hints
+        // We don't have access to the root type from EntityGraph interface, so use Object
+        @SuppressWarnings("unchecked")
+        Class<T> rootType = (Class<T>) Object.class;
+        return find(rootType, primaryKey);
     }
 
     @Override
     public <T> T getReference(Class<T> entityClass, Object primaryKey) {
-        return null;
+        // For now, delegate to find() - proper implementation would return a proxy
+        return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T getReference(T entity) {
-        return null;
+        if (entity == null) {
+            return null;
+        }
+        // If entity is already managed, return it
+        if (contains(entity)) {
+            return entity;
+        }
+        // Try to find by ID
+        Object id = getEntityId(entity);
+        if (id != null) {
+            @SuppressWarnings("unchecked")
+            Class<T> entityClass = (Class<T>) entity.getClass();
+            return find(entityClass, id);
+        }
+        return entity;
     }
 
     @Override
@@ -586,25 +606,31 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public LockModeType getLockMode(Object entity) {
-        return null;
+        // For now, return NONE as we don't implement locking yet
+        return LockModeType.NONE;
     }
+
+    private jakarta.persistence.CacheRetrieveMode cacheRetrieveMode = jakarta.persistence.CacheRetrieveMode.USE;
+    private jakarta.persistence.CacheStoreMode cacheStoreMode = jakarta.persistence.CacheStoreMode.USE;
 
     @Override
     public void setCacheRetrieveMode(jakarta.persistence.CacheRetrieveMode cacheRetrieveMode) {
+        this.cacheRetrieveMode = cacheRetrieveMode != null ? cacheRetrieveMode : jakarta.persistence.CacheRetrieveMode.USE;
     }
 
     @Override
     public void setCacheStoreMode(jakarta.persistence.CacheStoreMode cacheStoreMode) {
+        this.cacheStoreMode = cacheStoreMode != null ? cacheStoreMode : jakarta.persistence.CacheStoreMode.USE;
     }
 
     @Override
     public jakarta.persistence.CacheRetrieveMode getCacheRetrieveMode() {
-        return null;
+        return cacheRetrieveMode;
     }
 
     @Override
     public jakarta.persistence.CacheStoreMode getCacheStoreMode() {
-        return null;
+        return cacheStoreMode;
     }
 
     @Override
