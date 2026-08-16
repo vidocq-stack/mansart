@@ -32,8 +32,12 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Cache;
 import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.FlushModeType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.Query;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.TableGenerator;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
@@ -186,6 +190,64 @@ public class MansartEntityManager implements EntityManager {
         return idValue;
     }
 
+    /**
+     * Generates an ID for an entity based on its @GeneratedValue configuration.
+     * Falls back to a simple counter if no @GeneratedValue is present.
+     * 
+     * @param entity the entity
+     * @return the generated ID
+     */
+    private static Long generateId(Object entity) {
+        Class<?> entityClass = entity.getClass();
+        
+        // Check for @GeneratedValue annotation on the ID field
+        try {
+            // Find the ID field and check for @GeneratedValue
+            java.lang.reflect.Field idField = null;
+            Class<?> current = entityClass;
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                        idField = field;
+                        break;
+                    }
+                }
+                if (idField != null) {
+                    break;
+                }
+                current = current.getSuperclass();
+            }
+            
+            if (idField != null) {
+                GeneratedValue generatedValue = idField.getAnnotation(GeneratedValue.class);
+                if (generatedValue != null) {
+                    GenerationType strategy = generatedValue.strategy();
+                    String generatorName = generatedValue.generator();
+                    
+                    // If generator is specified, check for @SequenceGenerator or @TableGenerator
+                    if (generatorName != null && !generatorName.isEmpty()) {
+                        // Look for @SequenceGenerator or @TableGenerator on the class
+                        SequenceGenerator seqGen = entityClass.getAnnotation(SequenceGenerator.class);
+                        if (seqGen != null && generatorName.equals(seqGen.name())) {
+                            return IdGenerator.generateId(GenerationType.SEQUENCE, seqGen.sequenceName());
+                        }
+                        TableGenerator tableGen = entityClass.getAnnotation(TableGenerator.class);
+                        if (tableGen != null && generatorName.equals(tableGen.name())) {
+                            return IdGenerator.generateId(GenerationType.TABLE, tableGen.table());
+                        }
+                    }
+                    
+                    return IdGenerator.generateId(strategy, generatorName);
+                }
+            }
+        } catch (Exception e) {
+            // Fall through to default
+        }
+        
+        // Default: use AUTO strategy with no generator name
+        return IdGenerator.generateId(GenerationType.AUTO, null);
+    }
+
     private final EntityManagerFactory entityManagerFactory;
     private final Bootstrap bootstrap;
     private final Dialect dialect;
@@ -324,12 +386,12 @@ public class MansartEntityManager implements EntityManager {
         // Invoke PrePersist callback (M9-3)
         lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_PERSIST);
         
-        // Generate ID for the entity
-        Long counterId = ID_COUNTER.getAndIncrement();
+        // Generate ID for the entity using strategy-aware generator (M9-10)
+        Long generatedId = generateId(entity);
         
         try {
             // Set the ID using MethodHandles (no reflection)
-            setEntityId(entity, counterId);
+            setEntityId(entity, generatedId);
             
             // Get the actual ID value from the entity (after conversion)
             Object actualId = getEntityId(entity);
