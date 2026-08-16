@@ -73,6 +73,8 @@ public final class EntityScanner {
 
     private final IdParser idParser = new IdParser();
     private final GeneratedValueParser generatedValueParser = new GeneratedValueParser();
+    private final BasicParser basicParser = new BasicParser();
+    private final ColumnParser columnParser = new ColumnParser();
     private final ManyToOneParser manyToOneParser = new ManyToOneParser();
     private final OneToOneParser oneToOneParser = new OneToOneParser();
     private final OneToManyParser oneToManyParser = new OneToManyParser();
@@ -241,14 +243,17 @@ public final class EntityScanner {
         String columnName = null;
         boolean isColumnNullable = true;
         if (hasAnnotation(element, COLUMN_ANNOTATION)) {
-            ColumnParser columnParser = new ColumnParser();
             ColumnParser.ColumnInfo columnInfo = columnParser.parse(element);
             if (columnInfo != null) {
                 columnName = columnInfo.name();
-                // For now, just use the column name if specified
-                // Nullability will be used later if needed
+                isColumnNullable = columnInfo.isNullable();
             }
         }
+
+        // Extract @Basic info (for fetch type)
+        BasicParser.BasicInfo basicInfo = basicParser.parse(element);
+        io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType fetchType = 
+            determineFetchType(element, basicInfo, relationshipInfo);
 
         // Determine attribute kind
         AttributeKind kind = determineAttributeKind(element, javaTypeFqn, isId, isVersion, relationshipInfo);
@@ -265,7 +270,9 @@ public final class EntityScanner {
                 genValueInfo,
                 columnName,
                 isColumnNullable,
-                relationshipInfo
+                relationshipInfo,
+                basicInfo,
+                fetchType
         );
     }
 
@@ -283,6 +290,24 @@ public final class EntityScanner {
         if (isEnumType(element.asType())) return AttributeKind.ENUM;
 
         return AttributeKind.OBJECT;
+    }
+
+    private io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType determineFetchType(
+            Element element, BasicParser.BasicInfo basicInfo, RelationshipInfo relationshipInfo) {
+        // If relationship info exists, use its fetch type
+        if (relationshipInfo != null) {
+            // Convert from RelationshipMetadata.FetchType to AttributeMetadata.FetchType
+            return switch (relationshipInfo.fetchType()) {
+                case EAGER -> io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType.EAGER;
+                case LAZY -> io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType.LAZY;
+            };
+        }
+        // If basic info exists, use its fetch type
+        if (basicInfo != null) {
+            return basicInfo.fetchType();
+        }
+        // Default is EAGER for attributes without explicit fetch type
+        return io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType.EAGER;
     }
 
     private boolean isTextType(String fqn) {
@@ -424,7 +449,9 @@ public final class EntityScanner {
             GeneratedValueParser.GeneratedValueInfo genValueInfo,
             String columnName,
             boolean isColumnNullable,
-            RelationshipInfo relationshipInfo
+            RelationshipInfo relationshipInfo,
+            BasicParser.BasicInfo basicInfo,
+            io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType fetchType
     ) {
         public AttributeMetadata {
             if (isId && idInfo == null) {

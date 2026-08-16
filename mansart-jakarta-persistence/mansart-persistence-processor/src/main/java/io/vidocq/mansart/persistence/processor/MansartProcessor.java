@@ -55,9 +55,24 @@ import java.util.Set;
     "jakarta.persistence.Entity",
     "jakarta.persistence.Id",
     "jakarta.persistence.GeneratedValue",
+    "jakarta.persistence.Version",
+    "jakarta.persistence.Basic",
+    "jakarta.persistence.Column",
     "jakarta.persistence.Table",
     "jakarta.persistence.SequenceGenerator",
-    "jakarta.persistence.TableGenerator"
+    "jakarta.persistence.TableGenerator",
+    "jakarta.persistence.ManyToOne",
+    "jakarta.persistence.OneToMany",
+    "jakarta.persistence.ManyToMany",
+    "jakarta.persistence.OneToOne",
+    "jakarta.persistence.Inheritance",
+    "jakarta.persistence.DiscriminatorColumn",
+    "jakarta.persistence.DiscriminatorValue",
+    "jakarta.persistence.PrimaryKeyJoinColumn",
+    "jakarta.persistence.JoinColumn",
+    "jakarta.persistence.JoinTable",
+    "jakarta.persistence.Cascade",
+    "jakarta.persistence.Fetch"
 })
 public final class MansartProcessor extends AbstractProcessor {
 
