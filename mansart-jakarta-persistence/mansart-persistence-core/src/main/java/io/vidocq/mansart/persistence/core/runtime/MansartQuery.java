@@ -205,7 +205,16 @@ public class MansartQuery implements Query {
     @Override
     public <T> Query setParameter(Parameter<T> param, T value) {
         if (param != null) {
-            namedParameters.put(param.getName(), value);
+            String name = param.getName();
+            Integer position = param.getPosition();
+            if (name != null) {
+                namedParameters.put(name, value);
+            } else if (position != null && position > 0) {
+                while (positionParameters.size() < position) {
+                    positionParameters.add(null);
+                }
+                positionParameters.set(position - 1, value);
+            }
         }
         return this;
     }
@@ -213,7 +222,14 @@ public class MansartQuery implements Query {
     @Override
     public boolean isBound(Parameter<?> param) {
         if (param == null) return false;
-        return namedParameters.containsKey(param.getName());
+        String name = param.getName();
+        Integer position = param.getPosition();
+        if (name != null) {
+            return namedParameters.containsKey(name);
+        } else if (position != null && position > 0) {
+            return position > 0 && position <= positionParameters.size() && positionParameters.get(position - 1) != null;
+        }
+        return false;
     }
 
     @Override
@@ -232,17 +248,24 @@ public class MansartQuery implements Query {
     @Override
     public <T> T getParameterValue(Parameter<T> param) {
         if (param == null) return null;
-        return (T) namedParameters.get(param.getName());
+        String name = param.getName();
+        Integer position = param.getPosition();
+        if (name != null) {
+            return (T) namedParameters.get(name);
+        } else if (position != null && position > 0) {
+            return (T) getParameterValue(position);
+        }
+        return null;
     }
 
     @Override
     public Parameter<?> getParameter(int position) {
         // Positional parameters start at 1
+        // Return Parameter object even if value is null - parameter slot exists
         if (position > 0 && position <= positionParameters.size()) {
             Object value = positionParameters.get(position - 1);
-            if (value != null) {
-                return new MansartParameter<>(position, value.getClass());
-            }
+            Class<?> type = value != null ? value.getClass() : Object.class;
+            return new MansartParameter<>(position, type);
         }
         return null;
     }
@@ -250,11 +273,9 @@ public class MansartQuery implements Query {
     @Override
     public <T> Parameter<T> getParameter(int position, Class<T> type) {
         // Return parameter at position with the specified type
+        // Return Parameter object even if value is null - parameter slot exists
         if (position > 0 && position <= positionParameters.size()) {
-            Object value = positionParameters.get(position - 1);
-            if (value != null) {
-                return new MansartParameter<>(position, type);
-            }
+            return new MansartParameter<>(position, type);
         }
         return null;
     }
@@ -262,11 +283,11 @@ public class MansartQuery implements Query {
     @Override
     public Parameter<?> getParameter(String name) {
         // Return named parameter with its actual type
+        // Return Parameter object even if value is null - parameter slot exists
         if (name != null && namedParameters.containsKey(name)) {
             Object value = namedParameters.get(name);
-            if (value != null) {
-                return new MansartParameter<>(name, value.getClass());
-            }
+            Class<?> type = value != null ? value.getClass() : Object.class;
+            return new MansartParameter<>(name, type);
         }
         return null;
     }
@@ -283,22 +304,21 @@ public class MansartQuery implements Query {
     @Override
     public Set<Parameter<?>> getParameters() {
         // Return all named and positional parameters as Parameter instances
+        // Include all parameter slots, even if values are null
         Set<Parameter<?>> result = new java.util.HashSet<>();
         
         // Add named parameters
         for (Map.Entry<String, Object> entry : namedParameters.entrySet()) {
             Object value = entry.getValue();
-            if (value != null) {
-                result.add(new MansartParameter<>(entry.getKey(), value.getClass()));
-            }
+            Class<?> type = value != null ? value.getClass() : Object.class;
+            result.add(new MansartParameter<>(entry.getKey(), type));
         }
         
         // Add positional parameters
         for (int i = 0; i < positionParameters.size(); i++) {
             Object value = positionParameters.get(i);
-            if (value != null) {
-                result.add(new MansartParameter<>(i + 1, value.getClass()));
-            }
+            Class<?> type = value != null ? value.getClass() : Object.class;
+            result.add(new MansartParameter<>(i + 1, type));
         }
         
         return result;
