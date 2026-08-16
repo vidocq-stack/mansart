@@ -772,7 +772,13 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T unwrap(Class<T> cls) {
-        return null;
+        if (cls.isInstance(this)) {
+            return cls.cast(this);
+        }
+        if (cls == EntityManager.class || cls == AutoCloseable.class) {
+            return cls.cast(this);
+        }
+        throw new IllegalArgumentException("Cannot unwrap to " + cls.getName());
     }
 
     @Override
