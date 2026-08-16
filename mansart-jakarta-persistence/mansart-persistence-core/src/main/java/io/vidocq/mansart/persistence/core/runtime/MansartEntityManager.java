@@ -293,6 +293,11 @@ public class MansartEntityManager implements EntityManager {
     private final Map<Object, Object> cache;
     private final AtomicReference<Boolean> open;
     private final LifecycleCallbackManager lifecycleCallbackManager;
+    
+    // Transaction state for resource-local mode (when transactionManager is null)
+    private final AtomicReference<Boolean> transactionActive = new AtomicReference<>(false);
+    private final AtomicReference<Boolean> transactionRollbackOnly = new AtomicReference<>(false);
+    private final AtomicReference<Integer> transactionTimeout = new AtomicReference<>(null);
 
     private final Map<String, Class<?>> entityClasses;
     private final Map<Class<?>, EntityModel<?>> entityModels;
@@ -794,6 +799,31 @@ public class MansartEntityManager implements EntityManager {
     @Override
     public boolean isOpen() {
         return open.get();
+    }
+    
+    // Transaction state accessors for resource-local mode
+    public boolean isTransactionActive() {
+        return transactionActive.get();
+    }
+    
+    public void setTransactionActive(boolean active) {
+        transactionActive.set(active);
+    }
+    
+    public boolean isTransactionRollbackOnly() {
+        return transactionRollbackOnly.get();
+    }
+    
+    public void setTransactionRollbackOnly(boolean rollbackOnly) {
+        transactionRollbackOnly.set(rollbackOnly);
+    }
+    
+    public Integer getTransactionTimeout() {
+        return transactionTimeout.get();
+    }
+    
+    public void setTransactionTimeout(Integer timeout) {
+        transactionTimeout.set(timeout);
     }
 
     @Override

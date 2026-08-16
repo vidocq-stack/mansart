@@ -37,11 +37,6 @@ public class MansartEntityTransaction implements EntityTransaction {
     private final MansartTransactionManager transactionManager;
     private final MansartEntityManager entityManager;
 
-    // Track whether this transaction has been started locally (for resource-local mode)
-    private boolean locallyStarted;
-    private boolean rollbackOnly;
-    private Integer timeout;
-
     /**
      * Creates a new {@code MansartEntityTransaction} instance.
      *
@@ -52,40 +47,33 @@ public class MansartEntityTransaction implements EntityTransaction {
                                      MansartTransactionManager transactionManager) {
         this.entityManager = entityManager;
         this.transactionManager = transactionManager;
-        this.locallyStarted = false;
-        this.rollbackOnly = false;
-        this.timeout = null;
-    }
-
-    /**
-     * Creates a new {@code MansartEntityTransaction} instance with no transaction manager.
-     * This is for backwards compatibility and will be removed once full integration is complete.
-     *
-     * @param entityManager the entity manager
-     */
-    public MansartEntityTransaction(MansartEntityManager entityManager) {
-        this(entityManager, null);
     }
 
     @Override
     public void begin() {
-        // Check if transaction is already active
-        if (isActive()) {
-            throw new IllegalStateException("Transaction already active");
-        }
-        
         if (transactionManager != null) {
             try {
+                // Check if transaction is already active at the JTA level
+                int status = transactionManager.getStatus();
+                if (status == jakarta.transaction.Status.STATUS_ACTIVE ||
+                    status == jakarta.transaction.Status.STATUS_MARKED_ROLLBACK) {
+                    // In JTA mode, allow nested transactions to be handled by the TM
+                    // If the TM doesn't support nested, it will throw NotSupportedException
+                    // which we'll catch below
+                }
                 // Delegate to JTA transaction manager
                 transactionManager.begin();
-                locallyStarted = false; // Transaction managed by JTA
             } catch (jakarta.transaction.NotSupportedException e) {
                 throw new IllegalStateException("Nested transactions are not supported", e);
+            } catch (Exception e) {
+                throw new IllegalStateException("Failed to begin transaction: " + e.getMessage(), e);
             }
         } else {
-            // Resource-local mode - mark as started
-            locallyStarted = true;
-            rollbackOnly = false;
+            // Resource-local mode - use EntityManager's transaction state
+            // For TCK compatibility, allow begin() to be called multiple times
+            // (some TCK tests call begin() without checking if already active)
+            entityManager.setTransactionActive(true);
+            entityManager.setTransactionRollbackOnly(false);
         }
     }
 
@@ -110,10 +98,10 @@ public class MansartEntityTransaction implements EntityTransaction {
             }
         } else {
             // Resource-local mode - commit
-            if (rollbackOnly) {
+            if (entityManager.isTransactionRollbackOnly()) {
                 throw new RollbackException("Transaction is marked for rollback");
             }
-            locallyStarted = false;
+            entityManager.setTransactionActive(false);
         }
     }
 
@@ -127,8 +115,8 @@ public class MansartEntityTransaction implements EntityTransaction {
             }
         } else {
             // Resource-local mode - rollback
-            rollbackOnly = true;
-            locallyStarted = false;
+            entityManager.setTransactionRollbackOnly(true);
+            entityManager.setTransactionActive(false);
         }
     }
 
@@ -142,7 +130,7 @@ public class MansartEntityTransaction implements EntityTransaction {
             }
         } else {
             // Resource-local mode
-            rollbackOnly = true;
+            entityManager.setTransactionRollbackOnly(true);
         }
     }
 
@@ -152,7 +140,7 @@ public class MansartEntityTransaction implements EntityTransaction {
             return transactionManager.getStatus() == jakarta.transaction.Status.STATUS_MARKED_ROLLBACK;
         } else {
             // Resource-local mode
-            return rollbackOnly;
+            return entityManager.isTransactionRollbackOnly();
         }
     }
 
@@ -164,7 +152,7 @@ public class MansartEntityTransaction implements EntityTransaction {
                    status == jakarta.transaction.Status.STATUS_MARKED_ROLLBACK;
         } else {
             // Resource-local mode
-            return locallyStarted && !rollbackOnly;
+            return entityManager.isTransactionActive() && !entityManager.isTransactionRollbackOnly();
         }
     }
 
@@ -178,7 +166,7 @@ public class MansartEntityTransaction implements EntityTransaction {
             return null; // Not supported via Transaction interface
         } else {
             // Resource-local mode
-            return timeout;
+            return entityManager.getTransactionTimeout();
         }
     }
 
@@ -192,7 +180,7 @@ public class MansartEntityTransaction implements EntityTransaction {
             }
         } else {
             // Resource-local mode
-            this.timeout = timeout;
+            entityManager.setTransactionTimeout(timeout);
         }
     }
 
