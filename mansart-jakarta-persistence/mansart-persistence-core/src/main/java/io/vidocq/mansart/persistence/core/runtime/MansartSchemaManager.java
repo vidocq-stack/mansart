@@ -122,6 +122,10 @@ public class MansartSchemaManager implements SchemaManager {
         // Includes all entities that might have tables referenced in cleanup/setup methods
         String[] tckEntityClasses = {
             // Mansart test entities - core tests package
+            "io.vidocq.mansart.persistence.core.testentities.common.TestEntity",
+            "io.vidocq.mansart.persistence.core.testentities.common.VersionedEntity",
+            "io.vidocq.mansart.persistence.core.testentities.callback.CallbackEntity",
+            "io.vidocq.mansart.persistence.core.testentities.listener.AuditedEntity",
             "io.vidocq.mansart.persistence.tests.TestEntity",
             // Mansart test entities - model packages
             "io.vidocq.mansart.persistence.tests.model.relationship.Author",
@@ -209,28 +213,23 @@ public class MansartSchemaManager implements SchemaManager {
             try {
                 Class<?> entityClass = Class.forName(className, true, contextClassLoader);
                 String simpleName = entityClass.getSimpleName();
-                // For TCK: use UPPERCASE table names (H2 stores unquoted identifiers in uppercase)
-                String tableName = simpleName.toUpperCase();
-                // Create a simple table for TCK entities
-                String ddl = "CREATE TABLE " + tableName + " (" +
-                              quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
-                              quoteIdentifier("name") + " VARCHAR(255)" +
-                              ")";
-                try (Statement stmt = connection.createStatement()) {
-                    stmt.execute(ddl);
+                String tableName = getEntityTableName(entityClass);
+                String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
+                if (ddl != null && !ddl.isEmpty()) {
+                    try (Statement stmt = connection.createStatement()) {
+                        stmt.execute(ddl);
+                    }
                 }
             } catch (ClassNotFoundException e) {
                 // Entity class not loaded yet - try with default class loader
                 try {
                     Class<?> entityClass = Class.forName(className);
-                    String simpleName = entityClass.getSimpleName();
-                    String tableName = simpleName.toUpperCase();
-                    String ddl = "CREATE TABLE " + tableName + " (" +
-                                  quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
-                                  quoteIdentifier("name") + " VARCHAR(255)" +
-                                  ")";
-                    try (Statement stmt = connection.createStatement()) {
-                        stmt.execute(ddl);
+                    String tableName = getEntityTableName(entityClass);
+                    String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
+                    if (ddl != null && !ddl.isEmpty()) {
+                        try (Statement stmt = connection.createStatement()) {
+                            stmt.execute(ddl);
+                        }
                     }
                 } catch (ClassNotFoundException e2) {
                     // Entity class truly not available - this is expected for optional test categories
@@ -455,6 +454,11 @@ public class MansartSchemaManager implements SchemaManager {
         // Inspect all declared fields for JPA annotations
         java.lang.reflect.Field[] fields = entityClass.getDeclaredFields();
         for (java.lang.reflect.Field field : fields) {
+            // Skip static and final fields - they are not persistent
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
+                java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
+                continue;
+            }
             String fieldName = field.getName();
             Class<?> fieldType = field.getType();
             

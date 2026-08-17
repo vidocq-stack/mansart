@@ -90,4 +90,5 @@ permission = "always"
 allowlist = [
     "/Users/yblazart/.agents/skills/paseo/*",
     "/Users/yblazart/.vibe/*",
+    "/private/var/folders/z8/9n9241t961z0y48h4rntnh4r0000gn/T/*",
 ]

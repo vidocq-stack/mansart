@@ -18,6 +18,19 @@
         </properties>
     </persistence-unit>
     
+    <persistence-unit name="JPATCK2" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:test2;DB_CLOSE_DELAY=-1"/>
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            <property name="jakarta.persistence.schema-generation.database.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.scripts.action" value="create"/>
+            <property name="jakarta.persistence.schema-generation.create-database-schemas" value="true"/>
+        </properties>
+    </persistence-unit>
+    
     <persistence-unit name="mansart-tck-pu" transaction-type="RESOURCE_LOCAL">
         <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
         <class>io.vidocq.mansart.persistence.tck.SimpleEntity</class>

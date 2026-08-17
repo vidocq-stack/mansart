@@ -5,10 +5,10 @@
  */
 package io.vidocq.mansart.persistence.tests;
 
-import io.vidocq.mansart.persistence.tests.model.relationship.Author;
-import io.vidocq.mansart.persistence.tests.model.relationship.Book;
-import io.vidocq.mansart.persistence.tests.model.relationship.Course;
-import io.vidocq.mansart.persistence.tests.model.relationship.Pupil;
+import io.vidocq.mansart.persistence.core.testentities.model.relationship.Author;
+import io.vidocq.mansart.persistence.core.testentities.model.relationship.Book;
+import io.vidocq.mansart.persistence.core.testentities.model.relationship.Course;
+import io.vidocq.mansart.persistence.core.testentities.model.relationship.Pupil;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

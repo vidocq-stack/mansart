@@ -3,21 +3,20 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.persistence.tests.model.lazy;
+package io.vidocq.mansart.persistence.core.testentities.model.dirty;
 
-import jakarta.persistence.Basic;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Version;
 
 /**
- * Employee entity for Lazy Loading test (M8-11).
- * Has a lazy-loaded description field.
+ * Product entity for Dirty Tracking and Version test (M8-12).
+ * Uses @Version for optimistic locking.
  */
 @Entity
-public class Employee {
+public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,14 +24,16 @@ public class Employee {
 
     private String name;
 
-    @Basic(fetch = FetchType.LAZY)
-    private String description;
+    private double price;
 
-    public Employee() {}
+    @Version
+    private Long version = 0L;
 
-    public Employee(String name, String description) {
+    public Product() {}
+
+    public Product(String name, double price) {
         this.name = name;
-        this.description = description;
+        this.price = price;
     }
 
     public Long getId() {
@@ -51,25 +52,34 @@ public class Employee {
         this.name = name;
     }
 
-    public String getDescription() {
-        return description;
+    public double getPrice() {
+        return price;
     }
 
-    public void setDescription(String description) {
-        this.description = description;
+    public void setPrice(double price) {
+        this.price = price;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
     }
 
     @Override
     public String toString() {
-        return "Employee{id=" + id + ", name='" + name + "', description='" + description + "'}";
+        return "Product{id=" + id + ", name='" + name + "', price=" + price + 
+               ", version=" + version + "}";
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Employee employee = (Employee) o;
-        return id != null && id.equals(employee.id);
+        Product product = (Product) o;
+        return id != null && id.equals(product.id);
     }
 
     @Override

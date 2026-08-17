@@ -5,7 +5,7 @@
  */
 package io.vidocq.mansart.persistence.tests;
 
-import io.vidocq.mansart.persistence.tests.model.namedquery.Department;
+import io.vidocq.mansart.persistence.core.testentities.model.namedquery.Department;
 import jakarta.persistence.NamedQuery;
 import org.junit.jupiter.api.Test;
 

@@ -5,7 +5,7 @@
  */
 package io.vidocq.mansart.persistence.tests;
 
-import io.vidocq.mansart.persistence.tests.model.lazy.Employee;
+import io.vidocq.mansart.persistence.core.testentities.model.lazy.Employee;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

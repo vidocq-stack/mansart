@@ -150,7 +150,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      */
     private Map<String, Class<?>> loadEntityClassesFromPersistenceXml() {
         Map<String, Class<?>> result = new HashMap<>();
-        ClassLoader classLoader = getClass().getClassLoader();
+        // M9-10: Use context classloader to include test classes
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        if (classLoader == null) {
+            classLoader = getClass().getClassLoader();
+        }
         
         try {
             // Try to parse persistence.xml from classpath
@@ -168,9 +172,23 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                         String className = classNodes.item(i).getTextContent().trim();
                         if (!className.isEmpty()) {
                             try {
-                                Class<?> entityClass = Class.forName(className, true, classLoader);
+                                // M9-10: Use context classloader first for test classes, then fallback
+                                ClassLoader effectiveLoader = classLoader;
+                                try {
+                                    Class.forName(className, true, classLoader);
+                                } catch (ClassNotFoundException e) {
+                                    // Try with context classloader
+                                    effectiveLoader = Thread.currentThread().getContextClassLoader();
+                                }
+                                Class<?> entityClass = Class.forName(className, true, effectiveLoader);
                                 result.put(className, entityClass);
                                 result.put(entityClass.getSimpleName(), entityClass);
+                                // M9-10: Also register with custom entity name from @Entity(name="...")
+                                jakarta.persistence.Entity entityAnnotation = 
+                                        entityClass.getAnnotation(jakarta.persistence.Entity.class);
+                                if (entityAnnotation != null && !entityAnnotation.name().isEmpty()) {
+                                    result.put(entityAnnotation.name(), entityClass);
+                                }
                             } catch (ClassNotFoundException e) {
                                 // Ignore classes that can't be loaded
                             }
@@ -205,6 +223,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         
         // For TCK: scan known TCK entity packages
         // The TCK uses ee.jakarta.tck.persistence.core.* packages for entities
+        // Also scan Mansart test packages
         String[] tckPackages = {
             "ee.jakarta.tck.persistence.core.EntityGraph",
             "ee.jakarta.tck.persistence.core.StoredProcedureQuery",
@@ -218,7 +237,17 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             "ee.jakarta.tck.persistence.core.query",
             "ee.jakarta.tck.persistence.core.entitytest",
             "ee.jakarta.tck.persistence.core",
-            "io.vidocq.mansart.persistence.tests"
+            "io.vidocq.mansart.persistence.tests",
+            "io.vidocq.mansart.persistence.core.testentities",
+            "io.vidocq.mansart.persistence.core.testentities.common",
+            "io.vidocq.mansart.persistence.core.testentities.callback",
+            "io.vidocq.mansart.persistence.core.testentities.listener",
+            "io.vidocq.mansart.persistence.core.testentities.model",
+            "io.vidocq.mansart.persistence.core.testentities.model.dirty",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance",
+            "io.vidocq.mansart.persistence.core.testentities.model.lazy",
+            "io.vidocq.mansart.persistence.core.testentities.model.namedquery",
+            "io.vidocq.mansart.persistence.core.testentities.model.relationship"
         };
         
         for (String packageName : tckPackages) {
@@ -259,6 +288,12 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                                     if (clazz.isAnnotationPresent(jakarta.persistence.Entity.class)) {
                                         result.put(className, clazz);
                                         result.put(clazz.getSimpleName(), clazz);
+                                        // M9-10: Also register with custom entity name from @Entity(name="...")
+                                        jakarta.persistence.Entity entityAnnotation = 
+                                                clazz.getAnnotation(jakarta.persistence.Entity.class);
+                                        if (entityAnnotation != null && !entityAnnotation.name().isEmpty()) {
+                                            result.put(entityAnnotation.name(), clazz);
+                                        }
                                     }
                                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                                     // Class might not be loadable - skip
@@ -299,6 +334,12 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                     if (clazz.isAnnotationPresent(jakarta.persistence.Entity.class)) {
                         result.put(className, clazz);
                         result.put(clazz.getSimpleName(), clazz);
+                        // M9-10: Also register with custom entity name from @Entity(name="...")
+                        jakarta.persistence.Entity entityAnnotation = 
+                                clazz.getAnnotation(jakarta.persistence.Entity.class);
+                        if (entityAnnotation != null && !entityAnnotation.name().isEmpty()) {
+                            result.put(entityAnnotation.name(), clazz);
+                        }
                     }
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     // Class might not be loadable (missing dependencies) - skip
@@ -320,10 +361,10 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         try {
             Map<String, Class<?>> result = new HashMap<>();
             List<String> managedClassNames = persistenceUnitInfo.getManagedClassNames();
-            ClassLoader classLoader = persistenceUnitInfo.getClassLoader();
-            
+            // M9-10: Use context classloader to include test classes
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (classLoader == null) {
-                classLoader = Thread.currentThread().getContextClassLoader();
+                classLoader = persistenceUnitInfo.getClassLoader();
             }
             if (classLoader == null) {
                 classLoader = getClass().getClassLoader();
@@ -337,6 +378,12 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                         result.put(className, entityClass);
                         // Also add simple name for JPQL queries like "FROM Employee"
                         result.put(entityClass.getSimpleName(), entityClass);
+                        // M9-10: Also register with custom entity name from @Entity(name="...")
+                        jakarta.persistence.Entity entityAnnotation = 
+                                entityClass.getAnnotation(jakarta.persistence.Entity.class);
+                        if (entityAnnotation != null && !entityAnnotation.name().isEmpty()) {
+                            result.put(entityAnnotation.name(), entityClass);
+                        }
                     } catch (ClassNotFoundException e) {
                         // Class not found - skip
                     }

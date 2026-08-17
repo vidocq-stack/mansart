@@ -5,7 +5,24 @@
              xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd">
     <persistence-unit name="mansart-test-pu" transaction-type="RESOURCE_LOCAL">
         <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
-        <class>io.vidocq.mansart.persistence.tests.TestEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.common.TestEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.callback.CallbackEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.common.SimpleEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.common.VersionedEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.listener.AuditedEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.dirty.Product</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.namedquery.Department</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.lazy.Employee</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.relationship.Author</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.relationship.Book</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.relationship.Pupil</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.relationship.Course</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.inheritance.Person</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.inheritance.Student</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.inheritance.Manager</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.inheritance.Employee</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.inheritance.Vehicle</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.model.inheritance.Car</class>
         <properties>
             <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
             <property name="jakarta.persistence.jdbc.user" value="sa"/>

@@ -3,22 +3,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.persistence.tests.model.inheritance;
+package io.vidocq.mansart.persistence.core.testentities.model.lazy;
 
+import jakarta.persistence.Basic;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Inheritance;
-import jakarta.persistence.InheritanceType;
 
 /**
- * Base entity for JOINED inheritance test - Person.
- * Part of JOINED inheritance hierarchy with Student.
+ * Employee entity for Lazy Loading test (M8-11).
+ * Has a lazy-loaded description field.
  */
 @Entity
-@Inheritance(strategy = InheritanceType.JOINED)
-public class Person {
+public class Employee {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,10 +25,14 @@ public class Person {
 
     private String name;
 
-    public Person() {}
+    @Basic(fetch = FetchType.LAZY)
+    private String description;
 
-    public Person(String name) {
+    public Employee() {}
+
+    public Employee(String name, String description) {
         this.name = name;
+        this.description = description;
     }
 
     public Long getId() {
@@ -48,17 +51,25 @@ public class Person {
         this.name = name;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     @Override
     public String toString() {
-        return "Person{id=" + id + ", name='" + name + "'}";
+        return "Employee{id=" + id + ", name='" + name + "', description='" + description + "'}";
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Person person = (Person) o;
-        return id != null && id.equals(person.id);
+        Employee employee = (Employee) o;
+        return id != null && id.equals(employee.id);
     }
 
     @Override

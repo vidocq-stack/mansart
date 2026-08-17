@@ -70,7 +70,12 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     private jakarta.persistence.spi.PersistenceUnitInfo findPersistenceUnitInfo(String emName, Map<?, ?> properties) {
         try {
-            java.net.URL resource = getClass().getClassLoader().getResource("META-INF/persistence.xml");
+            // M9-10: Use context classloader to include test classes
+            ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+            if (classLoader == null) {
+                classLoader = getClass().getClassLoader();
+            }
+            java.net.URL resource = classLoader.getResource("META-INF/persistence.xml");
             if (resource == null) {
                 return null;
             }
@@ -87,7 +92,7 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
                     org.w3c.dom.Element puElement = (org.w3c.dom.Element) puNode;
                     String name = puElement.getAttribute("name");
                     if (emName == null || emName.equals(name)) {
-                        return new SimplePersistenceUnitInfo(name, puElement, getClass().getClassLoader());
+                        return new SimplePersistenceUnitInfo(name, puElement, classLoader);
                     }
                 }
             }

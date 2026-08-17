@@ -36,4 +36,12 @@ module io.vidocq.mansart.persistence.core {
     exports io.vidocq.mansart.persistence.core.jpql;
     exports io.vidocq.mansart.persistence.core.mapping;
     exports io.vidocq.mansart.persistence.core.runtime;
+    exports io.vidocq.mansart.persistence.core.testentities.common;
+    exports io.vidocq.mansart.persistence.core.testentities.callback;
+    exports io.vidocq.mansart.persistence.core.testentities.listener;
+    exports io.vidocq.mansart.persistence.core.testentities.model.dirty;
+    exports io.vidocq.mansart.persistence.core.testentities.model.inheritance;
+    exports io.vidocq.mansart.persistence.core.testentities.model.lazy;
+    exports io.vidocq.mansart.persistence.core.testentities.model.namedquery;
+    exports io.vidocq.mansart.persistence.core.testentities.model.relationship;
 }

@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.persistence.tests.model.relationship;
+package io.vidocq.mansart.persistence.core.testentities.model.relationship;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

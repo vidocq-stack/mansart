@@ -5,12 +5,12 @@
  */
 package io.vidocq.mansart.persistence.tests;
 
-import io.vidocq.mansart.persistence.tests.model.inheritance.Car;
-import io.vidocq.mansart.persistence.tests.model.inheritance.Employee;
-import io.vidocq.mansart.persistence.tests.model.inheritance.Manager;
-import io.vidocq.mansart.persistence.tests.model.inheritance.Person;
-import io.vidocq.mansart.persistence.tests.model.inheritance.Student;
-import io.vidocq.mansart.persistence.tests.model.inheritance.Vehicle;
+import io.vidocq.mansart.persistence.core.testentities.model.inheritance.Car;
+import io.vidocq.mansart.persistence.core.testentities.model.inheritance.Employee;
+import io.vidocq.mansart.persistence.core.testentities.model.inheritance.Manager;
+import io.vidocq.mansart.persistence.core.testentities.model.inheritance.Person;
+import io.vidocq.mansart.persistence.core.testentities.model.inheritance.Student;
+import io.vidocq.mansart.persistence.core.testentities.model.inheritance.Vehicle;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

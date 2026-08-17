@@ -78,6 +78,12 @@
                         --add-reads io.vidocq.mansart.persistence.core=ALL-UNNAMED
                         --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.tests=ALL-UNNAMED
                         --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.tests=org.junit.platform.commons
+                        --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.testentities=ALL-UNNAMED
+                        --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.testentities=org.junit.platform.commons
+                        --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.testentities.common=ALL-UNNAMED
+                        --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.testentities.callback=ALL-UNNAMED
+                        --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.testentities.listener=ALL-UNNAMED
+                        --add-opens io.vidocq.mansart.persistence.core/io.vidocq.mansart.persistence.core.testentities.model=ALL-UNNAMED
                     </argLine>
                 </configuration>
             </plugin>

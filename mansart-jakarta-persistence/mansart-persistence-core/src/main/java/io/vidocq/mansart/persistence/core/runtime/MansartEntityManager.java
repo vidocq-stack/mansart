@@ -577,6 +577,11 @@ public class MansartEntityManager implements EntityManager {
         java.lang.reflect.Field idField = null;
         for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
             field.setAccessible(true);
+            // Skip static and final fields - they cannot be @Id
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
+                java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
+                continue;
+            }
             if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
                 idField = field;
                 break;
@@ -596,6 +601,12 @@ public class MansartEntityManager implements EntityManager {
             if (idFieldName != null && idFieldName.equals(field.getName())) continue;
             
             field.setAccessible(true);
+            
+            // Skip static and final fields - they are not persistent
+            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
+                java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
+                continue;
+            }
             
             // Skip transient fields
             if (field.isAnnotationPresent(jakarta.persistence.Transient.class)) {

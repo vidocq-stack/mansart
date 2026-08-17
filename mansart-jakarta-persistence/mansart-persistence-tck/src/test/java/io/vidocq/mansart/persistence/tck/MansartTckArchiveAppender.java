@@ -23,6 +23,7 @@ import org.jboss.arquillian.container.test.spi.client.deployment.ApplicationArch
 import org.jboss.arquillian.test.spi.TestClass;
 import org.jboss.shrinkwrap.api.Archive;
 import org.jboss.shrinkwrap.api.container.ClassContainer;
+import org.jboss.shrinkwrap.api.spec.JavaArchive;
 
 /**
  * Arquillian {@link ApplicationArchiveProcessor} that injects the Mansart Persistence provider into
@@ -36,6 +37,7 @@ import org.jboss.shrinkwrap.api.container.ClassContainer;
  *   <li>Mansart Data dialect packages (common, h2 or postgresql).</li>
  *   <li>The shared {@link H2DataSourceProducer} or {@link PostgresDataSourceProducer} 
  *       so a {@code DataSource} is available.</li>
+ *   <li>Service file for PersistenceProvider to ensure Mansart is used instead of TCK's default.</li>
  * </ul>
  */
 public class MansartTckArchiveAppender implements ApplicationArchiveProcessor {
@@ -72,5 +74,14 @@ public class MansartTckArchiveAppender implements ApplicationArchiveProcessor {
         // Add DataSource producer
         var producerClass = USE_PG ? PostgresDataSourceProducer.class : H2DataSourceProducer.class;
         cc.addClass(producerClass);
+
+        // Add service file for PersistenceProvider to override TCK's default provider
+        // This ensures ServiceLoader.find(PersistenceProvider.class) returns Mansart first
+        if (archive instanceof JavaArchive ja) {
+            ja.addAsServiceProvider(
+                    jakarta.persistence.spi.PersistenceProvider.class,
+                    io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider.class
+            );
+        }
     }
 }
