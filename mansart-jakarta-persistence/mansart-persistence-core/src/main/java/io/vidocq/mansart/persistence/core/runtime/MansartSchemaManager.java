@@ -18,6 +18,7 @@ import java.sql.Statement;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -75,14 +76,19 @@ public class MansartSchemaManager implements SchemaManager {
     }
 
     private void createTables(Connection connection) throws SQLException {
+        System.err.println("DEBUG: createTables called, entityModels.size=" + entityModels.size() + ", entityClasses.size=" + entityClasses.size());
         // First, try to use EntityModels if available
         if (!entityModels.isEmpty()) {
+            System.err.println("DEBUG: Processing entityModels");
             for (EntityModel<?> entityModel : entityModels.values()) {
                 String tableName = getTableName(entityModel);
                 String ddl = generateCreateTableDDL(entityModel, tableName);
                 if (ddl != null && !ddl.isEmpty()) {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
+                    } catch (SQLException e) {
+                        // Log but continue with other tables
+                        System.err.println("DEBUG: Failed to create table from EntityModel: " + e.getMessage());
                     }
                 }
             }
@@ -90,18 +96,25 @@ public class MansartSchemaManager implements SchemaManager {
         
         // Fallback: use entityClasses from PersistenceUnitInfo
         if (!entityClasses.isEmpty()) {
+            System.err.println("DEBUG: Processing entityClasses");
             for (Class<?> entityClass : entityClasses.values()) {
                 // Get table name from @Entity annotation or use class simple name
                 String tableName = getEntityTableName(entityClass);
+                System.err.println("DEBUG: Processing class " + entityClass.getName() + " -> table " + tableName);
                 String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
                 if (ddl != null && !ddl.isEmpty()) {
+                    System.err.println("DEBUG: DDL for " + tableName + ": " + ddl);
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
+                    } catch (SQLException e) {
+                        // Log but continue with other tables
+                        System.err.println("DEBUG: Failed to execute DDL for " + tableName + ": " + e.getMessage());
                     }
                 }
             }
         }
         
+        System.err.println("DEBUG: Calling createTablesForKnownClasses");
         // Always try to create tables for known TCK classes
         // This is needed because TCK entity classes are loaded dynamically via Arquillian
         // and may not be in entityClasses
@@ -227,6 +240,7 @@ public class MansartSchemaManager implements SchemaManager {
      * methods try to DELETE from.
      */
     private void createKnownJoinTables(Connection connection) throws SQLException {
+        System.err.println("DEBUG: createKnownJoinTables called");
         // TCK uses specific hardcoded join table names in cleanup methods
         // H2 stores unquoted identifiers in UPPER CASE, so we need to create tables
         // with the exact case that the TCK uses (uppercase)
@@ -401,28 +415,28 @@ public class MansartSchemaManager implements SchemaManager {
                     // For H2, use IF NOT EXISTS to avoid errors
                     if ("h2".equals(dialectName)) {
                         ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
-                              quoteIdentifier("id") + " BIGINT NOT NULL, " +
-                              quoteIdentifier("entity_a_id") + " BIGINT, " +
-                              quoteIdentifier("entity_b_id") + " BIGINT" +
+                              quoteColumnIdentifier("id") + " BIGINT NOT NULL, " +
+                              quoteColumnIdentifier("entity_a_id") + " BIGINT, " +
+                              quoteColumnIdentifier("entity_b_id") + " BIGINT" +
                               ")";
                     } else {
                         ddl = "CREATE TABLE " + quoteIdentifier(tableName) + " (" +
-                              quoteIdentifier("id") + " BIGINT NOT NULL, " +
-                              quoteIdentifier("entity_a_id") + " BIGINT, " +
-                              quoteIdentifier("entity_b_id") + " BIGINT" +
+                              quoteColumnIdentifier("id") + " BIGINT NOT NULL, " +
+                              quoteColumnIdentifier("entity_a_id") + " BIGINT, " +
+                              quoteColumnIdentifier("entity_b_id") + " BIGINT" +
                               ")";
                     }
                 } else {
                     // Entity table - create with ID column
                     if ("h2".equals(dialectName)) {
                         ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
-                              quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
-                              quoteIdentifier("name") + " VARCHAR(255)" +
+                              quoteColumnIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
+                              quoteColumnIdentifier("name") + " VARCHAR(255)" +
                               ")";
                     } else {
                         ddl = "CREATE TABLE " + quoteIdentifier(tableName) + " (" +
-                              quoteIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
-                              quoteIdentifier("name") + " VARCHAR(255)" +
+                              quoteColumnIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
+                              quoteColumnIdentifier("name") + " VARCHAR(255)" +
                               ")";
                     }
                 }
@@ -452,9 +466,10 @@ public class MansartSchemaManager implements SchemaManager {
         List<String> columnDefs = new ArrayList<>();
         List<String> primaryKeys = new ArrayList<>();
         
-        // Inspect all declared fields for JPA annotations
-        java.lang.reflect.Field[] fields = entityClass.getDeclaredFields();
-        for (java.lang.reflect.Field field : fields) {
+        // Inspect all fields including inherited ones for JPA annotations
+        List<java.lang.reflect.Field> allFields = new ArrayList<>();
+        collectAllFields(entityClass, allFields);
+        for (java.lang.reflect.Field field : allFields) {
             // Skip static and final fields - they are not persistent
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
                 java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
@@ -496,7 +511,7 @@ public class MansartSchemaManager implements SchemaManager {
             }
             
             StringBuilder colDef = new StringBuilder();
-            colDef.append(quoteIdentifier(columnName)).append(" ");
+            colDef.append(quoteColumnIdentifier(columnName)).append(" ");
             
             // Map Java type to SQL type with length
             String sqlType = mapJavaTypeToSqlType(fieldType, length);
@@ -507,7 +522,7 @@ public class MansartSchemaManager implements SchemaManager {
             }
             
             if (isId) {
-                primaryKeys.add(quoteIdentifier(columnName));
+                primaryKeys.add(quoteColumnIdentifier(columnName));
             }
             
             columnDefs.add(colDef.toString());
@@ -515,8 +530,8 @@ public class MansartSchemaManager implements SchemaManager {
         
         // If no columns were found, create a default ID column
         if (columnDefs.isEmpty()) {
-            columnDefs.add(quoteIdentifier("id") + " BIGINT NOT NULL");
-            primaryKeys.add(quoteIdentifier("id"));
+            columnDefs.add(quoteColumnIdentifier("id") + " BIGINT NOT NULL");
+            primaryKeys.add(quoteColumnIdentifier("id"));
         }
         
         ddl.append(String.join(", ", columnDefs));
@@ -670,11 +685,11 @@ public class MansartSchemaManager implements SchemaManager {
             String columnType = mapJavaTypeToSqlType(javaType, 255);
             
             StringBuilder colDef = new StringBuilder();
-            colDef.append(quoteIdentifier(columnName)).append(" ").append(columnType);
+            colDef.append(quoteColumnIdentifier(columnName)).append(" ").append(columnType);
             
             // Check if this is a primary key (IdAttribute)
             if (attr instanceof IdAttribute) {
-                primaryKeys.add(quoteIdentifier(columnName));
+                primaryKeys.add(quoteColumnIdentifier(columnName));
                 colDef.append(" NOT NULL");
             }
             
@@ -818,6 +833,19 @@ public class MansartSchemaManager implements SchemaManager {
     }
 
     /**
+     * Collects all fields from a class including inherited fields.
+     */
+    private void collectAllFields(Class<?> clazz, List<java.lang.reflect.Field> result) {
+        if (clazz == null || Object.class.equals(clazz)) {
+            return;
+        }
+        // Add fields from parent class first
+        collectAllFields(clazz.getSuperclass(), result);
+        // Add fields from current class
+        result.addAll(Arrays.asList(clazz.getDeclaredFields()));
+    }
+
+    /**
      * Quotes a SQL identifier based on the dialect.
      * For H2, returns uppercase unquoted identifiers (H2 stores unquoted identifiers in uppercase).
      * For PostgreSQL, returns double-quoted identifiers.
@@ -828,6 +856,23 @@ public class MansartSchemaManager implements SchemaManager {
         } else if ("h2".equals(dialectName)) {
             // H2: use uppercase unquoted identifiers for TCK compatibility
             return identifier.toUpperCase();
+        } else {
+            // Default: double-quote identifiers
+            return "\"" + identifier + "\"";
+        }
+    }
+
+    /**
+     * Quotes a column identifier based on the dialect.
+     * For H2, returns backtick-quoted identifiers to avoid SQL keyword conflicts.
+     * For PostgreSQL, returns double-quoted identifiers.
+     */
+    private String quoteColumnIdentifier(String identifier) {
+        if ("postgresql".equals(dialectName)) {
+            return "\"" + identifier + "\"";
+        } else if ("h2".equals(dialectName)) {
+            // H2: use backticks to avoid SQL keyword conflicts
+            return "`" + identifier + "`";
         } else {
             // Default: double-quote identifiers
             return "\"" + identifier + "\"";

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Base class for persistence tests.
@@ -25,12 +26,14 @@ public abstract class BasePersistenceTest {
 
     protected EntityManagerFactory emf;
     protected EntityManager em;
+    protected String jdbcUrl;
 
     @BeforeEach
     public void setUp() {
         MansartPersistenceProvider provider = new MansartPersistenceProvider();
         Map<String, Object> properties = new HashMap<>();
-        properties.put("jakarta.persistence.jdbc.url", "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1");
+        jdbcUrl = "jdbc:h2:mem:" + UUID.randomUUID() + ";DB_CLOSE_DELAY=-1";
+        properties.put("jakarta.persistence.jdbc.url", jdbcUrl);
         properties.put("jakarta.persistence.jdbc.user", "sa");
         properties.put("jakarta.persistence.jdbc.password", "");
         properties.put("jakarta.persistence.jdbc.driver", "org.h2.Driver");

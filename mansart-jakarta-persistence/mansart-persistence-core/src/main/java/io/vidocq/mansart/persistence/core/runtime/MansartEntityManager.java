@@ -569,13 +569,17 @@ public class MansartEntityManager implements EntityManager {
             tableName = entityClass.getSimpleName().toLowerCase();
         }
         
+        // Collect all fields including inherited ones
+        java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
+        collectAllFields(entityClass, allFields);
+        
         // Collect all persistent fields
         java.util.List<java.lang.reflect.Field> columns = new java.util.ArrayList<>();
         java.util.List<Object> values = new java.util.ArrayList<>();
         
-        // Find ID field first
+        // Find ID field first (from all fields, including inherited)
         java.lang.reflect.Field idField = null;
-        for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
+        for (java.lang.reflect.Field field : allFields) {
             field.setAccessible(true);
             // Skip static and final fields - they cannot be @Id
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
@@ -588,15 +592,15 @@ public class MansartEntityManager implements EntityManager {
             }
         }
         
-        // Add ID first
-        if (idField != null) {
+        // Add ID first - but only if it's not null (for auto-generated IDs, don't include in INSERT)
+        if (idField != null && id != null) {
             columns.add(idField);
             values.add(id);
         }
         
         // Add other persistent fields
         String idFieldName = idField != null ? idField.getName() : null;
-        for (java.lang.reflect.Field field : entityClass.getDeclaredFields()) {
+        for (java.lang.reflect.Field field : allFields) {
             // Use field name comparison since getDeclaredFields() returns new Field objects each time
             if (idFieldName != null && idFieldName.equals(field.getName())) continue;
             
@@ -633,16 +637,16 @@ public class MansartEntityManager implements EntityManager {
         // Use dialect-specific identifier quoting
         StringBuilder sql = new StringBuilder("INSERT INTO ");
         
-        // Table name: use quoteIdentifier for dialect-specific quoting
-        String quotedTableName = quoteIdentifier(tableName);
+        // Table name: use quoteTableIdentifier for dialect-specific quoting
+        String quotedTableName = quoteTableIdentifier(tableName);
         sql.append(quotedTableName).append(" (");
         
-        // Column names: use quoteIdentifier for dialect-specific quoting
-        // For H2: use uppercase for consistency with table names
+        // Column names: use quoteColumnIdentifier for dialect-specific quoting
+        // For H2: use backticks to avoid SQL keyword conflicts
         for (int i = 0; i < columns.size(); i++) {
             if (i > 0) sql.append(", ");
             String columnName = getColumnName(columns.get(i));
-            sql.append(quoteIdentifier(columnName));
+            sql.append(quoteColumnIdentifier(columnName));
         }
         sql.append(") VALUES (");
         
@@ -665,6 +669,19 @@ public class MansartEntityManager implements EntityManager {
         }
     }
     
+    /**
+     * Collects all fields from a class including inherited fields.
+     */
+    private void collectAllFields(Class<?> clazz, java.util.List<java.lang.reflect.Field> result) {
+        if (clazz == null || Object.class.equals(clazz)) {
+            return;
+        }
+        // Add fields from parent class first
+        collectAllFields(clazz.getSuperclass(), result);
+        // Add fields from current class
+        result.addAll(java.util.Arrays.asList(clazz.getDeclaredFields()));
+    }
+
     /**
      * Gets table name from @Table annotation or @Entity name.
      * In JPA, if no @Table is specified, the default table name is the entity name.
@@ -695,16 +712,33 @@ public class MansartEntityManager implements EntityManager {
     }
     
     /**
-     * Quotes SQL identifier for the current dialect.
+     * Quotes SQL table identifier for the current dialect.
      * For H2: returns uppercase unquoted identifiers (H2 stores unquoted identifiers in uppercase).
      * For PostgreSQL: returns double-quoted identifiers.
      */
-    private String quoteIdentifier(String identifier) {
+    private String quoteTableIdentifier(String identifier) {
         if ("postgresql".equals(dialect.name())) {
             return "\"" + identifier + "\"";
         } else if ("H2".equals(dialect.name())) {
             // H2: use uppercase unquoted identifiers for TCK compatibility
             return identifier.toUpperCase();
+        } else {
+            // Default: return unquoted identifier
+            return identifier;
+        }
+    }
+
+    /**
+     * Quotes SQL column identifier for the current dialect.
+     * For H2: returns backtick-quoted identifiers to avoid SQL keyword conflicts.
+     * For PostgreSQL: returns double-quoted identifiers.
+     */
+    private String quoteColumnIdentifier(String identifier) {
+        if ("postgresql".equals(dialect.name())) {
+            return "\"" + identifier + "\"";
+        } else if ("H2".equals(dialect.name())) {
+            // H2: use backticks to avoid SQL keyword conflicts
+            return "`" + identifier + "`";
         } else {
             // Default: return unquoted identifier
             return identifier;

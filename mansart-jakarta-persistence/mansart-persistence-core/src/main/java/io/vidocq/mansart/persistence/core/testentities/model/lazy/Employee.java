@@ -11,12 +11,14 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 /**
  * Employee entity for Lazy Loading test (M8-11).
  * Has a lazy-loaded description field.
  */
 @Entity
+@Table(name = "LAZY_EMPLOYEE")
 public class Employee {
 
     @Id

@@ -13,12 +13,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
+import jakarta.persistence.Table;
 
 /**
  * Base entity for inheritance test - Employee.
  * Part of SINGLE_TABLE inheritance hierarchy with Manager.
  */
 @Entity
+@Table(name = "INHERITANCE_EMPLOYEE")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @DiscriminatorColumn(name = "employee_type")
 @DiscriminatorValue("EMPLOYEE")

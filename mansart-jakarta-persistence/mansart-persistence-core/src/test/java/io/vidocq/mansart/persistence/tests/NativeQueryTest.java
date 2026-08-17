@@ -51,10 +51,9 @@ public class NativeQueryTest extends BasePersistenceTest {
     @BeforeEach
     void setUpDatabase() throws SQLException {
         super.setUp();
-        String url = "jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1";
         String user = "sa";
         String password = "";
-        connection = DriverManager.getConnection(url, user, password);
+        connection = DriverManager.getConnection(jdbcUrl, user, password);
         
         try (Statement stmt = connection.createStatement()) {
             stmt.execute("DROP TABLE IF EXISTS SimpleTest");
