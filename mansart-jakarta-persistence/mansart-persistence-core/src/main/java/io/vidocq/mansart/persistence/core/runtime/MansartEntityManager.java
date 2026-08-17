@@ -630,20 +630,19 @@ public class MansartEntityManager implements EntityManager {
         }
         
         // Build INSERT SQL
-        // For H2: when table names are created with quotes in schema generation,
-        // we must use the exact same case with quotes in INSERT statements
-        // Column names are always quoted to avoid SQL keyword conflicts
+        // Use dialect-specific identifier quoting
         StringBuilder sql = new StringBuilder("INSERT INTO ");
         
-        // Table name: always quote to preserve case (H2 is case-sensitive with quotes)
-        String quotedTableName = "\"" + tableName + "\"";
+        // Table name: use quoteIdentifier for dialect-specific quoting
+        String quotedTableName = quoteIdentifier(tableName);
         sql.append(quotedTableName).append(" (");
         
-        // Column names: always quote to avoid SQL keyword conflicts
+        // Column names: use quoteIdentifier for dialect-specific quoting
+        // For H2: use uppercase for consistency with table names
         for (int i = 0; i < columns.size(); i++) {
             if (i > 0) sql.append(", ");
             String columnName = getColumnName(columns.get(i));
-            sql.append("\"").append(columnName).append("\"");
+            sql.append(quoteIdentifier(columnName));
         }
         sql.append(") VALUES (");
         
@@ -697,16 +696,19 @@ public class MansartEntityManager implements EntityManager {
     
     /**
      * Quotes SQL identifier for the current dialect.
-     * For H2: don't quote table names (H2 stores unquoted identifiers in uppercase)
-     * but do quote column names to avoid SQL keyword conflicts.
+     * For H2: returns uppercase unquoted identifiers (H2 stores unquoted identifiers in uppercase).
+     * For PostgreSQL: returns double-quoted identifiers.
      */
     private String quoteIdentifier(String identifier) {
         if ("postgresql".equals(dialect.name())) {
             return "\"" + identifier + "\"";
+        } else if ("H2".equals(dialect.name())) {
+            // H2: use uppercase unquoted identifiers for TCK compatibility
+            return identifier.toUpperCase();
+        } else {
+            // Default: return unquoted identifier
+            return identifier;
         }
-        // For H2 and other dialects: don't quote identifiers to use uppercase table names
-        // H2 stores unquoted identifiers in UPPER CASE
-        return identifier;
     }
 
     @Override

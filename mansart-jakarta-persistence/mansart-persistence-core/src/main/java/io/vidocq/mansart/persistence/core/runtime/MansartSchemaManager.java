@@ -121,42 +121,25 @@ public class MansartSchemaManager implements SchemaManager {
         // Known TCK entity classes from various test categories
         // Includes all entities that might have tables referenced in cleanup/setup methods
         String[] tckEntityClasses = {
-            // Mansart test entities - core tests package
+            // Mansart test entities - new package structure
             "io.vidocq.mansart.persistence.core.testentities.common.TestEntity",
             "io.vidocq.mansart.persistence.core.testentities.common.VersionedEntity",
+            "io.vidocq.mansart.persistence.core.testentities.common.SimpleEntity",
             "io.vidocq.mansart.persistence.core.testentities.callback.CallbackEntity",
             "io.vidocq.mansart.persistence.core.testentities.listener.AuditedEntity",
-            "io.vidocq.mansart.persistence.tests.TestEntity",
-            // Mansart test entities - model packages
-            "io.vidocq.mansart.persistence.tests.model.relationship.Author",
-            "io.vidocq.mansart.persistence.tests.model.relationship.Book",
-            "io.vidocq.mansart.persistence.tests.model.relationship.Pupil",
-            "io.vidocq.mansart.persistence.tests.model.relationship.Course",
-            "io.vidocq.mansart.persistence.tests.model.namedquery.Department",
-            "io.vidocq.mansart.persistence.tests.model.inheritance.Person",
-            "io.vidocq.mansart.persistence.tests.model.inheritance.Student",
-            "io.vidocq.mansart.persistence.tests.model.inheritance.Manager",
-            "io.vidocq.mansart.persistence.tests.model.inheritance.Employee",
-            "io.vidocq.mansart.persistence.tests.model.inheritance.Vehicle",
-            "io.vidocq.mansart.persistence.tests.model.inheritance.Car",
-            "io.vidocq.mansart.persistence.tests.model.lazy.Employee",
-            "io.vidocq.mansart.persistence.tests.model.dirty.Product",
-            "io.vidocq.mansart.persistence.tests.Product",
-            "io.vidocq.mansart.persistence.tests.Department",
-            "io.vidocq.mansart.persistence.tests.Employee",
-            "io.vidocq.mansart.persistence.tests.Person",
-            "io.vidocq.mansart.persistence.tests.Student",
-            "io.vidocq.mansart.persistence.tests.Vehicle",
-            "io.vidocq.mansart.persistence.tests.Car",
-            "io.vidocq.mansart.persistence.tests.Author",
-            "io.vidocq.mansart.persistence.tests.Book",
-            "io.vidocq.mansart.persistence.tests.Pupil",
-            "io.vidocq.mansart.persistence.tests.Course",
-            // Entity classes defined in test files (inner classes)
-            "io.vidocq.mansart.persistence.tests.LockingTest$VersionedEntity",
-            "io.vidocq.mansart.persistence.tests.LifecycleCallbackTest$CallbackEntity",
-            "io.vidocq.mansart.persistence.tests.EntityListenerTest$AuditEntity",
-            "io.vidocq.mansart.persistence.tests.EntityListenerTest$MonitoredEntity",
+            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Author",
+            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Book",
+            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Pupil",
+            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Course",
+            "io.vidocq.mansart.persistence.core.testentities.model.namedquery.Department",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Person",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Student",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Manager",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Employee",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Vehicle",
+            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Car",
+            "io.vidocq.mansart.persistence.core.testentities.model.lazy.Employee",
+            "io.vidocq.mansart.persistence.core.testentities.model.dirty.Product",
             // Entity-Basic test entities
             "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Coffee",
             "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Foo",
@@ -266,6 +249,24 @@ public class MansartSchemaManager implements SchemaManager {
             "PROJECT_PERSON",
             "FKS_ANOOP_CNOOP",
             "ENROLLMENTS",
+            // Entity tables from Mansart tests
+            "AUDITEDENTITY",
+            "CALLBACKENTITY",
+            "SIMPLEENTITY",
+            "TESTENTITY",
+            "VERSIONEDENTITY",
+            "DEPARTMENT",
+            "PRODUCT",
+            "AUTHOR",
+            "BOOK",
+            "PUPIL",
+            "COURSE",
+            "PERSON",
+            "STUDENT",
+            "MANAGER",
+            "EMPLOYEE",
+            "VEHICLE",
+            "CAR",
             // Entity tables from TCK
             "COFFEE",           // From API tests
             "FOO",              // From API tests
@@ -818,12 +819,17 @@ public class MansartSchemaManager implements SchemaManager {
 
     /**
      * Quotes a SQL identifier based on the dialect.
+     * For H2, returns uppercase unquoted identifiers (H2 stores unquoted identifiers in uppercase).
+     * For PostgreSQL, returns double-quoted identifiers.
      */
     private String quoteIdentifier(String identifier) {
         if ("postgresql".equals(dialectName)) {
             return "\"" + identifier + "\"";
+        } else if ("h2".equals(dialectName)) {
+            // H2: use uppercase unquoted identifiers for TCK compatibility
+            return identifier.toUpperCase();
         } else {
-            // H2 and most databases use backticks or double quotes
+            // Default: double-quote identifiers
             return "\"" + identifier + "\"";
         }
     }
