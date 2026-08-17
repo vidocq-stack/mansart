@@ -50,6 +50,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
@@ -93,6 +94,7 @@ public class MansartEntityManager implements EntityManager {
      * @throws IllegalArgumentException if no id field is found
      */
     private static EntityIdHandles getIdHandles(Class<?> entityClass) {
+        System.err.println("DEBUG: getIdHandles called for " + entityClass.getName());
         // Try to find field with @Id annotation first - check all classes in hierarchy
         Class<?> currentClass = entityClass;
         java.lang.reflect.Field idField = null;
@@ -100,6 +102,7 @@ public class MansartEntityManager implements EntityManager {
             for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
                 if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
                     idField = field;
+                    System.err.println("DEBUG: Found @Id field: " + field.getName() + " of type " + field.getType());
                     break;
                 }
             }
@@ -152,10 +155,27 @@ public class MansartEntityManager implements EntityManager {
         if (idField != null) {
             try {
                 Class<?> fieldClass = idField.getDeclaringClass();
-                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(fieldClass, MethodHandles.lookup());
                 Class<?> fieldType = idField.getType();
-                MethodHandle getter = lookup.findGetter(fieldClass, idField.getName(), fieldType);
-                MethodHandle setter = lookup.findSetter(fieldClass, idField.getName(), fieldType);
+                
+                // Make field accessible
+                idField.setAccessible(true);
+                
+                // Create MethodHandles using the declaring class
+                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(fieldClass, MethodHandles.lookup());
+                MethodHandle getter, setter;
+                
+                // Try to use field access directly via VarHandle for better compatibility
+                try {
+                    java.lang.invoke.VarHandle varHandle = MethodHandles.privateLookupIn(fieldClass, MethodHandles.lookup())
+                            .findVarHandle(fieldClass, idField.getName(), fieldType);
+                    getter = varHandle.toMethodHandle(java.lang.invoke.VarHandle.AccessMode.GET);
+                    setter = varHandle.toMethodHandle(java.lang.invoke.VarHandle.AccessMode.SET);
+                } catch (Exception e) {
+                    // Fall back to traditional getter/setter
+                    getter = lookup.findGetter(fieldClass, idField.getName(), fieldType);
+                    setter = lookup.findSetter(fieldClass, idField.getName(), fieldType);
+                }
+                
                 return new EntityIdHandles(getter, setter, fieldType);
             } catch (IllegalAccessException | NoSuchFieldException e) {
                 // Fall through to error
@@ -189,11 +209,31 @@ public class MansartEntityManager implements EntityManager {
      */
     private static void setEntityId(Object entity, Object idValue) {
         if (entity == null) throw new IllegalArgumentException("Entity must not be null");
+        EntityIdHandles handles = null;
         try {
-            EntityIdHandles handles = getIdHandles(entity.getClass());
+            handles = getIdHandles(entity.getClass());
             Object convertedId = convertToIdType(idValue, handles.idType);
             handles.setter.invoke(entity, convertedId);
         } catch (Throwable t) {
+            try (java.io.FileWriter fw = new java.io.FileWriter("/tmp/mansart_setid_errors.log", true);
+                 java.io.PrintWriter pw = new java.io.PrintWriter(fw)) {
+                pw.println("Failed to set ID on entity: " + entity.getClass().getName());
+                if (handles != null) {
+                    pw.println("  ID type: " + handles.idType);
+                    pw.println("  ID value: " + idValue);
+                    pw.println("  Converted ID: " + convertToIdType(idValue, handles.idType));
+                }
+                pw.println("  Exception: " + t.getClass().getName() + ": " + t.getMessage());
+                if (t.getCause() != null) {
+                    pw.println("  Caused by: " + t.getCause().getClass().getName() + ": " + t.getCause().getMessage());
+                    t.getCause().printStackTrace(pw);
+                } else {
+                    t.printStackTrace(pw);
+                }
+                pw.println("---");
+            } catch (Exception e) {
+                // Ignore
+            }
             throw new RuntimeException("Failed to set ID on entity " + entity.getClass().getName(), t);
         }
     }
@@ -223,12 +263,71 @@ public class MansartEntityManager implements EntityManager {
         if (targetType == Long.class) {
             return ((Number) idValue).longValue();
         }
+        // Handle java.util.Date ID type
+        if (targetType == java.util.Date.class) {
+            if (idValue instanceof Number) {
+                return new java.util.Date(((Number) idValue).longValue());
+            }
+            return idValue;
+        }
+        // Handle java.sql.Date ID type
+        if (targetType == java.sql.Date.class) {
+            if (idValue instanceof Number) {
+                return new java.sql.Date(((Number) idValue).longValue());
+            }
+            return idValue;
+        }
+        // Handle Calendar ID type
+        if (targetType == java.util.Calendar.class) {
+            if (idValue instanceof Number) {
+                java.util.Calendar cal = java.util.Calendar.getInstance();
+                cal.setTimeInMillis(((Number) idValue).longValue());
+                return cal;
+            }
+            return idValue;
+        }
         // Handle String ID types
         if (targetType == String.class) {
             return String.valueOf(idValue);
         }
+        // Handle BigInteger ID type
+        if (targetType == java.math.BigInteger.class) {
+            if (idValue instanceof Number) {
+                return java.math.BigInteger.valueOf(((Number) idValue).longValue());
+            }
+            return idValue;
+        }
         // Add more numeric conversions as needed
         return idValue;
+    }
+
+    /**
+     * Checks if an entity uses IDENTITY generation strategy.
+     * For IDENTITY, the database generates the ID, so we should not set it in persist().
+     * 
+     * @param entity the entity
+     * @return true if the entity uses IDENTITY strategy
+     */
+    private static boolean hasIdentityStrategy(Object entity) {
+        Class<?> entityClass = entity.getClass();
+        try {
+            Class<?> current = entityClass;
+            while (current != null && current != Object.class) {
+                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                    if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                        GeneratedValue generatedValue = field.getAnnotation(GeneratedValue.class);
+                        if (generatedValue != null && generatedValue.strategy() == GenerationType.IDENTITY) {
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+                current = current.getSuperclass();
+            }
+        } catch (Exception e) {
+            // Ignore
+        }
+        return false;
     }
 
     /**
@@ -456,17 +555,28 @@ public class MansartEntityManager implements EntityManager {
         // Generate ID for the entity using strategy-aware generator (M9-10)
         Long generatedId = generateId(entity);
         
+        // Check if we should set the ID (not for IDENTITY strategy)
+        boolean shouldSetId = !hasIdentityStrategy(entity);
+        
         try {
-            // Set the ID using MethodHandles (no reflection)
-            setEntityId(entity, generatedId);
+            if (shouldSetId) {
+                // Set the ID using MethodHandles (no reflection)
+                setEntityId(entity, generatedId);
+            }
             
-            // Get the actual ID value from the entity (after conversion)
-            Object actualId = getEntityId(entity);
+            // Get the actual ID value from the entity (after conversion or from DB)
+            Object actualId = shouldSetId ? getEntityId(entity) : null;
             
             // Execute INSERT in database (M9-10: Phase 1 - DB persistence for TCK)
             // This ensures JPQL queries can find persisted entities
             if (dialect != null && connectionProvider != null) {
                 executeInsert(entity, actualId);
+            }
+            
+            // For IDENTITY strategy, the ID is generated by the database and set on the entity
+            // during executeInsert, so we need to get it from the entity after the insert
+            if (!shouldSetId) {
+                actualId = getEntityId(entity);
             }
             
             // Store in L1 cache with actual ID
@@ -579,6 +689,9 @@ public class MansartEntityManager implements EntityManager {
         
         // Find ID field first (from all fields, including inherited)
         java.lang.reflect.Field idField = null;
+        String idColumnName = null;
+        boolean idGenerated = false;
+        
         for (java.lang.reflect.Field field : allFields) {
             field.setAccessible(true);
             // Skip static and final fields - they cannot be @Id
@@ -588,6 +701,10 @@ public class MansartEntityManager implements EntityManager {
             }
             if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
                 idField = field;
+                GeneratedValue generatedValue = field.getAnnotation(GeneratedValue.class);
+                idGenerated = generatedValue != null;
+                jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+                idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
                 break;
             }
         }
@@ -601,8 +718,11 @@ public class MansartEntityManager implements EntityManager {
         // Add other persistent fields
         String idFieldName = idField != null ? idField.getName() : null;
         for (java.lang.reflect.Field field : allFields) {
-            // Use field name comparison since getDeclaredFields() returns new Field objects each time
+            field.setAccessible(true);
+            
+            // Skip ID field - use both name comparison and annotation check for safety
             if (idFieldName != null && idFieldName.equals(field.getName())) continue;
+            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) continue;
             
             field.setAccessible(true);
             
@@ -660,11 +780,35 @@ public class MansartEntityManager implements EntityManager {
         String insertSql = sql.toString();
         
         try (Connection connection = connectionProvider.getConnection()) {
-            try (java.sql.PreparedStatement ps = connection.prepareStatement(insertSql)) {
+            // Use Statement.RETURN_GENERATED_KEYS to get all auto-generated keys
+            int statementFlags = idGenerated ? Statement.RETURN_GENERATED_KEYS : Statement.NO_GENERATED_KEYS;
+            try (java.sql.PreparedStatement ps = connection.prepareStatement(
+                    insertSql, statementFlags)) {
                 for (int i = 0; i < values.size(); i++) {
                     dialect.bind(ps, i + 1, values.get(i), values.get(i) != null ? values.get(i).getClass() : Object.class);
                 }
                 ps.executeUpdate();
+                
+                // Retrieve generated ID if this is an auto-generated ID field
+                if (idGenerated && idField != null) {
+                    try (java.sql.ResultSet keys = ps.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            Object generatedKey = dialect.extract(keys, 1, idField.getType());
+                            try {
+                                idField.setAccessible(true);
+                                idField.set(entity, generatedKey);
+                            } catch (IllegalAccessException e) {
+                                // Try using MethodHandles as fallback
+                                try {
+                                    EntityIdHandles handles = getIdHandles(entity.getClass());
+                                    handles.setter.invoke(entity, generatedKey);
+                                } catch (Throwable t) {
+                                    // Ignore
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
