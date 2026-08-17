@@ -287,6 +287,23 @@ public class MansartQuery implements Query {
         return false;
     }
 
+    /**
+     * Check if a parameter with the given name exists (either declared or bound).
+     * Protected for use by StoredProcedureQuery.
+     */
+    protected boolean hasParameter(String name) {
+        return name != null && (declaredNamedParameters.contains(name) || namedParameters.containsKey(name));
+    }
+
+    /**
+     * Check if a parameter at the given position exists (either declared or bound).
+     * Protected for use by StoredProcedureQuery.
+     */
+    protected boolean hasParameter(int position) {
+        return position > 0 && (declaredPositionalParameters.contains(position) || 
+                                (position <= positionParameters.size()));
+    }
+
     @Override
     public Object getParameterValue(String name) {
         return namedParameters.get(name);

@@ -109,6 +109,40 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
     }
 
     @Override
+    public Object getParameterValue(int position) {
+        // For StoredProcedureQuery, parameters must be explicitly registered
+        if (!outputParametersByPosition.containsKey(position)) {
+            throw new IllegalArgumentException("No parameter at position " + position);
+        }
+        return super.getParameterValue(position);
+    }
+
+    @Override
+    public Object getParameterValue(String name) {
+        // For StoredProcedureQuery, parameters must be explicitly registered
+        if (!outputParameters.containsKey(name)) {
+            throw new IllegalArgumentException("No parameter named " + name);
+        }
+        return super.getParameterValue(name);
+    }
+
+    @Override
+    public <T> T getParameterValue(Parameter<T> param) {
+        if (param == null) {
+            throw new IllegalArgumentException("Parameter cannot be null");
+        }
+        // For StoredProcedureQuery, parameters must be explicitly registered
+        String name = param.getName();
+        Integer position = param.getPosition();
+        boolean paramExists = (name != null && outputParameters.containsKey(name)) ||
+                            (position != null && outputParametersByPosition.containsKey(position));
+        if (!paramExists) {
+            throw new IllegalArgumentException("No parameter matching " + param);
+        }
+        return super.getParameterValue(param);
+    }
+
+    @Override
     public boolean execute() {
         // According to JPA spec, execute() returns true if there are results available,
         // false otherwise. Since our implementation returns empty result list,
@@ -269,7 +303,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
             OutputParameterInfo info = outputParameters.get(name);
             return new MansartParameter<>(info.name(), info.type());
         }
-        return new MansartParameter<>(name, Object.class);
+        return null;
     }
 
     @Override
@@ -284,7 +318,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
             OutputParameterInfo info = outputParametersByPosition.get(position);
             return new MansartParameter<>(info.position(), info.type());
         }
-        return new MansartParameter<>(position, Object.class);
+        return null;
     }
 
     public String getProcedureName() {
