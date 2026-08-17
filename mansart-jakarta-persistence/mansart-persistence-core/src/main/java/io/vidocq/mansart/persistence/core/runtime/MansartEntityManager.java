@@ -461,14 +461,20 @@ public class MansartEntityManager implements EntityManager {
         this(entityManagerFactory, bootstrap, dialect, entityClasses, Map.of(), null, false, null);
     }
 
+    /**
+     * Creates a cache key that is unique per entity class and ID.
+     */
+    private Object createCacheKey(Class<?> entityClass, Object id) {
+        return entityClass.getName() + ":" + id;
+    }
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey) {
         if (primaryKey == null) {
             return null;
         }
         // Check L1 cache first
-        Object entity = cache.get(primaryKey);
-        if (entity != null) {
+        Object entity = cache.get(createCacheKey(entityClass, primaryKey));
+        if (entity != null && entityClass.isInstance(entity)) {
             // Invoke PostLoad callback (M9-3)
             lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
             return entityClass.cast(entity);
@@ -479,12 +485,29 @@ public class MansartEntityManager implements EntityManager {
             entity = ((MansartCache) l2Cache).get(entityClass, primaryKey);
             if (entity != null) {
                 // Populate L1 cache
-                cache.put(primaryKey, entity);
+                cache.put(createCacheKey(entityClass, primaryKey), entity);
                 // Invoke PostLoad callback (M9-3)
                 lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
                 return entityClass.cast(entity);
             }
         }
+        
+        // If not in cache, try to load from database
+        if (dialect != null && connectionProvider != null) {
+            entity = executeFindFromDatabase(entityClass, primaryKey);
+            if (entity != null) {
+                // Store in L1 cache
+                cache.put(createCacheKey(entityClass, primaryKey), entity);
+                // Store in L2 cache
+                if (l2Cache instanceof MansartCache) {
+                    ((MansartCache) l2Cache).put(entityClass, primaryKey, entity);
+                }
+                // Invoke PostLoad callback (M9-3)
+                lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
+                return entityClass.cast(entity);
+            }
+        }
+        
         return null;
     }
 
@@ -580,7 +603,7 @@ public class MansartEntityManager implements EntityManager {
             }
             
             // Store in L1 cache with actual ID
-            cache.put(actualId, entity);
+            cache.put(createCacheKey(entity.getClass(), actualId), entity);
             
             // Store in L2 cache (M8-18: Cache support)
             Cache l2Cache = entityManagerFactory.getCache();
@@ -857,8 +880,119 @@ public class MansartEntityManager implements EntityManager {
     
     /**
      * Quotes SQL table identifier for the current dialect.
-     * For H2: returns uppercase unquoted identifiers (H2 stores unquoted identifiers in uppercase).
+
+    /**
+     * Executes SELECT from database to find an entity by its primary key.
+     * Used when entity is not found in L1 or L2 cache.
+     */
+    private <T> T executeFindFromDatabase(Class<T> entityClass, Object primaryKey) {
+        try {
+            String tableName = getTableNameFromAnnotation(entityClass);
+            if (tableName == null || tableName.isEmpty()) {
+                tableName = entityClass.getSimpleName().toLowerCase();
+            }
+            
+            // Find ID field and column name
+            String idColumnName = "id";
+            java.lang.reflect.Field idField = null;
+            java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
+            collectAllFields(entityClass, allFields);
+            
+            for (java.lang.reflect.Field field : allFields) {
+                if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                    idField = field;
+                    jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+                    idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
+                    break;
+                }
+            }
+            
+            // Build SELECT SQL
+            String quotedTableName = quoteTableIdentifier(tableName);
+            String quotedIdColumn = quoteColumnIdentifier(idColumnName);
+            String sql = "SELECT * FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
+            
+            try (Connection connection = connectionProvider.getConnection()) {
+                try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
+                    dialect.bind(ps, 1, primaryKey, primaryKey != null ? primaryKey.getClass() : Object.class);
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            // Create new instance and populate fields from ResultSet
+                            T entity = entityClass.getDeclaredConstructor().newInstance();
+                            
+                            // Populate all fields from ResultSet
+                            for (java.lang.reflect.Field field : allFields) {
+                                field.setAccessible(true);
+                                String columnName = getColumnName(field);
+                                try {
+                                    int columnIndex = rs.findColumn(columnName);
+                                    Object value = dialect.extract(rs, columnIndex, field.getType());
+                                    if (value != null) {
+                                        field.set(entity, value);
+                                    }
+                                } catch (SQLException e) {
+                                    // Try with field name instead of column name
+                                    try {
+                                        int columnIndex = rs.findColumn(field.getName());
+                                        Object value = dialect.extract(rs, columnIndex, field.getType());
+                                        if (value != null) {
+                                            field.set(entity, value);
+                                        }
+                                    } catch (SQLException e2) {
+                                        // Ignore
+                                    }
+                                }
+                            }
+                            return entity;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Unable to load from database
+        }
+        return null;
+    }
+
+    /**
+     * Executes DELETE statement for the entity in the database.
+     */
+    private void executeDelete(Object entity, Object id) throws SQLException {
+        Class<?> entityClass = entity.getClass();
+        String tableName = getTableNameFromAnnotation(entityClass);
+        if (tableName == null || tableName.isEmpty()) {
+            tableName = entityClass.getSimpleName().toLowerCase();
+        }
+        
+        // Find ID column name
+        String idColumnName = "id";
+        java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
+        collectAllFields(entityClass, allFields);
+        for (java.lang.reflect.Field field : allFields) {
+            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+                idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
+                break;
+            }
+        }
+        
+        // Build DELETE SQL
+        String quotedTableName = quoteTableIdentifier(tableName);
+        String quotedIdColumn = quoteColumnIdentifier(idColumnName);
+        String sql = "DELETE FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
+        
+        try (Connection connection = connectionProvider.getConnection()) {
+            try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
+                dialect.bind(ps, 1, id, id != null ? id.getClass() : Object.class);
+                ps.executeUpdate();
+            }
+        }
+    }
+
+    /**
+     * Quotes SQL table identifier for the current dialect.
      * For PostgreSQL: returns double-quoted identifiers.
+     * For H2: returns uppercase unquoted identifiers for TCK compatibility.
      */
     private String quoteTableIdentifier(String identifier) {
         if ("postgresql".equals(dialect.name())) {
@@ -898,12 +1032,12 @@ public class MansartEntityManager implements EntityManager {
         // Get the entity's ID using MethodHandles
         Object id = getEntityId(entity);
         
-        if (id != null && cache.containsKey(id)) {
+        if (id != null && cache.containsKey(createCacheKey(entity.getClass(), id))) {
             // Entity exists, update it
             // Invoke PreUpdate callback (M9-3)
             lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_UPDATE);
             
-            cache.put(id, entity);
+            cache.put(createCacheKey(entity.getClass(), id), entity);
             // Update L2 cache
             Cache l2Cache = entityManagerFactory.getCache();
             if (l2Cache instanceof MansartCache) {
@@ -932,7 +1066,16 @@ public class MansartEntityManager implements EntityManager {
         
         Object id = getEntityId(entity);
         if (id != null) {
-            cache.remove(id);
+            // Execute DELETE in database
+            if (dialect != null && connectionProvider != null) {
+                try {
+                    executeDelete(entity, id);
+                } catch (SQLException e) {
+                    throw new RuntimeException("Failed to delete entity: " + e.getMessage(), e);
+                }
+            }
+            
+            cache.remove(createCacheKey(entity.getClass(), id));
             // Remove from L2 cache
             Cache l2Cache = entityManagerFactory.getCache();
             if (l2Cache instanceof MansartCache) {
@@ -1003,7 +1146,7 @@ public class MansartEntityManager implements EntityManager {
         
         Object id = getEntityId(entity);
         if (id != null) {
-            cache.remove(id);
+            cache.remove(createCacheKey(entity.getClass(), id));
             // Remove from L2 cache
             Cache l2Cache = entityManagerFactory.getCache();
             if (l2Cache instanceof MansartCache) {
@@ -1019,7 +1162,7 @@ public class MansartEntityManager implements EntityManager {
         }
         
         Object id = getEntityId(entity);
-        return id != null && cache.containsKey(id);
+        return id != null && cache.containsKey(createCacheKey(entity.getClass(), id));
     }
 
     @Override
