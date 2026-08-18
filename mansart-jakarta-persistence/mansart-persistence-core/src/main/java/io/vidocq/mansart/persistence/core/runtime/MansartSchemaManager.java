@@ -76,10 +76,8 @@ public class MansartSchemaManager implements SchemaManager {
     }
 
     private void createTables(Connection connection) throws SQLException {
-        System.err.println("DEBUG: createTables called, entityModels.size=" + entityModels.size() + ", entityClasses.size=" + entityClasses.size());
         // First, try to use EntityModels if available
         if (!entityModels.isEmpty()) {
-            System.err.println("DEBUG: Processing entityModels");
             for (EntityModel<?> entityModel : entityModels.values()) {
                 String tableName = getTableName(entityModel);
                 String ddl = generateCreateTableDDL(entityModel, tableName);
@@ -88,7 +86,6 @@ public class MansartSchemaManager implements SchemaManager {
                         stmt.execute(ddl);
                     } catch (SQLException e) {
                         // Log but continue with other tables
-                        System.err.println("DEBUG: Failed to create table from EntityModel: " + e.getMessage());
                     }
                 }
             }
@@ -96,25 +93,20 @@ public class MansartSchemaManager implements SchemaManager {
         
         // Fallback: use entityClasses from PersistenceUnitInfo
         if (!entityClasses.isEmpty()) {
-            System.err.println("DEBUG: Processing entityClasses");
             for (Class<?> entityClass : entityClasses.values()) {
                 // Get table name from @Entity annotation or use class simple name
                 String tableName = getEntityTableName(entityClass);
-                System.err.println("DEBUG: Processing class " + entityClass.getName() + " -> table " + tableName);
                 String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
                 if (ddl != null && !ddl.isEmpty()) {
-                    System.err.println("DEBUG: DDL for " + tableName + ": " + ddl);
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
                     } catch (SQLException e) {
                         // Log but continue with other tables
-                        System.err.println("DEBUG: Failed to execute DDL for " + tableName + ": " + e.getMessage());
                     }
                 }
             }
         }
         
-        System.err.println("DEBUG: Calling createTablesForKnownClasses");
         // Always try to create tables for known TCK classes
         // This is needed because TCK entity classes are loaded dynamically via Arquillian
         // and may not be in entityClasses
@@ -240,7 +232,6 @@ public class MansartSchemaManager implements SchemaManager {
      * methods try to DELETE from.
      */
     private void createKnownJoinTables(Connection connection) throws SQLException {
-        System.err.println("DEBUG: createKnownJoinTables called");
         // TCK uses specific hardcoded join table names in cleanup methods
         // H2 stores unquoted identifiers in UPPER CASE, so we need to create tables
         // with the exact case that the TCK uses (uppercase)
@@ -413,15 +404,15 @@ public class MansartSchemaManager implements SchemaManager {
                 String ddl;
                 if (tableName.contains("_")) {
                     // Join table - create with join columns
-                    // For H2, use IF NOT EXISTS to avoid errors
-                    if ("h2".equals(dialectName)) {
+                    // For H2 and PostgreSQL, use IF NOT EXISTS to avoid errors
+                    if ("h2".equals(dialectName) || "postgresql".equals(dialectName)) {
                         ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
                               quoteColumnIdentifier("id") + " BIGINT NOT NULL, " +
                               quoteColumnIdentifier("entity_a_id") + " BIGINT, " +
                               quoteColumnIdentifier("entity_b_id") + " BIGINT" +
                               ")";
                     } else {
-                        ddl = "CREATE TABLE " + quoteIdentifier(tableName) + " (" +
+                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
                               quoteColumnIdentifier("id") + " BIGINT NOT NULL, " +
                               quoteColumnIdentifier("entity_a_id") + " BIGINT, " +
                               quoteColumnIdentifier("entity_b_id") + " BIGINT" +
@@ -429,13 +420,13 @@ public class MansartSchemaManager implements SchemaManager {
                     }
                 } else {
                     // Entity table - create with ID column
-                    if ("h2".equals(dialectName)) {
+                    if ("h2".equals(dialectName) || "postgresql".equals(dialectName)) {
                         ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
                               quoteColumnIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, " +
                               quoteColumnIdentifier("name") + " VARCHAR(255)" +
                               ")";
                     } else {
-                        ddl = "CREATE TABLE " + quoteIdentifier(tableName) + " (" +
+                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
                               quoteColumnIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
                               quoteColumnIdentifier("name") + " VARCHAR(255)" +
                               ")";
@@ -454,6 +445,23 @@ public class MansartSchemaManager implements SchemaManager {
      * Scans for @Id, @Column, @Basic, and other JPA annotations.
      * Also creates join tables for ManyToMany relationships.
      */
+    private List<Class<?>> getEntitySubclasses(Class<?> entityClass) {
+        List<Class<?>> subclasses = new ArrayList<>();
+        for (Class<?> candidate : entityClasses.values()) {
+            if (candidate != entityClass && entityClass.isAssignableFrom(candidate)) {
+                // Check if it's a direct or indirect subclass
+                Class<?> current = candidate;
+                while (current != null && current != Object.class && current != entityClass) {
+                    current = current.getSuperclass();
+                }
+                if (current == entityClass) {
+                    subclasses.add(candidate);
+                }
+            }
+        }
+        return subclasses;
+    }
+
     private String generateCreateTableDDLFromClass(Class<?> entityClass, String defaultTableName) {
         // Check for @Table annotation
         jakarta.persistence.Table tableAnn = entityClass.getAnnotation(jakarta.persistence.Table.class);
@@ -462,7 +470,9 @@ public class MansartSchemaManager implements SchemaManager {
                 : defaultTableName;
         
         StringBuilder ddl = new StringBuilder();
-        ddl.append("CREATE TABLE ").append(quoteIdentifier(tableName)).append(" (");
+        // Use IF NOT EXISTS for H2 and PostgreSQL to avoid duplicate table errors
+        String ifNotExists = ("h2".equals(dialectName) || "postgresql".equals(dialectName)) ? "IF NOT EXISTS " : "";
+        ddl.append("CREATE TABLE ").append(ifNotExists).append(quoteIdentifier(tableName)).append(" (");
         
         List<String> columnDefs = new ArrayList<>();
         List<String> primaryKeys = new ArrayList<>();
@@ -470,6 +480,29 @@ public class MansartSchemaManager implements SchemaManager {
         // Inspect all fields including inherited ones for JPA annotations
         List<java.lang.reflect.Field> allFields = new ArrayList<>();
         collectAllFields(entityClass, allFields);
+        
+        // Check for SINGLE_TABLE inheritance - include fields from all subclasses
+        jakarta.persistence.Inheritance inheritanceAnn = entityClass.getAnnotation(jakarta.persistence.Inheritance.class);
+        if (inheritanceAnn != null && inheritanceAnn.strategy() == jakarta.persistence.InheritanceType.SINGLE_TABLE) {
+            // Find all subclasses and collect their fields too
+            for (Class<?> subclass : getEntitySubclasses(entityClass)) {
+                List<java.lang.reflect.Field> subclassFields = new ArrayList<>();
+                collectAllFields(subclass, subclassFields);
+                for (java.lang.reflect.Field field : subclassFields) {
+                    // Skip fields already in allFields (from superclass)
+                    boolean alreadyPresent = false;
+                    for (java.lang.reflect.Field existing : allFields) {
+                        if (existing.getName().equals(field.getName()) && existing.getDeclaringClass().equals(field.getDeclaringClass())) {
+                            alreadyPresent = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyPresent) {
+                        allFields.add(field);
+                    }
+                }
+            }
+        }
         for (java.lang.reflect.Field field : allFields) {
             // Skip static and final fields - they are not persistent
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
@@ -542,6 +575,15 @@ public class MansartSchemaManager implements SchemaManager {
             }
             
             columnDefs.add(colDef.toString());
+        }
+        
+        // Add discriminator column for SINGLE_TABLE inheritance
+        if (inheritanceAnn != null && inheritanceAnn.strategy() == jakarta.persistence.InheritanceType.SINGLE_TABLE) {
+            jakarta.persistence.DiscriminatorColumn discriminatorAnn = entityClass.getAnnotation(jakarta.persistence.DiscriminatorColumn.class);
+            String discriminatorColumnName = discriminatorAnn != null && !discriminatorAnn.name().isEmpty() 
+                    ? discriminatorAnn.name() : "dtype";
+            String discriminatorColumnType = "VARCHAR(255)";
+            columnDefs.add(quoteColumnIdentifier(discriminatorColumnName) + " " + discriminatorColumnType);
         }
         
         // If no columns were found, create a default ID column
@@ -690,7 +732,9 @@ public class MansartSchemaManager implements SchemaManager {
      */
     private String generateCreateTableDDL(EntityModel<?> entityModel, String tableName) {
         StringBuilder ddl = new StringBuilder();
-        ddl.append("CREATE TABLE ").append(quoteIdentifier(tableName)).append(" (");
+        // Use IF NOT EXISTS for H2 and PostgreSQL to avoid duplicate table errors
+        String ifNotExists = ("h2".equals(dialectName) || "postgresql".equals(dialectName)) ? "IF NOT EXISTS " : "";
+        ddl.append("CREATE TABLE ").append(ifNotExists).append(quoteIdentifier(tableName)).append(" (");
         
         List<String> columnDefs = new ArrayList<>();
         List<String> primaryKeys = new ArrayList<>();
