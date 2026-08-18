@@ -1201,6 +1201,9 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void flush() {
+        // In auto-commit mode (default), changes are immediately synchronized with the database
+        // In transaction-scoped mode, changes will be synchronized at transaction commit
+        // For now, this is a no-op as we don't buffer changes
     }
 
     @Override
@@ -1241,7 +1244,7 @@ public class MansartEntityManager implements EntityManager {
     @Override
     public boolean contains(Object entity) {
         if (entity == null) {
-            return false;
+            throw new IllegalArgumentException("Entity must not be null");
         }
         
         Object id = getEntityId(entity);
