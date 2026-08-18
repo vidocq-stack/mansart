@@ -969,6 +969,15 @@ public class MansartEntityManager implements EntityManager {
                         // Populate all fields from ResultSet
                         for (java.lang.reflect.Field field : allFields) {
                             field.setAccessible(true);
+                            
+                            // Skip relationship fields - they need separate loading (not implemented yet for find())
+                            if (field.isAnnotationPresent(jakarta.persistence.OneToMany.class) ||
+                                field.isAnnotationPresent(jakarta.persistence.ManyToOne.class) ||
+                                field.isAnnotationPresent(jakarta.persistence.ManyToMany.class) ||
+                                field.isAnnotationPresent(jakarta.persistence.OneToOne.class)) {
+                                continue;
+                            }
+                            
                             String columnName = getColumnName(field);
                             try {
                                 int columnIndex = rs.findColumn(columnName);
