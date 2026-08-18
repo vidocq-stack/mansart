@@ -306,15 +306,18 @@ public class MansartQuery implements Query {
 
     @Override
     public Object getParameterValue(String name) {
+        if (!namedParameters.containsKey(name)) {
+            throw new IllegalArgumentException("Parameter with name '" + name + "' is not bound");
+        }
         return namedParameters.get(name);
     }
 
     @Override
     public Object getParameterValue(int position) {
-        if (position >= 0 && position < positionParameters.size()) {
-            return positionParameters.get(position);
+        if (position <= 0 || position > positionParameters.size()) {
+            throw new IllegalArgumentException("Parameter position " + position + " is not bound");
         }
-        return null;
+        return positionParameters.get(position - 1);
     }
 
     @Override
