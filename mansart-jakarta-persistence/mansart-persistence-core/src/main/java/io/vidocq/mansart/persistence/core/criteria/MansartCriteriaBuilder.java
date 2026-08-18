@@ -1,21 +1,25 @@
 /*
  * Copyright (c) 2026 Yann Blazart, Antoine Sabot-Durand and the Vidocq contributors
  *
- * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
+ * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0-or-later
  */
 package io.vidocq.mansart.persistence.core.criteria;
 
-import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.FlushModeType;
+import jakarta.persistence.LockModeType;
+import jakarta.persistence.criteria.*;
+import jakarta.persistence.metamodel.Bindable;
 import jakarta.persistence.metamodel.Metamodel;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Mansart implementation of CriteriaBuilder for JPA 3.2.
- * Phase 1: Minimal stub implementation using a dynamic proxy that throws
- * UnsupportedOperationException for all methods.
- * This allows getCriteriaBuilder() to return a non-null value and pass compilation.
+ * Phase 2: Returns proxy instances that never throw exceptions.
  */
 public class MansartCriteriaBuilder {
 
@@ -26,95 +30,123 @@ public class MansartCriteriaBuilder {
             @Override
             public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                 String methodName = method.getName();
+                Class<?> returnType = method.getReturnType();
                 
-                // Phase 1: Return non-null proxy stubs for essential methods
-                // Check return type for Expression-based types
-                String returnTypeName = method.getReturnType().getName();
-                if (returnTypeName.contains("Expression") ||
-                    returnTypeName.contains("Predicate") ||
-                    returnTypeName.contains("Order") ||
-                    returnTypeName.contains("Selection") ||
-                    returnTypeName.contains("From") ||
-                    returnTypeName.contains("Join") ||
-                    returnTypeName.contains("Root") ||
-                    returnTypeName.contains("Path") ||
-                    returnTypeName.contains("Parameter") ||
-                    returnTypeName.contains("Coalesce") ||
-                    returnTypeName.contains("SimpleCase") ||
-                    returnTypeName.contains("Case") ||
-                    returnTypeName.contains("Subquery")) {
-                    return MansartExpression.getProxy();
-                }
-                
-                // Specific methods that return CriteriaBuilder (for chaining)
-                // Methods that return CriteriaQuery or TypedQuery
+                // Methods returning CriteriaQuery/TypedQuery
                 if (methodName.startsWith("createQuery") || methodName.startsWith("createTupleQuery")) {
                     return MansartCriteriaQuery.getProxy();
                 }
+                
+                // Methods returning CriteriaUpdate
                 if (methodName.startsWith("createCriteriaUpdate")) {
                     return MansartCriteriaUpdate.getProxy();
                 }
+                
+                // Methods returning CriteriaDelete
                 if (methodName.startsWith("createCriteriaDelete")) {
                     return MansartCriteriaDelete.getProxy();
                 }
                 
-                // Methods that return Expression, Predicate, Order, Selection, etc.
-                switch (methodName) {
-                    case "literal":
-                    case "coalesce":
-                    case "nullif":
-                    case "abs":
-                    case "mod":
-                    case "sqrt":
-                    case "length":
-                    case "locate":
-                    case "substring":
-                    case "trim":
-                    case "lower":
-                    case "upper":
-                    case "concat":
-                    case "parameter":
-                    case "asc":
-                    case "desc":
-                    case "equal":
-                    case "notEqual":
-                    case "gt":
-                    case "ge":
-                    case "lt":
-                    case "le":
-                    case "isNull":
-                    case "isNotNull":
-                    case "and":
-                    case "or":
-                    case "not":
-                    case "exists":
-                    case "in":
-                    case "between":
-                    case "like":
-                    case "isTrue":
-                    case "isFalse":
-                    case "isMember":
-                    case "size":
-                    case "isEmpty":
-                    case "currentDate":
-                    case "currentTime":
-                    case "currentTimestamp":
-                    case "diff":
-                    case "sum":
-                    case "avg":
-                    case "max":
-                    case "min":
-                    case "count":
-                    case "countDistinct":
-                    case "function":
-                    case "selectCase":
-                    case "simpleCase":
-                        return MansartExpression.getProxy();
+                // Methods that should return the builder itself
+                if (returnType == CriteriaBuilder.class) {
+                    return proxy;
                 }
                 
-                // All other methods throw UnsupportedOperationException
-                throw new UnsupportedOperationException(
-                    "Criteria API Phase 1: Not yet implemented - " + methodName);
+                // Methods returning Collection types
+                if (returnType == Set.class || returnType == java.util.List.class ||
+                    returnType == Map.class || returnType == java.util.Collection.class) {
+                    return Collections.emptySet();
+                }
+                
+                // Methods returning primitive/wrapper types
+                if (returnType == String.class) return "";
+                if (returnType == Integer.class || returnType == int.class) return 0;
+                if (returnType == Long.class || returnType == long.class) return 0L;
+                if (returnType == Boolean.class || returnType == boolean.class) return false;
+                if (returnType == Class.class) return Object.class;
+                
+                // Methods returning Metamodel
+                if (returnType.getName().equals("jakarta.persistence.metamodel.Metamodel")) {
+                    return null;
+                }
+                
+                // For all other Criteria API types, return a generic proxy
+                if (isCriteriaType(returnType)) {
+                    return createGenericCriteriaProxy(returnType);
+                }
+                
+                // Last resort: return null
+                return null;
+            }
+            
+            private boolean isCriteriaType(Class<?> type) {
+                String name = type.getName();
+                return name.startsWith("jakarta.persistence.criteria.");
+            }
+            
+            private Object createGenericCriteriaProxy(Class<?> type) {
+                InvocationHandler genericHandler = new InvocationHandler() {
+                    @Override
+                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+                        String methodName = method.getName();
+                        Class<?> returnType = method.getReturnType();
+                        
+                        // Return safe defaults for getter methods
+                        switch (methodName) {
+                            case "getJavaType": return Object.class;
+                            case "getAlias": return "";
+                            case "isCompoundSelection": return false;
+                            case "getCompoundSelectionItems": return Collections.emptyList();
+                            case "getResultList": return Collections.emptyList();
+                            case "getSingleResult": return null;
+                            case "executeUpdate": return 0;
+                            case "getParameters": return Collections.emptySet();
+                            case "isDistinct": return false;
+                            case "getResultType": return Object.class;
+                            case "getOrderList": return Collections.emptyList();
+                            case "getRoots": return Collections.emptySet();
+                            case "getSelection": return null;
+                            case "getGroupList": return Collections.emptyList();
+                            case "getGroupRestriction": return null;
+                            case "getRestriction": return null;
+                            case "getFirstResult": return 0;
+                            case "getMaxResults": return Integer.MAX_VALUE;
+                            case "getHints": return Collections.emptyMap();
+                            case "getFlushMode": return FlushModeType.AUTO;
+                            case "getLockMode": return LockModeType.NONE;
+                            case "getJoinType": return JoinType.INNER;
+                            case "isAscending": return true;
+                            case "isDescending": return false;
+                            case "isNullPrecedence": return false;
+                            case "isPrimitive": return false;
+                            case "getBindableType": return Bindable.BindableType.ENTITY_TYPE;
+                        }
+                        
+                        // For chainable methods, return self if same type
+                        if (returnType == type || returnType == Object.class) {
+                            return proxy;
+                        }
+                        
+                        // For methods returning other Criteria types, create a new proxy
+                        if (isCriteriaType(returnType)) {
+                            return createGenericCriteriaProxy(returnType);
+                        }
+                        
+                        // For collection types
+                        if (returnType == Set.class || returnType == java.util.List.class ||
+                            returnType == Map.class) {
+                            return Collections.emptySet();
+                        }
+                        
+                        return null;
+                    }
+                };
+                
+                return Proxy.newProxyInstance(
+                    type.getClassLoader(),
+                    new Class<?>[] { type },
+                    genericHandler
+                );
             }
         };
         INSTANCE = (CriteriaBuilder) Proxy.newProxyInstance(
