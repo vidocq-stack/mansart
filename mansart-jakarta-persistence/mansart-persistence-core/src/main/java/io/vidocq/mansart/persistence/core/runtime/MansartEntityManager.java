@@ -912,8 +912,8 @@ public class MansartEntityManager implements EntityManager {
             current = current.getSuperclass();
         }
         
-        // Default to simple class name in lowercase
-        return entityClass.getSimpleName().toLowerCase();
+        // Default to simple class name - must match getEntityTableName in MansartSchemaManager
+        return entityClass.getSimpleName();
     }
     
     /**
@@ -1051,8 +1051,8 @@ public class MansartEntityManager implements EntityManager {
         if ("postgresql".equals(dialect.name())) {
             return "\"" + identifier + "\"";
         } else if ("H2".equals(dialect.name())) {
-            // H2: use uppercase unquoted identifiers for TCK compatibility
-            return identifier.toUpperCase();
+            // H2: use backtick-quoted identifiers to preserve case sensitivity and avoid SQL keyword conflicts
+            return "`" + identifier + "`";
         } else {
             // Default: return unquoted identifier
             return identifier;

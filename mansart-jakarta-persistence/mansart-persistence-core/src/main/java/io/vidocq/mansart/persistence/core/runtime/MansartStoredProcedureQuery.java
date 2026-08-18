@@ -114,6 +114,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
         if (!outputParametersByPosition.containsKey(position)) {
             throw new IllegalArgumentException("No parameter at position " + position);
         }
+        // Delegate to parent which will throw if not bound
         return super.getParameterValue(position);
     }
 
@@ -123,6 +124,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
         if (!outputParameters.containsKey(name)) {
             throw new IllegalArgumentException("No parameter named " + name);
         }
+        // Delegate to parent which will throw if not bound
         return super.getParameterValue(name);
     }
 
@@ -139,7 +141,13 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
         if (!paramExists) {
             throw new IllegalArgumentException("No parameter matching " + param);
         }
-        return super.getParameterValue(param);
+        // Delegate to parent getParameterValue by name or position which will throw if not bound
+        if (name != null) {
+            return (T) super.getParameterValue(name);
+        } else if (position != null) {
+            return (T) super.getParameterValue(position);
+        }
+        throw new IllegalArgumentException("Parameter has no name or position");
     }
 
     @Override

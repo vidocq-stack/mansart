@@ -145,6 +145,10 @@ public class MansartSchemaManager implements SchemaManager {
             "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Car",
             "io.vidocq.mansart.persistence.core.testentities.model.lazy.Employee",
             "io.vidocq.mansart.persistence.core.testentities.model.dirty.Product",
+            // StoredProcedureQuery test entities
+            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee",
+            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee2",
+            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.EmployeeMappedSC",
             // Entity-Basic test entities
             "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Coffee",
             "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Foo",
@@ -188,7 +192,11 @@ public class MansartSchemaManager implements SchemaManager {
             "ee.jakarta.tck.persistence.core.entitytest.biginteger.A",
             // Other common TCK entities
             "ee.jakarta.tck.persistence.core.entitytest.transaction.SimpleEntity",
-            "ee.jakarta.tck.persistence.core.entitytest.cache.CacheTestEntity"
+            "ee.jakarta.tck.persistence.core.entitytest.cache.CacheTestEntity",
+            // StoredProcedureQuery test entities
+            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee",
+            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee2",
+            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.EmployeeMappedSC"
         };
         
         // Use context class loader to access TCK classes
@@ -915,8 +923,8 @@ public class MansartSchemaManager implements SchemaManager {
         if ("postgresql".equals(dialectName)) {
             return "\"" + identifier + "\"";
         } else if ("h2".equals(dialectName)) {
-            // H2: use uppercase unquoted identifiers for TCK compatibility
-            return identifier.toUpperCase();
+            // H2: use backticks to preserve case sensitivity and avoid SQL keyword conflicts
+            return "`" + identifier + "`";
         } else {
             // Default: double-quote identifiers
             return "\"" + identifier + "\"";
