@@ -1142,14 +1142,23 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void lock(Object entity, LockModeType lockMode) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity must not be null");
+        }
+        if (lockMode == null) {
+            throw new IllegalArgumentException("LockModeType must not be null");
+        }
+        // Locking not yet fully implemented - no-op for now
     }
 
     @Override
     public void lock(Object entity, LockModeType lockMode, Map<String, Object> properties) {
+        lock(entity, lockMode);
     }
 
     @Override
     public void lock(Object entity, LockModeType lockMode, jakarta.persistence.LockOption... options) {
+        lock(entity, lockMode);
     }
 
     @Override
