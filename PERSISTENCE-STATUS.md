@@ -79,7 +79,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - [x] M9-7 mansart-persistence-cdi (Vauban BCE, mirror mansart-data-cdi)
 - [x] M9-8 Optimizations
 - [x] M9-9 Full documentation (Antora, en + fr)
-- [ ] M9-10 Full TCK
+- [ ] M9-10 Full TCK (IN PROGRESS)
 
 **M9 deliverable**: complete implementation, TCK 100% conformance.
 
@@ -87,7 +87,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 
 | Date | Suite / category | Pass / Total | Notes |
 | ---- | ---------------- | ------------ | ----- |
-| 2026-08-18 | Full TCK (tck-full profile) | 2 / 1745 | 1597 errors (no regression from 1595 baseline); Fixed schema generation issues with IF NOT EXISTS, re-enabled DB loading in find(), re-enabled shared connection pattern for H2, fixed getParameterValue to throw IllegalArgumentException. Internal tests: 80/80 PASS |
+| 2026-08-18 | Full TCK (tck-full profile) | 2 / 1745 | 1585 errors (reduced from 1597, 12 fewer errors); Fixed H2 identifier quoting to use backticks consistently across H2Dialect, MansartSchemaManager, and MansartEntityManager. Internal tests: 86/86 PASS |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1558 errors (reduced from 1561, 3 fewer errors); Implement setFlushMode/getFlushMode with state, callWithConnection, enhance createQuery methods to return non-null stubs, fix executeUpdate() to return 0 |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1560 errors (reduced from 1561, 1 fewer error); Implement getLockMode() in MansartStoredProcedureQuery to throw IllegalStateException |
 | 2026-08-16 | Full TCK (tck-full profile) | 2 / 1745 | 1560 errors (reduced from 1561, 1 fewer error); Implement getLockMode() in MansartStoredProcedureQuery to throw IllegalStateException |
@@ -111,6 +111,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)
+- 2026-08-18 — M9-10 — Fixed H2 identifier quoting: changed H2Dialect to use backticks consistently with MansartSchemaManager and MansartEntityManager. TCK errors reduced from 1597 to 1585 (12 fewer errors). Internal tests: 86/86 PASS.
 - 2026-08-18 — M9-10 — session end - Fixed hasIdentityStrategy for all @GeneratedValue strategies, added AUTO_INCREMENT to all ID columns for H2, fixed RETURN_GENERATED_KEYS for H2 ID columns. Internal tests: 80/80 PASS. TCK: 1745 tests, 2 PASS, 1596 ERRORS, 2 SKIPPED (1 fewer error from baseline).
 - 2026-08-18 — M9-10 — Fixed schema generation issues with IF NOT EXISTS, re-enabled DB loading in find(), re-enabled shared connection pattern for H2, fixed getParameterValue to throw IllegalArgumentException. Internal tests: 80/80 PASS. TCK: 1745 tests, 2 PASS, 1597 ERRORS, 2 SKIPPED (no regression from 1595 baseline).
 - 2026-08-17 — M9-10 — IN PROGRESS: Fixed find() to load from database, implemented executeDelete() for remove(), added composite cache keys (className:id) to prevent type collisions. Internal tests improved from 3 errors to 2 failures (80 tests: 78 PASS, 2 FAILURES). Remaining issues: testDetach expects find() to return null after detach (JPA spec allows reloading from DB), testPolymorphicPersist has H2 connection-scoped auto-increment sequence causing same ID for Employee and Manager.

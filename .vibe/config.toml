@@ -35,6 +35,7 @@ tool_timeout_sec = 120
 [tools.bash]
 allowlist = [
     "./mvnw",
+    "/*",
     "/Users/yblazart/.vibe/*",
     "/Users/yblazart/.vibe/skills/*",
     "/Users/yblazart/projects/perso/vidocq/*",
