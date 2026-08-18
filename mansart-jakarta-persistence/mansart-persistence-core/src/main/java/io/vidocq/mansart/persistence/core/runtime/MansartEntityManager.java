@@ -314,7 +314,9 @@ public class MansartEntityManager implements EntityManager {
                 for (java.lang.reflect.Field field : current.getDeclaredFields()) {
                     if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
                         GeneratedValue generatedValue = field.getAnnotation(GeneratedValue.class);
-                        if (generatedValue != null && generatedValue.strategy() == GenerationType.IDENTITY) {
+                        // Return true for any @GeneratedValue strategy (IDENTITY, SEQUENCE, TABLE, AUTO)
+                        // This ensures we get the ID from the entity after insert for all auto-generated IDs
+                        if (generatedValue != null) {
                             return true;
                         }
                         return false;
@@ -836,7 +838,9 @@ public class MansartEntityManager implements EntityManager {
         
         Connection connection = getConnection();
         java.sql.PreparedStatement ps;
-        if (idGenerated && idField != null) {
+        // For H2 with ID columns, always use RETURN_GENERATED_KEYS to get auto-incremented IDs
+        // even if there's no @GeneratedValue annotation, since we added AUTO_INCREMENT to all ID columns
+        if (("H2".equals(dialect.name()) || idGenerated) && idField != null) {
             ps = connection.prepareStatement(insertSql, new String[]{idColumnName});
         } else {
             ps = connection.prepareStatement(insertSql);
