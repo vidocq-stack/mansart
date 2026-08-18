@@ -1154,22 +1154,49 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void refresh(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("Entity must not be null");
+        }
+        if (!contains(entity)) {
+            throw new IllegalArgumentException("Entity must be managed");
+        }
+        
+        // Get the ID value
+        Object idValue = getEntityId(entity);
+        if (idValue == null) {
+            throw new IllegalArgumentException("Entity has no ID");
+        }
+        
+        // Clear L1 cache for this entity
+        Object cacheKey = createCacheKey(entity.getClass(), idValue);
+        cache.remove(cacheKey);
+        
+        // Reload from database
+        Object reloaded = executeFindFromDatabase(entity.getClass(), idValue);
+        if (reloaded != null) {
+            // Replace the entity in L1 cache
+            cache.put(cacheKey, reloaded);
+        }
     }
 
     @Override
     public void refresh(Object entity, Map<String, Object> properties) {
+        refresh(entity);
     }
 
     @Override
     public void refresh(Object entity, LockModeType lockMode) {
+        refresh(entity);
     }
 
     @Override
     public void refresh(Object entity, LockModeType lockMode, Map<String, Object> properties) {
+        refresh(entity);
     }
 
     @Override
     public void refresh(Object entity, jakarta.persistence.RefreshOption... options) {
+        refresh(entity);
     }
 
     @Override
