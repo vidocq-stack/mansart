@@ -77,6 +77,26 @@ public final class SimplePersistenceUnitInfo implements PersistenceUnitInfo {
             }
         }
         this.properties = props;
+
+        // DEBT-01: Allow the TCK runner to override the JDBC URL at runtime (e.g. PostgreSQL
+        // via Testcontainers) by setting jakarta.persistence.jdbc.url as a system property.
+        // System properties take precedence over XML properties.
+        String sysUrl = System.getProperty("jakarta.persistence.jdbc.url");
+        if (sysUrl != null && !sysUrl.isBlank()) {
+            this.properties.setProperty("jakarta.persistence.jdbc.url", sysUrl);
+        }
+        String sysDriver = System.getProperty("jakarta.persistence.jdbc.driver");
+        if (sysDriver != null && !sysDriver.isBlank()) {
+            this.properties.setProperty("jakarta.persistence.jdbc.driver", sysDriver);
+        }
+        String sysUser = System.getProperty("jakarta.persistence.jdbc.user");
+        if (sysUser != null && !sysUser.isBlank()) {
+            this.properties.setProperty("jakarta.persistence.jdbc.user", sysUser);
+        }
+        String sysPass = System.getProperty("jakarta.persistence.jdbc.password");
+        if (sysPass != null) {
+            this.properties.setProperty("jakarta.persistence.jdbc.password", sysPass);
+        }
     }
 
     @Override

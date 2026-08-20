@@ -41,6 +41,12 @@ public class PostgresDataSourceProducer {
                 .withPassword("testpass");
         Startables.deepStart(container).join();
         executeTckDdl(container);
+        // Override the JDBC URL system property so SimplePersistenceUnitInfo picks it up
+        // before falling back to the hardcoded H2 URL in persistence.xml.
+        System.setProperty("jakarta.persistence.jdbc.url", container.getJdbcUrl());
+        System.setProperty("jakarta.persistence.jdbc.driver", "org.postgresql.Driver");
+        System.setProperty("jakarta.persistence.jdbc.user", "testuser");
+        System.setProperty("jakarta.persistence.jdbc.password", "testpass");
         Runtime.getRuntime().addShutdownHook(new Thread(container::stop));
         POSTGRES = container;
     }
@@ -89,6 +95,15 @@ public class PostgresDataSourceProducer {
             statements.add(sb.toString());
         }
         return statements;
+    }
+
+    /**
+     * Returns the PostgreSQL JDBC URL from the Testcontainers instance.
+     * Used by the core provider to override the hardcoded H2 URL when running
+     * the TCK under the {@code tck-pg} profile.
+     */
+    public static String getJdbcUrl() {
+        return POSTGRES.getJdbcUrl();
     }
 
     @Produces

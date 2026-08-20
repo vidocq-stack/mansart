@@ -82,6 +82,14 @@ public class MansartTckArchiveAppender implements ApplicationArchiveProcessor {
                     jakarta.persistence.spi.PersistenceProvider.class,
                     io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider.class
             );
+            // Add persistence.xml - use PostgreSQL version when tck-pg profile is active
+            String persistenceXml = USE_PG 
+                    ? "/META-INF/persistence-postgresql.xml" 
+                    : "/META-INF/persistence.xml";
+            ja.addAsResource(
+                    MansartTckArchiveAppender.class.getResource(persistenceXml),
+                    "META-INF/persistence.xml"
+            );
         }
     }
 }

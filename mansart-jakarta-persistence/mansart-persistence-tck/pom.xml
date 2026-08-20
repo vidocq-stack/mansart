@@ -362,6 +362,9 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
+                            <includes combine.children="append">
+                                <include>**/A_TckPgBootstrap.class</include>
+                            </includes>
                             <systemPropertyVariables>
                                 <mansart.tck.dialect>pg</mansart.tck.dialect>
                                 <tck.schema.action>none</tck.schema.action>
