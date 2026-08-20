@@ -11,8 +11,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: Phase 0 complete. Phase 1 (APT VarHandle + callbacks) — blocked, needs careful re-implementation.
-- **Next up**: M9-10 (Full TCK)
+- **Current task**: M8-7 (inheritance) complete. Phase 1 (APT VarHandle + callbacks) — blocked, needs careful re-implementation.
+- **Next up**: DEBT-01 (TCK schema from official DDL)
 - **Blockers**: M9-2 (Bean Validation integration — en cours de dev)
 
 ## M7 — Bootstrap & Core JPA (critical)
@@ -173,6 +173,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-15 — M7-23 — TCK artifacts downloaded and installed, full suite configuration added; complete execution (400+ tests) blocked by Jakarta TS framework integration; smoke tests (3 tests) PASS
 - 2026-08-15 — M7-22 — Completed Jakarta Persistence 3.2 TCK download and installation
 <!-- Format: YYYY-MM-DD — <task id> — <outcome: what changed, tests state, bugs logged> -->
+- 2026-08-20 — M8-7 — Fixed inheritance metadata generation: EntityScanner.scan() now collects inherited fields from parent entity classes; EntityMetadataGenerator uses declaring class for inherited field accessors; EntityScanner.readTableName() inherits parent's @Table name for child entities. Also fixed lifecycle callback dispatching (handleKey parsing, @EntityListeners discovery, static initializer order, privateLookupIn), H2 identifier quoting (backticks → double quotes), and table name resolution. All 86 unit tests PASS, full build green.
 - 2026-08-15 — M7-21 — Integrated TCK with Arquillian/Vauban: copied Vauban TCK classes (VaubanArquillianExtension, VaubanDeployableContainer, VaubanContainerConfig, VaubanTestEnricher, ContainerHolder), created persistence-specific classes (MansartTckArchiveAppender, H2DataSourceProducer, PostgresDataSourceProducer), added arquillian.xml and ServiceLoader config. Module compiles and smoke tests pass (3/3). Full clean install BUILD SUCCESS
 - 2026-08-15 — M7-21 — Verified TCK Core tests pass: ran full build with tests, all 5 TestEntityCRUDTest tests PASS (testPersistAndFind, testMerge, testRemove, testDetach, testEntityEqualsAndHashCode). Previous "No Persistence provider" errors resolved by M7-18 (tests moved to mansart-persistence-core/src/test with correct service provider path)
 - 2026-08-15 — M7-20 — Completed TCK smoke: updated pom.xml with correct jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT dependency, created MansartPersistenceSmokeTest with 3 tests (Persistence provider discoverable, EntityManagerFactory open, EntityManager open), SimpleEntity test entity, META-INF/persistence.xml with mansart-tck-pu configuration. All 3 smoke tests PASS
