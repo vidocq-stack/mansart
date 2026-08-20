@@ -123,7 +123,7 @@ public final class EntityScanner {
         AttributeMetadata versionAttribute = null;
 
         for (Element member : type.getEnclosedElements()) {
-            if (member.getKind() != ElementKind.FIELD && member.getKind() != ElementKind.METHOD) {
+            if (member.getKind() != ElementKind.FIELD) {
                 continue;
             }
             if (member.getModifiers().contains(Modifier.STATIC)) {
@@ -156,6 +156,50 @@ public final class EntityScanner {
             }
         }
 
+        // Collect inherited fields from parent entity classes
+        TypeElement current = getSuperclass(type);
+        while (current != null) {
+            for (Element member : current.getEnclosedElements()) {
+                if (member.getKind() != ElementKind.FIELD) {
+                    continue;
+                }
+                if (member.getModifiers().contains(Modifier.STATIC)) {
+                    continue;
+                }
+                if (member.getModifiers().contains(Modifier.TRANSIENT)) {
+                    continue;
+                }
+                if (hasAnnotation(member, TRANSIENT_ANNOTATION)) {
+                    continue;
+                }
+
+                AttributeMetadata attr = describe(member);
+                if (attr == null) {
+                    continue;
+                }
+
+                // Skip duplicates (child class may redeclare same field)
+                if (attributes.stream().anyMatch(a -> a.name().equals(attr.name()))) {
+                    continue;
+                }
+
+                attributes.add(attr);
+
+                if (attr.isId()) {
+                    if (idAttribute != null) {
+                        error(type, "Multiple @Id fields/methods are not supported.");
+                        return null;
+                    }
+                    idAttribute = attr;
+                }
+
+                if (attr.isVersion()) {
+                    versionAttribute = attr;
+                }
+            }
+            current = getSuperclass(current);
+        }
+
         if (idAttribute == null) {
             error(type, "Entity " + type.getQualifiedName() + " has no @Id attribute.");
             return null;
@@ -176,26 +220,11 @@ public final class EntityScanner {
     }
 
     private AttributeMetadata describe(Element element) {
-        String name;
-        String javaTypeFqn;
-        
-        if (element instanceof VariableElement varElement) {
-            name = varElement.getSimpleName().toString();
-            javaTypeFqn = varElement.asType().toString();
-        } else if (element instanceof ExecutableElement execElement) {
-            // For method access, derive name from getter/setter
-            String methodName = execElement.getSimpleName().toString();
-            if (methodName.startsWith("get") && methodName.length() > 3) {
-                name = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
-            } else if (methodName.startsWith("is") && methodName.length() > 2) {
-                name = Character.toLowerCase(methodName.charAt(2)) + methodName.substring(3);
-            } else {
-                name = methodName;
-            }
-            javaTypeFqn = execElement.getReturnType().toString();
-        } else {
+        if (!(element instanceof VariableElement varElement)) {
             return null;
         }
+        String name = varElement.getSimpleName().toString();
+        String javaTypeFqn = varElement.asType().toString();
 
         boolean isId = hasAnnotation(element, ID_ANNOTATION);
         boolean isVersion = hasAnnotation(element, VERSION_ANNOTATION);
@@ -345,6 +374,27 @@ public final class EntityScanner {
     private String readTableName(TypeElement type) {
         AnnotationMirror tableMirror = getAnnotationMirror(type, TABLE_ANNOTATION);
         if (tableMirror == null) {
+            // Check if this entity extends another entity (inheritance)
+            TypeElement current = getSuperclass(type);
+            while (current != null) {
+                if (hasAnnotation(current, ENTITY_ANNOTATION)) {
+                    // Found a parent entity - check if it has @Table
+                    AnnotationMirror parentTableMirror = getAnnotationMirror(current, TABLE_ANNOTATION);
+                    if (parentTableMirror != null) {
+                        Map<String, AnnotationValue> values = getAnnotationValues(parentTableMirror);
+                        AnnotationValue nameValue = values.get("name");
+                        if (nameValue != null) {
+                            String name = nameValue.getValue().toString();
+                            if (!name.isEmpty()) {
+                                return name;
+                            }
+                        }
+                    }
+                    // Parent doesn't have @Table either - use parent's binary name
+                    return elements.getBinaryName(current).toString().replace('.', '_');
+                }
+                current = getSuperclass(current);
+            }
             return elements.getBinaryName(type).toString().replace('.', '_');
         }
 

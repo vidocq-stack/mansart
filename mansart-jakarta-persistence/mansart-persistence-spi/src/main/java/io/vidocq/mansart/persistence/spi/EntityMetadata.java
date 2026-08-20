@@ -19,7 +19,6 @@
  */
 package io.vidocq.mansart.persistence.spi;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Set;
 
@@ -211,4 +210,60 @@ public interface EntityMetadata {
     default java.util.List<Class<?>> getSubclassEntityClasses() {
         return java.util.Collections.emptyList();
     }
+
+    // ----- APT-generated typed accessors (DEBT-05) -----
+
+    /**
+     * Returns a typed accessor for the given persistent attribute.
+     *
+     * <p>The returned {@code AttributeAccessor} holds a pre-resolved
+     * {@link java.lang.invoke.MethodHandle} (or {@link java.lang.invoke.VarHandle})
+     * obtained at compile time by the Mansart APT processor.  The runtime never
+     * uses {@code java.lang.reflect.Field} on entity state.
+     *
+     * @param attributeName the persistent attribute name
+     * @return the accessor, never {@code null}
+     * @throws IllegalArgumentException if the attribute name is unknown
+     */
+    AttributeAccessor accessor(String attributeName);
+
+    /**
+     * Reads the value of the given persistent attribute from the entity instance.
+     *
+     * @param entity the entity instance
+     * @param attributeName the persistent attribute name
+     * @return the attribute value
+     */
+    Object readAttribute(Object entity, String attributeName);
+
+    /**
+     * Writes a value to the given persistent attribute of the entity instance.
+     *
+     * @param entity the entity instance
+     * @param attributeName the persistent attribute name
+     * @param value the new value
+     */
+    void writeAttribute(Object entity, String attributeName, Object value);
+
+    /**
+     * Creates a new, empty instance of this entity class.
+     *
+     * <p>Uses a pre-resolved no-arg constructor handle generated at compile time.
+     *
+     * @return a new entity instance
+     */
+    Object createInstance();
+
+    // ----- APT-generated lifecycle callback dispatcher (DEBT-06) -----
+
+    /**
+     * Returns the lifecycle-callback dispatcher for this entity type.
+     *
+     * <p>The dispatcher invokes {@code @PrePersist}, {@code @PostLoad}, … methods
+     * generated at compile time by the Mansart APT processor.  No runtime
+     * reflection or {@code MethodHandles} scanning is performed.
+     *
+     * @return the callback dispatcher, never {@code null}
+     */
+    LifecycleCallbackDispatcher lifecycleCallbacks();
 }

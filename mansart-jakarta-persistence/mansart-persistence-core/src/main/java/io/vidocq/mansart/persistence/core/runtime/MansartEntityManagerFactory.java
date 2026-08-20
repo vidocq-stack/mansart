@@ -130,10 +130,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         // Parse @NamedEntityGraph annotations from entity classes
         parseNamedEntityGraphs(this.entityClasses);
         
-        // For TCK: register known named entity graphs that may not be parsed from annotations
-        // The TCK EntityGraph tests use specific named graphs
-        registerTckNamedEntityGraphs();
-        
         // M8-18: Initialize cache
         this.cache = new MansartCache();
         
@@ -200,16 +196,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             // Error loading from persistence.xml - non-fatal
         }
         
-        // For TCK: always scan TCK packages as the TCK persistence.xml may not list all entities
-        // This is needed because the TCK creates archives with entities not listed in the persistence.xml
-        Map<String, Class<?>> tckEntities = scanEntityClasses(classLoader);
-        // Merge results, with TCK entities taking precedence for simple names
-        tckEntities.forEach((key, value) -> {
-            if (!result.containsKey(key)) {
-                result.put(key, value);
-            }
-        });
-        
         return Collections.unmodifiableMap(result);
     }
 
@@ -221,22 +207,8 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private Map<String, Class<?>> scanEntityClasses(ClassLoader classLoader) {
         Map<String, Class<?>> result = new HashMap<>();
         
-        // For TCK: scan known TCK entity packages
-        // The TCK uses ee.jakarta.tck.persistence.core.* packages for entities
-        // Also scan Mansart test packages
-        String[] tckPackages = {
-            "ee.jakarta.tck.persistence.core.EntityGraph",
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery",
-            "ee.jakarta.tck.persistence.core.annotations",
-            "ee.jakarta.tck.persistence.core.annotations.access",
-            "ee.jakarta.tck.persistence.core.annotations.mapkey",
-            "ee.jakarta.tck.persistence.core.annotations.mapkeycolumn",
-            "ee.jakarta.tck.persistence.core.annotations.override",
-            "ee.jakarta.tck.persistence.core.enums",
-            "ee.jakarta.tck.persistence.core.override",
-            "ee.jakarta.tck.persistence.core.query",
-            "ee.jakarta.tck.persistence.core.entitytest",
-            "ee.jakarta.tck.persistence.core",
+        // Scan Mansart test entity packages
+        String[] scanPackages = {
             "io.vidocq.mansart.persistence.tests",
             "io.vidocq.mansart.persistence.core.testentities",
             "io.vidocq.mansart.persistence.core.testentities.common",
@@ -250,7 +222,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             "io.vidocq.mansart.persistence.core.testentities.model.relationship"
         };
         
-        for (String packageName : tckPackages) {
+        for (String packageName : scanPackages) {
             scanPackageForEntities(packageName, classLoader, result);
         }
         
@@ -398,28 +370,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                 }
             }
             
-            // For TCK: if we only have SimpleEntity or no entities, scan TCK packages
-            // This handles the case where the TCK persistence.xml doesn't list all entities
-            if (result.isEmpty() || 
-                (result.size() <= 2 && result.containsKey("io.vidocq.mansart.persistence.tck.SimpleEntity") && result.containsKey("SimpleEntity"))) {
-                Map<String, Class<?>> tckEntities = scanEntityClasses(classLoader);
-                tckEntities.forEach((key, value) -> {
-                    if (!result.containsKey(key)) {
-                        result.put(key, value);
-                    }
-                });
-            }
-            
-            // M9-10: Register known TCK entity name overrides from orm.xml files
-            // This handles cases where orm.xml overrides are not picked up by mapping file parsing
-            try {
-                Class<?> nameOverrideClass = Class.forName("ee.jakarta.tck.persistence.core.override.entity.NameOverride", true, classLoader);
-                // Register with orm.xml override name "NAMEOVERRIDE"
-                result.put("NAMEOVERRIDE", nameOverrideClass);
-            } catch (ClassNotFoundException e) {
-                // TCK entity not available - ignore
-            }
-            
             return Collections.unmodifiableMap(result);
         } catch (Exception e) {
             // Error loading entity classes - non-fatal
@@ -495,38 +445,29 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     
     /**
      * Loads EntityModel instances for the given entity classes.
-     * For TCK entities, EntityModels may not be available (compiled with different processor),
-     * so we return an empty map. The SchemaManager will fall back to reflection-based DDL generation.
+     * EntityModels are built by the APT processor at compile time.
      */
     private Map<Class<?>, EntityModel<?>> loadEntityModels(Map<String, Class<?>> entityClasses) {
-        // For TCK entities, EntityModels are built by the TCK's own APT processor,
-        // not by Mansart's processor. So we cannot access them here.
-        // The SchemaManager will use reflection to inspect entity classes directly.
-        // Also, EntityModel is a record, not a service, so ServiceLoader won't work.
-        // For now, return empty map and rely on reflection fallback.
+        // Load APT-generated metadata classes to trigger registration in EntityMetadataRegistry.
+        // The entityModels map itself is not populated here — it's filled later by the dialect SPI.
+        if (entityClasses == null || entityClasses.isEmpty()) {
+            return Map.of();
+        }
+        for (Class<?> entityClass : entityClasses.values()) {
+            if (entityClass == null) continue;
+            String pkg = entityClass.getPackageName();
+            String simpleName = entityClass.getSimpleName();
+            String generatedMetaName = pkg + "." + simpleName + "Metadata";
+            try {
+                // Loading the class triggers its static initializer which registers metadata
+                Class.forName(generatedMetaName);
+            } catch (ClassNotFoundException e) {
+                // APT didn't generate metadata for this entity — skip
+            }
+        }
         return Map.of();
     }
     
-    /**
-     * Registers known TCK named entity graphs that may not be discoverable via annotation parsing.
-     * This is a fallback for TCK entities where annotation retention may not work across JARs.
-     */
-    private void registerTckNamedEntityGraphs() {
-        // Register known TCK EntityGraph test graphs
-        // These are defined in ee.jakarta.tck.persistence.core.EntityGraph.Employee
-        MansartEntityGraph<?> firstLastGraph = new MansartEntityGraph<>("first_last_graph");
-        firstLastGraph.addAttributeNodes("firstName", "lastName");
-        namedEntityGraphs.put("first_last_graph", firstLastGraph);
-        
-        MansartEntityGraph<?> lastSalaryGraph = new MansartEntityGraph<>("last_salary_graph");
-        lastSalaryGraph.addAttributeNodes("lastName", "salary");
-        namedEntityGraphs.put("last_salary_graph", lastSalaryGraph);
-        
-        MansartEntityGraph<?> lastNameDeptGraph = new MansartEntityGraph<>("lastname_department_subgraphs");
-        lastNameDeptGraph.addAttributeNodes("lastName", "department");
-        namedEntityGraphs.put("lastname_department_subgraphs", lastNameDeptGraph);
-    }
-
     /**
      * Parses @NamedEntityGraph annotations from entity classes and registers them.
      */
@@ -688,9 +629,6 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public jakarta.persistence.SchemaManager getSchemaManager() {
-        // M8-18: Schema generation support
-        // Pass both entityModels and entityClasses so SchemaManager can use reflection
-        // as fallback when EntityModels are not available (e.g., for TCK entities)
         return new MansartSchemaManager(connectionProvider, entityModels, entityClasses, dialect.name());
     }
     
@@ -713,10 +651,8 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      * This is a Mansart-specific method for accessing metadata at runtime.
      */
     public io.vidocq.mansart.persistence.spi.EntityMetadata getEntityMetadata(Class<?> entityClass) {
-        // M8-7: Return metadata for the entity
-        // For now, we need to integrate with the generated metadata
-        // This will be fully implemented in a later phase
-        return null;
+        // Phase 1 (DEBT-05): Look up APT-generated metadata from registry
+        return io.vidocq.mansart.persistence.spi.EntityMetadataRegistry.getMetadata(entityClass);
     }
 
     @Override
@@ -823,31 +759,28 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
      * <p>M8-18: Automatic schema generation for Entity-Basic TCK tests.
      */
     private void checkAndCreateSchema() {
-        // Check properties from PersistenceUnitInfo
         String schemaAction = (String) properties.get("jakarta.persistence.schema-generation.database.action");
-        
-        // Also check system properties (TCK sets these via surefire systemPropertyVariables)
         if (schemaAction == null || schemaAction.isEmpty()) {
             schemaAction = System.getProperty("jakarta.persistence.schema-generation.database.action");
         }
-        
-        // For TCK compatibility: always create schema if action is "create" or if we're using H2
-        // This handles cases where TCK doesn't explicitly set the schema-generation action
-        boolean shouldCreate = "create".equals(schemaAction) || 
+        System.err.println("[EMF] checkAndCreateSchema: action=" + schemaAction + ", dialect=" + dialect + ", properties=" + properties);
+        boolean shouldCreate = "create".equals(schemaAction) ||
                              (schemaAction != null && schemaAction.toLowerCase().contains("create")) ||
                              (dialect != null && "H2".equalsIgnoreCase(dialect.name()));
-        
+        System.err.println("[EMF] shouldCreate=" + shouldCreate);
         if (shouldCreate) {
             try {
                 SchemaManager schemaManager = getSchemaManager();
                 if (schemaManager != null) {
-                    // Get create-schemas flag
                     String createSchemas = (String) properties.get("jakarta.persistence.schema-generation.create-database-schemas");
                     boolean createSchemaFlag = "true".equalsIgnoreCase(createSchemas);
                     schemaManager.create(createSchemaFlag);
+                } else {
+                    System.err.println("[EMF] schemaManager is null!");
                 }
             } catch (Exception e) {
-                // Schema creation failed - this is non-fatal according to JPA spec
+                System.err.println("[EMF] Schema creation FAILED: " + e.getMessage());
+                e.printStackTrace(System.err);
             }
         }
     }

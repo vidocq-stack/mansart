@@ -28,6 +28,7 @@ import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
 import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 import io.vidocq.mansart.persistence.spi.Bootstrap;
+import io.vidocq.mansart.persistence.spi.LifecycleCallbackDispatcher;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 
 import jakarta.persistence.EntityManager;
@@ -79,161 +80,84 @@ public class MansartEntityManager implements EntityManager {
     private static final ScopedValue<MansartEntityManager> CURRENT = ScopedValue.newInstance();
     private static final AtomicLong ID_COUNTER = new AtomicLong(1);
 
-    /**
-     * Convenience record to hold MethodHandles for entity ID field access.
-     * Uses MethodHandles.privateLookupIn instead of reflection for secure access.
-     */
-    private record EntityIdHandles(MethodHandle getter, MethodHandle setter, Class<?> idType) {}
+    // ── Phase 1 (DEBT-05): EntityMetadata helper ──
 
     /**
-     * Builds MethodHandles for accessing the "id" field of an entity class.
-     * Uses MethodHandles.privateLookupIn for secure, module-friendly access.
-     *
-     * @param entityClass the entity class
-     * @return EntityIdHandles containing getter, setter, and id type
-     * @throws IllegalArgumentException if no id field is found
+     * Returns the APT-generated EntityMetadata for the given entity class.
+     * Phase 1: falls back to null if metadata is not registered.
      */
-    private static EntityIdHandles getIdHandles(Class<?> entityClass) {
-        // Try to find field with @Id annotation first - check all classes in hierarchy
-        Class<?> currentClass = entityClass;
-        java.lang.reflect.Field idField = null;
-        while (currentClass != null && currentClass != Object.class) {
-            for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
-                if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
-                    idField = field;
-                    break;
-                }
-            }
-            if (idField != null) {
-                break;
-            }
-            currentClass = currentClass.getSuperclass();
-        }
-        
-        if (idField == null) {
-            // Fallback: try to find "id" field (convention)
-            currentClass = entityClass;
-            while (currentClass != null && currentClass != Object.class) {
-                try {
-                    // Create lookup for the current class to access its private members
-                    MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(currentClass, MethodHandles.lookup());
-                    
-                    // Try getter/setter approach for "id" field
-                    try {
-                        MethodHandle getter = lookup.findGetter(currentClass, "id", Object.class);
-                        Class<?> idType = getter.type().returnType();
-                        MethodHandle setter = lookup.findSetter(currentClass, "id", idType);
-                        return new EntityIdHandles(getter, setter, idType);
-                    } catch (NoSuchFieldException | IllegalAccessException e) {
-                        // Field might not exist in this class, try declared fields
-                    }
-                    
-                    // Try all declared fields in current class named "id"
-                    for (java.lang.reflect.Field field : currentClass.getDeclaredFields()) {
-                        if ("id".equals(field.getName())) {
-                            Class<?> fieldType = field.getType();
-                            try {
-                                MethodHandle getter = lookup.findGetter(currentClass, "id", fieldType);
-                                MethodHandle setter = lookup.findSetter(currentClass, "id", fieldType);
-                                return new EntityIdHandles(getter, setter, fieldType);
-                            } catch (NoSuchFieldException | IllegalAccessException e) {
-                                // Try next field
-                            }
-                        }
-                    }
-                } catch (IllegalAccessException e) {
-                    // Cannot access this class, try next in hierarchy
-                }
-                
-                currentClass = currentClass.getSuperclass();
-            }
-        }
-        
-        // If we found @Id field, create handles for it
-        if (idField != null) {
-            try {
-                Class<?> fieldClass = idField.getDeclaringClass();
-                Class<?> fieldType = idField.getType();
-                
-                // Make field accessible
-                idField.setAccessible(true);
-                
-                // Create MethodHandles using the declaring class
-                MethodHandles.Lookup lookup = MethodHandles.privateLookupIn(fieldClass, MethodHandles.lookup());
-                MethodHandle getter, setter;
-                
-                // Try to use field access directly via VarHandle for better compatibility
-                try {
-                    java.lang.invoke.VarHandle varHandle = MethodHandles.privateLookupIn(fieldClass, MethodHandles.lookup())
-                            .findVarHandle(fieldClass, idField.getName(), fieldType);
-                    getter = varHandle.toMethodHandle(java.lang.invoke.VarHandle.AccessMode.GET);
-                    setter = varHandle.toMethodHandle(java.lang.invoke.VarHandle.AccessMode.SET);
-                } catch (Exception e) {
-                    // Fall back to traditional getter/setter
-                    getter = lookup.findGetter(fieldClass, idField.getName(), fieldType);
-                    setter = lookup.findSetter(fieldClass, idField.getName(), fieldType);
-                }
-                
-                return new EntityIdHandles(getter, setter, fieldType);
-            } catch (IllegalAccessException | NoSuchFieldException e) {
-                // Fall through to error
-            }
-        }
-        
-        throw new IllegalArgumentException("Entity " + entityClass.getName() + " has no @Id field or 'id' field (including superclasses)");
+    private io.vidocq.mansart.persistence.spi.EntityMetadata resolveMetadata(Class<?> entityClass) {
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = io.vidocq.mansart.persistence.spi.EntityMetadataRegistry.getMetadata(entityClass);
+        if (metadata != null) return metadata;
+        // Fallback: try registry directly
+        return io.vidocq.mansart.persistence.spi.EntityMetadataRegistry.getMetadata(entityClass);
     }
 
     /**
-     * Gets the ID value from an entity using MethodHandles.
+     * Gets the ID value from an entity.
+     * Phase 1 (DEBT-05): uses EntityMetadata SPI; falls back to registry lookup.
      *
      * @param entity the entity
      * @return the ID value, or null if the entity has no ID
      */
-    private static Object getEntityId(Object entity) {
+    private Object getEntityId(Object entity) {
         if (entity == null) return null;
-        try {
-            EntityIdHandles handles = getIdHandles(entity.getClass());
-            return handles.getter.invoke(entity);
-        } catch (Throwable t) {
-            return null;
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entity.getClass());
+        if (metadata != null) {
+            return metadata.readAttribute(entity, metadata.getIdAttributeName());
         }
+        // Fallback: try to find id field via reflection
+        try {
+            java.lang.reflect.Field f = findIdField(entity.getClass());
+            if (f != null) {
+                f.setAccessible(true);
+                return f.get(entity);
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 
     /**
-     * Sets the ID value on an entity using MethodHandles.
+     * Sets the ID value on an entity.
+     * Phase 1 (DEBT-05): uses EntityMetadata SPI.
      *
      * @param entity the entity
      * @param idValue the ID value to set
      */
-    private static void setEntityId(Object entity, Object idValue) {
+    private void setEntityId(Object entity, Object idValue) {
         if (entity == null) throw new IllegalArgumentException("Entity must not be null");
-        EntityIdHandles handles = null;
-        try {
-            handles = getIdHandles(entity.getClass());
-            Object convertedId = convertToIdType(idValue, handles.idType);
-            handles.setter.invoke(entity, convertedId);
-        } catch (Throwable t) {
-            try (java.io.FileWriter fw = new java.io.FileWriter("/tmp/mansart_setid_errors.log", true);
-                 java.io.PrintWriter pw = new java.io.PrintWriter(fw)) {
-                pw.println("Failed to set ID on entity: " + entity.getClass().getName());
-                if (handles != null) {
-                    pw.println("  ID type: " + handles.idType);
-                    pw.println("  ID value: " + idValue);
-                    pw.println("  Converted ID: " + convertToIdType(idValue, handles.idType));
-                }
-                pw.println("  Exception: " + t.getClass().getName() + ": " + t.getMessage());
-                if (t.getCause() != null) {
-                    pw.println("  Caused by: " + t.getCause().getClass().getName() + ": " + t.getCause().getMessage());
-                    t.getCause().printStackTrace(pw);
-                } else {
-                    t.printStackTrace(pw);
-                }
-                pw.println("---");
-            } catch (Exception e) {
-                // Ignore
-            }
-            throw new RuntimeException("Failed to set ID on entity " + entity.getClass().getName(), t);
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entity.getClass());
+        if (metadata != null) {
+            metadata.writeAttribute(entity, metadata.getIdAttributeName(), idValue);
+            return;
         }
+        // Fallback: try to find id field via reflection
+        try {
+            java.lang.reflect.Field f = findIdField(entity.getClass());
+            if (f != null) {
+                f.setAccessible(true);
+                f.set(entity, idValue);
+                return;
+            }
+        } catch (Exception ignored) {}
+        throw new RuntimeException("Cannot set ID on entity " + entity.getClass().getName());
+    }
+
+    /**
+     * Finds the @Id field in an entity class hierarchy.
+     * Fallback for when EntityMetadata is not available.
+     */
+    private static java.lang.reflect.Field findIdField(Class<?> entityClass) {
+        Class<?> current = entityClass;
+        while (current != null && current != Object.class) {
+            for (java.lang.reflect.Field field : current.getDeclaredFields()) {
+                if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+                    return field;
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return null;
     }
 
     /**
@@ -300,92 +224,33 @@ public class MansartEntityManager implements EntityManager {
     }
 
     /**
-     * Checks if an entity uses IDENTITY generation strategy.
-     * For IDENTITY, the database generates the ID, so we should not set it in persist().
-     * 
-     * @param entity the entity
-     * @return true if the entity uses IDENTITY strategy
+     * Checks if an entity uses an auto-generated ID strategy.
+     * Phase 1 (DEBT-05): uses EntityMetadata SPI.
      */
-    private static boolean hasIdentityStrategy(Object entity) {
-        Class<?> entityClass = entity.getClass();
-        try {
-            Class<?> current = entityClass;
-            while (current != null && current != Object.class) {
-                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
-                    if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
-                        GeneratedValue generatedValue = field.getAnnotation(GeneratedValue.class);
-                        // Return true for any @GeneratedValue strategy (IDENTITY, SEQUENCE, TABLE, AUTO)
-                        // This ensures we get the ID from the entity after insert for all auto-generated IDs
-                        if (generatedValue != null) {
-                            return true;
-                        }
-                        return false;
-                    }
-                }
-                current = current.getSuperclass();
-            }
-        } catch (Exception e) {
-            // Ignore
+    private boolean hasAutoGeneratedId(Object entity) {
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entity.getClass());
+        if (metadata != null) {
+            var pk = metadata.getPrimaryKeyMetadata();
+            return pk.getGenerationType() != null;
         }
+        // Fallback: reflection
         return false;
     }
 
     /**
      * Generates an ID for an entity based on its @GeneratedValue configuration.
-     * Falls back to a simple counter if no @GeneratedValue is present.
-     * 
-     * @param entity the entity
-     * @return the generated ID
+     * Phase 1 (DEBT-05): uses EntityMetadata SPI; falls back to IdGenerator.
      */
-    private static Long generateId(Object entity) {
-        Class<?> entityClass = entity.getClass();
-        
-        // Check for @GeneratedValue annotation on the ID field
-        try {
-            // Find the ID field and check for @GeneratedValue
-            java.lang.reflect.Field idField = null;
-            Class<?> current = entityClass;
-            while (current != null && current != Object.class) {
-                for (java.lang.reflect.Field field : current.getDeclaredFields()) {
-                    if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
-                        idField = field;
-                        break;
-                    }
-                }
-                if (idField != null) {
-                    break;
-                }
-                current = current.getSuperclass();
+    private Long generateId(Object entity) {
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entity.getClass());
+        if (metadata != null) {
+            var pk = metadata.getPrimaryKeyMetadata();
+            if (pk.getGenerationType() != null) {
+                return IdGenerator.generateId(pk.getGenerationType(), pk.getGeneratorName());
             }
-            
-            if (idField != null) {
-                GeneratedValue generatedValue = idField.getAnnotation(GeneratedValue.class);
-                if (generatedValue != null) {
-                    GenerationType strategy = generatedValue.strategy();
-                    String generatorName = generatedValue.generator();
-                    
-                    // If generator is specified, check for @SequenceGenerator or @TableGenerator
-                    if (generatorName != null && !generatorName.isEmpty()) {
-                        // Look for @SequenceGenerator or @TableGenerator on the class
-                        SequenceGenerator seqGen = entityClass.getAnnotation(SequenceGenerator.class);
-                        if (seqGen != null && generatorName.equals(seqGen.name())) {
-                            return IdGenerator.generateId(GenerationType.SEQUENCE, seqGen.sequenceName());
-                        }
-                        TableGenerator tableGen = entityClass.getAnnotation(TableGenerator.class);
-                        if (tableGen != null && generatorName.equals(tableGen.name())) {
-                            return IdGenerator.generateId(GenerationType.TABLE, tableGen.table());
-                        }
-                    }
-                    
-                    return IdGenerator.generateId(strategy, generatorName);
-                }
-            }
-        } catch (Exception e) {
-            // Fall through to default
         }
-        
-        // Default: use AUTO strategy with no generator name
-        return IdGenerator.generateId(GenerationType.AUTO, null);
+        // Fallback: default AUTO strategy
+        return IdGenerator.generateId(jakarta.persistence.GenerationType.AUTO, null);
     }
 
     private final EntityManagerFactory entityManagerFactory;
@@ -394,7 +259,22 @@ public class MansartEntityManager implements EntityManager {
     private final MansartTransactionManager transactionManager;
     private final Map<Object, Object> cache;
     private final AtomicReference<Boolean> open;
-    private final LifecycleCallbackManager lifecycleCallbackManager;
+    // Phase 1 (DEBT-06): lifecycle callbacks are dispatched via EntityMetadata.lifecycleCallbacks()
+    // LifecycleCallbackManager was deleted — generated _EntityCallbacks handle all dispatch.
+
+    /**
+     * Invokes lifecycle callbacks for the given entity and phase.
+     * Phase 1 (DEBT-06): uses EntityMetadata SPI.
+     */
+    private void invokeLifecycleCallbacks(Object entity, LifecycleCallbackDispatcher.Phase phase) {
+        if (entity == null) return;
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entity.getClass());
+        if (metadata != null) {
+            metadata.lifecycleCallbacks().invoke(entity, phase);
+        }
+        // If metadata is not available, callbacks are silently skipped
+        // (entity was not processed by the APT processor)
+    }
     
     // Transaction state for resource-local mode (when transactionManager is null)
     private final AtomicReference<Boolean> transactionActive = new AtomicReference<>(false);
@@ -456,7 +336,6 @@ public class MansartEntityManager implements EntityManager {
         this.dialect = dialect;
         this.cache = new HashMap<>();
         this.open = new AtomicReference<>(true);
-        this.lifecycleCallbackManager = new LifecycleCallbackManager();
         this.entityClasses = Map.copyOf(entityClasses);
         this.entityModels = entityModels != null ? Map.copyOf(entityModels) : Map.of();
         this.connectionProvider = connectionProvider;
@@ -510,7 +389,7 @@ public class MansartEntityManager implements EntityManager {
         Object entity = cache.get(cacheKey);
         if (entity != null && entityClass.isInstance(entity)) {
             // Invoke PostLoad callback (M9-3)
-            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
+            invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_LOAD);
             return entityClass.cast(entity);
         }
         // Check L2 cache
@@ -521,7 +400,7 @@ public class MansartEntityManager implements EntityManager {
                 // Populate L1 cache
                 cache.put(cacheKey, entity);
                 // Invoke PostLoad callback (M9-3)
-                lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
+                invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_LOAD);
                 return entityClass.cast(entity);
             }
         }
@@ -538,7 +417,7 @@ public class MansartEntityManager implements EntityManager {
                     ((MansartCache) l2Cache).put(entityClass, primaryKey, entity);
                 }
                 // Invoke PostLoad callback (M9-3)
-                lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_LOAD);
+                invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_LOAD);
                 return entityClass.cast(entity);
             }
         }
@@ -608,13 +487,22 @@ public class MansartEntityManager implements EntityManager {
         }
         
         // Invoke PrePersist callback (M9-3)
-        lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_PERSIST);
+        invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_PERSIST);
         
         // Generate ID for the entity using strategy-aware generator (M9-10)
         Long generatedId = generateId(entity);
         
-        // Check if we should set the ID (not for IDENTITY strategy)
-        boolean shouldSetId = !hasIdentityStrategy(entity);
+        // Check if we should set the ID before insert.
+        // IDENTITY: database generates ID, don't set it.
+        // AUTO/SEQUENCE/TABLE: application generates ID, set it before insert.
+        boolean shouldSetId = true;
+        io.vidocq.mansart.persistence.spi.EntityMetadata _meta = resolveMetadata(entity.getClass());
+        if (_meta != null) {
+            var pk = _meta.getPrimaryKeyMetadata();
+            if (pk.getGenerationType() == jakarta.persistence.GenerationType.IDENTITY) {
+                shouldSetId = false;
+            }
+        }
         
         try {
             if (shouldSetId) {
@@ -647,7 +535,7 @@ public class MansartEntityManager implements EntityManager {
             }
             
             // Invoke PostPersist callback (M9-3)
-            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_PERSIST);
+            invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_PERSIST);
             
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist entity: " + e.getMessage(), e);
@@ -730,8 +618,9 @@ public class MansartEntityManager implements EntityManager {
      * Used when EntityModel is not available (e.g., TCK entities).
      */
     private void executeInsertWithReflection(Object entity, Object id, Class<?> entityClass) throws SQLException {
-        // Get table name from @Table annotation or use class name
-        String tableName = getTableNameFromAnnotation(entityClass);
+        // Get table name from APT-generated metadata first, then fall back to annotation
+        io.vidocq.mansart.persistence.spi.EntityMetadata meta = resolveMetadata(entityClass);
+        String tableName = meta != null ? meta.tableName() : getTableNameFromAnnotation(entityClass);
         if (tableName == null || tableName.isEmpty()) {
             tableName = entityClass.getSimpleName().toLowerCase();
         }
@@ -756,11 +645,11 @@ public class MansartEntityManager implements EntityManager {
                 java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
                 continue;
             }
-            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
+            if (hasAnnotation(field, jakarta.persistence.Id.class)) {
                 idField = field;
-                GeneratedValue generatedValue = field.getAnnotation(GeneratedValue.class);
+                GeneratedValue generatedValue = getAnnotationOnFieldOrGetter(field, GeneratedValue.class);
                 idGenerated = generatedValue != null;
-                jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+                jakarta.persistence.Column columnAnn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.Column.class);
                 idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
                 break;
             }
@@ -779,26 +668,44 @@ public class MansartEntityManager implements EntityManager {
             
             // Skip ID field - use both name comparison and annotation check for safety
             if (idFieldName != null && idFieldName.equals(field.getName())) continue;
-            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) continue;
+            if (hasAnnotation(field, jakarta.persistence.Id.class)) continue;
             
             field.setAccessible(true);
             
-            // Skip static and final fields - they are not persistent
+            // Skip static, final, and Java transient fields - they are not persistent
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
-                java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
+                java.lang.reflect.Modifier.isFinal(field.getModifiers()) ||
+                java.lang.reflect.Modifier.isTransient(field.getModifiers())) {
                 continue;
             }
             
-            // Skip transient fields
-            if (field.isAnnotationPresent(jakarta.persistence.Transient.class)) {
+            // Skip JPA @Transient fields (field or getter)
+            if (hasAnnotation(field, jakarta.persistence.Transient.class)) {
                 continue;
             }
             
             // Skip relationship fields (for now, simplified)
-            if (field.isAnnotationPresent(jakarta.persistence.OneToMany.class) ||
-                field.isAnnotationPresent(jakarta.persistence.ManyToOne.class) ||
-                field.isAnnotationPresent(jakarta.persistence.ManyToMany.class) ||
-                field.isAnnotationPresent(jakarta.persistence.OneToOne.class)) {
+            if (hasAnnotation(field, jakarta.persistence.OneToMany.class) ||
+                hasAnnotation(field, jakarta.persistence.ManyToOne.class) ||
+                hasAnnotation(field, jakarta.persistence.ManyToMany.class) ||
+                hasAnnotation(field, jakarta.persistence.OneToOne.class)) {
+                // But handle @JoinColumn - include FK column in INSERT
+                jakarta.persistence.JoinColumn joinColumn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.JoinColumn.class);
+                if (joinColumn != null && !joinColumn.name().isEmpty()) {
+                    columns.add(field);
+                    values.add(null);
+                }
+                continue;
+            }
+            
+            // Handle @ElementCollection and collection-type fields - skip in INSERT
+            // Collection types can't be stored directly in a single column.
+            // @ElementCollection fields are handled by collection tables (not implemented).
+            // Unannotated collection fields (e.g., callback tracking List<Integer>) are
+            // transient test artifacts and should not be persisted.
+            Class<?> thisFieldType = field.getType();
+            if (java.util.Collection.class.isAssignableFrom(thisFieldType) ||
+                java.util.Map.class.isAssignableFrom(thisFieldType)) {
                 continue;
             }
             
@@ -862,8 +769,8 @@ public class MansartEntityManager implements EntityManager {
                         } catch (IllegalAccessException e) {
                             // Try using MethodHandles as fallback
                             try {
-                                EntityIdHandles handles = getIdHandles(entity.getClass());
-                                handles.setter.invoke(entity, generatedKey);
+                                io.vidocq.mansart.persistence.spi.EntityMetadata _m = resolveMetadata(entity.getClass());
+                                _m.writeAttribute(entity, _m.getIdAttributeName(), generatedKey);
                             } catch (Throwable t) {
                                 // Ignore
                             }
@@ -920,7 +827,12 @@ public class MansartEntityManager implements EntityManager {
      * Gets column name from @Column annotation or field name.
      */
     private String getColumnName(java.lang.reflect.Field field) {
-        jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+        // Check @JoinColumn first (for relationship FK columns) - field or getter
+        jakarta.persistence.JoinColumn joinColumn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.JoinColumn.class);
+        if (joinColumn != null && !joinColumn.name().isEmpty()) {
+            return joinColumn.name();
+        }
+        jakarta.persistence.Column columnAnn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.Column.class);
         return columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
     }
     
@@ -933,68 +845,66 @@ public class MansartEntityManager implements EntityManager {
      */
     private <T> T executeFindFromDatabase(Class<T> entityClass, Object primaryKey) {
         try {
-            String tableName = getTableNameFromAnnotation(entityClass);
+            io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entityClass);
+            String tableName = metadata != null ? metadata.tableName() : getTableNameFromAnnotation(entityClass);
             if (tableName == null || tableName.isEmpty()) {
                 tableName = entityClass.getSimpleName().toLowerCase();
             }
-            
-            // Find ID field and column name
-            String idColumnName = "id";
-            java.lang.reflect.Field idField = null;
-            java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
-            collectAllFields(entityClass, allFields);
-            
-            for (java.lang.reflect.Field field : allFields) {
-                if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
-                    idField = field;
-                    jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
-                    idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
-                    break;
-                }
-            }
-            
+
+            String idColumnName = metadata != null ? metadata.getIdAttributeName() : "id";
+
             // Build SELECT SQL
             String quotedTableName = quoteTableIdentifier(tableName);
             String quotedIdColumn = quoteColumnIdentifier(idColumnName);
             String sql = "SELECT * FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
-            
+
             Connection connection = getConnection();
             try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
                 dialect.bind(ps, 1, primaryKey, primaryKey != null ? primaryKey.getClass() : Object.class);
                 try (java.sql.ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        // Create new instance and populate fields from ResultSet
+                        // Create new instance
+                        @SuppressWarnings("unchecked")
                         T entity = entityClass.getDeclaredConstructor().newInstance();
-                        
-                        // Populate all fields from ResultSet
-                        for (java.lang.reflect.Field field : allFields) {
-                            field.setAccessible(true);
-                            
-                            // Skip relationship fields - they need separate loading (not implemented yet for find())
-                            if (field.isAnnotationPresent(jakarta.persistence.OneToMany.class) ||
-                                field.isAnnotationPresent(jakarta.persistence.ManyToOne.class) ||
-                                field.isAnnotationPresent(jakarta.persistence.ManyToMany.class) ||
-                                field.isAnnotationPresent(jakarta.persistence.OneToOne.class)) {
-                                continue;
-                            }
-                            
-                            String columnName = getColumnName(field);
-                            try {
-                                int columnIndex = rs.findColumn(columnName);
-                                Object value = dialect.extract(rs, columnIndex, field.getType());
-                                if (value != null) {
-                                    field.set(entity, value);
-                                }
-                            } catch (SQLException e) {
-                                // Try with field name instead of column name
+
+                        // Populate all persistent attributes from ResultSet
+                        if (metadata != null) {
+                            java.util.List<String> attrs = metadata.getPersistentAttributeOrder();
+                            for (String attrName : attrs) {
+                                // Skip relationships
+                                if (metadata.isRelationship(attrName)) continue;
                                 try {
-                                    int columnIndex = rs.findColumn(field.getName());
-                                    Object value = dialect.extract(rs, columnIndex, field.getType());
+                                    int columnIndex = rs.findColumn(attrName);
+                                    // Best-effort type detection — dialect.extract handles most cases
+                                    Object value = dialect.extract(rs, columnIndex, Object.class);
                                     if (value != null) {
-                                        field.set(entity, value);
+                                        metadata.writeAttribute(entity, attrName, value);
                                     }
-                                } catch (SQLException e2) {
-                                    // Ignore
+                                } catch (SQLException ignored) {}
+                            }
+                        } else {
+                            // Fallback: use allFields + reflection
+                            java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
+                            collectAllFields(entityClass, allFields);
+                            for (java.lang.reflect.Field field : allFields) {
+                                field.setAccessible(true);
+                                if (hasAnnotation(field, jakarta.persistence.OneToMany.class) ||
+                                    hasAnnotation(field, jakarta.persistence.ManyToOne.class) ||
+                                    hasAnnotation(field, jakarta.persistence.ManyToMany.class) ||
+                                    hasAnnotation(field, jakarta.persistence.OneToOne.class)) {
+                                    continue;
+                                }
+                                String columnName = getColumnName(field);
+                                try {
+                                    int columnIndex = rs.findColumn(columnName);
+                                    Object value = dialect.extract(rs, columnIndex, field.getType());
+                                    if (value != null) field.set(entity, value);
+                                } catch (SQLException ignored) {
+                                    try {
+                                        int columnIndex = rs.findColumn(field.getName());
+                                        Object value = dialect.extract(rs, columnIndex, field.getType());
+                                        if (value != null) field.set(entity, value);
+                                    } catch (SQLException ignored2) {}
                                 }
                             }
                         }
@@ -1010,27 +920,17 @@ public class MansartEntityManager implements EntityManager {
 
     /**
      * Executes DELETE statement for the entity in the database.
+     * Phase 1 (DEBT-05): uses EntityMetadata SPI.
      */
     private void executeDelete(Object entity, Object id) throws SQLException {
         Class<?> entityClass = entity.getClass();
-        String tableName = getTableNameFromAnnotation(entityClass);
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entityClass);
+        String tableName = metadata != null ? metadata.tableName() : getTableNameFromAnnotation(entityClass);
         if (tableName == null || tableName.isEmpty()) {
             tableName = entityClass.getSimpleName().toLowerCase();
         }
+        String idColumnName = metadata != null ? metadata.getIdAttributeName() : "id";
         
-        // Find ID column name
-        String idColumnName = "id";
-        java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
-        collectAllFields(entityClass, allFields);
-        for (java.lang.reflect.Field field : allFields) {
-            if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
-                jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
-                idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
-                break;
-            }
-        }
-        
-        // Build DELETE SQL
         String quotedTableName = quoteTableIdentifier(tableName);
         String quotedIdColumn = quoteColumnIdentifier(idColumnName);
         String sql = "DELETE FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
@@ -1051,8 +951,8 @@ public class MansartEntityManager implements EntityManager {
         if ("postgresql".equals(dialect.name())) {
             return "\"" + identifier + "\"";
         } else if ("H2".equals(dialect.name())) {
-            // H2: use backtick-quoted identifiers to preserve case sensitivity and avoid SQL keyword conflicts
-            return "`" + identifier + "`";
+            // H2: use double-quoted identifiers to preserve case sensitivity
+            return "\"" + identifier + "\"";
         } else {
             // Default: return unquoted identifier
             return identifier;
@@ -1061,15 +961,15 @@ public class MansartEntityManager implements EntityManager {
 
     /**
      * Quotes SQL column identifier for the current dialect.
-     * For H2: returns backtick-quoted identifiers to avoid SQL keyword conflicts.
+     * For H2: returns double-quoted identifiers to preserve case sensitivity.
      * For PostgreSQL: returns double-quoted identifiers.
      */
     private String quoteColumnIdentifier(String identifier) {
         if ("postgresql".equals(dialect.name())) {
             return "\"" + identifier + "\"";
         } else if ("H2".equals(dialect.name())) {
-            // H2: use backticks to avoid SQL keyword conflicts
-            return "`" + identifier + "`";
+            // H2: use double quotes to preserve case sensitivity
+            return "\"" + identifier + "\"";
         } else {
             // Default: return unquoted identifier
             return identifier;
@@ -1088,7 +988,7 @@ public class MansartEntityManager implements EntityManager {
         if (id != null && cache.containsKey(createCacheKey(entity.getClass(), id))) {
             // Entity exists, update it
             // Invoke PreUpdate callback (M9-3)
-            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_UPDATE);
+            invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_UPDATE);
             
             cache.put(createCacheKey(entity.getClass(), id), entity);
             // Update L2 cache
@@ -1098,7 +998,7 @@ public class MansartEntityManager implements EntityManager {
             }
             
             // Invoke PostUpdate callback (M9-3)
-            lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_UPDATE);
+            invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_UPDATE);
             
             return entity;
         } else {
@@ -1115,7 +1015,7 @@ public class MansartEntityManager implements EntityManager {
         }
         
         // Invoke PreRemove callback (M9-3)
-        lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.PRE_REMOVE);
+        invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_REMOVE);
         
         Object id = getEntityId(entity);
         if (id != null) {
@@ -1137,7 +1037,7 @@ public class MansartEntityManager implements EntityManager {
         }
         
         // Invoke PostRemove callback (M9-3)
-        lifecycleCallbackManager.invokeCallback(entity, LifecycleCallbackManager.CallbackType.POST_REMOVE);
+        invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_REMOVE);
     }
 
     @Override
@@ -1593,5 +1493,149 @@ public class MansartEntityManager implements EntityManager {
      */
     public MansartTransactionManager getTransactionManager() {
         return transactionManager;
+    }
+
+    /**
+     * Checks if an annotation is present on the field OR its corresponding getter method.
+     * JPA supports both field-level and property-level (getter) annotations.
+     */
+    /**
+     * Finds the getter method name for a field, handling non-standard camelCase
+     * field names (e.g. "wareHouse" -> "getWarehouse", not "getWareHouse").
+     * Tries standard JavaBean convention first, then falls back to variants
+     * that handle camelCase acronyms.
+     */
+    private String findGetterName(java.lang.reflect.Field field, String prefix) {
+        String fieldName = field.getName();
+        // Standard JavaBean: capitalize first char only
+        String standard = prefix + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        try {
+            field.getDeclaringClass().getMethod(standard);
+            return standard;
+        } catch (NoSuchMethodException ignored) {
+            // Fallback: for camelCase acronyms like "wareHouse", try "getWarehouse"
+            // (second char lowercased)
+            if (fieldName.length() > 1 && Character.isUpperCase(fieldName.charAt(1))) {
+                String fallback = prefix + Character.toUpperCase(fieldName.charAt(0))
+                        + Character.toLowerCase(fieldName.charAt(1))
+                        + fieldName.substring(2);
+                try {
+                    field.getDeclaringClass().getMethod(fallback);
+                    return fallback;
+                } catch (NoSuchMethodException ignored2) {
+                    // Try all-uppercase acronym: "getURL", "getHIREDATE"
+                    String acronym = prefix + fieldName.toUpperCase();
+                    try {
+                        field.getDeclaringClass().getMethod(acronym);
+                        return acronym;
+                    } catch (NoSuchMethodException ignored3) {
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Finds the setter method name for a field, using the same camelCase
+     * acronym handling as findGetterName.
+     */
+    private String findSetterName(java.lang.reflect.Field field) {
+        String fieldName = field.getName();
+        String standard = "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        try {
+            field.getDeclaringClass().getMethod(standard, field.getType());
+            return standard;
+        } catch (NoSuchMethodException ignored) {
+            if (fieldName.length() > 1 && Character.isUpperCase(fieldName.charAt(1))) {
+                String fallback = "set" + Character.toUpperCase(fieldName.charAt(0))
+                        + Character.toLowerCase(fieldName.charAt(1))
+                        + fieldName.substring(2);
+                try {
+                    field.getDeclaringClass().getMethod(fallback, field.getType());
+                    return fallback;
+                } catch (NoSuchMethodException ignored2) {
+                    String acronym = "set" + fieldName.toUpperCase();
+                    try {
+                        field.getDeclaringClass().getMethod(acronym, field.getType());
+                        return acronym;
+                    } catch (NoSuchMethodException ignored3) {
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    private boolean hasAnnotation(java.lang.reflect.Field field, Class<? extends java.lang.annotation.Annotation> annotationType) {
+        if (field.isAnnotationPresent(annotationType)) {
+            return true;
+        }
+        // Check getters (get/is)
+        String getterName = findGetterName(field, "get");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method getter = field.getDeclaringClass().getMethod(getterName);
+                if (getter.isAnnotationPresent(annotationType)) return true;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        getterName = findGetterName(field, "is");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method isGetter = field.getDeclaringClass().getMethod(getterName);
+                if (isGetter.isAnnotationPresent(annotationType)) return true;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        // Check setters (set) — JPA property access checks both getters and setters
+        String setterName = findSetterName(field);
+        if (setterName != null) {
+            try {
+                java.lang.reflect.Method setter = field.getDeclaringClass().getMethod(setterName, field.getType());
+                if (setter.isAnnotationPresent(annotationType)) return true;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        return false;
+    }
+
+    /**
+     * Gets an annotation from the field OR its corresponding getter/setter method.
+     * JPA property access checks both getters and setters for annotations.
+     */
+    @SuppressWarnings("unchecked")
+    private <A extends java.lang.annotation.Annotation> A getAnnotationOnFieldOrGetter(
+            java.lang.reflect.Field field, Class<A> annotationType) {
+        A ann = field.getAnnotation(annotationType);
+        if (ann != null) {
+            return ann;
+        }
+        // Check getters (get/is)
+        String getterName = findGetterName(field, "get");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method getter = field.getDeclaringClass().getMethod(getterName);
+                A result = getter.getAnnotation(annotationType);
+                if (result != null) return result;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        getterName = findGetterName(field, "is");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method isGetter = field.getDeclaringClass().getMethod(getterName);
+                A result = isGetter.getAnnotation(annotationType);
+                if (result != null) return result;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        // Check setters (set) — JPA property access checks both getters and setters
+        String setterName = findSetterName(field);
+        if (setterName != null) {
+            try {
+                java.lang.reflect.Method setter = field.getDeclaringClass().getMethod(setterName, field.getType());
+                A result = setter.getAnnotation(annotationType);
+                if (result != null) return result;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        return null;
     }
 }

@@ -58,20 +58,12 @@ public class MansartSchemaManager implements SchemaManager {
     @Override
     public void create(boolean createSchemas) {
         try (Connection connection = connectionProvider.getConnection()) {
-            // For H2, we can use the automatic schema creation if the URL has the right flags
-            // Otherwise, generate CREATE TABLE statements
             String url = connection.getMetaData().getURL();
-            
-            // Check if H2 with auto-creation
-            if (url != null && url.contains("jdbc:h2")) {
-                // H2 can auto-create tables if DB_CLOSE_DELAY is set
-                // But we still need to ensure the tables exist
-                createTables(connection);
-            } else {
-                createTables(connection);
-            }
+            System.err.println("[MansartSchema] create() called, entityModels=" + entityModels.size() + ", entityClasses=" + entityClasses.size() + ", url=" + url);
+            createTables(connection);
         } catch (SQLException e) {
-            // Schema creation failed - non-fatal per JPA spec
+            System.err.println("[MansartSchema] create() FAILED: " + e.getMessage());
+            e.printStackTrace(System.err);
         }
     }
 
@@ -85,364 +77,30 @@ public class MansartSchemaManager implements SchemaManager {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
                     } catch (SQLException e) {
-                        // Log but continue with other tables
+                        System.err.println("[MansartSchema] DDL error (EntityModel): " + ddl + " -> " + e.getMessage());
                     }
                 }
             }
         }
-        
+
         // Fallback: use entityClasses from PersistenceUnitInfo
         if (!entityClasses.isEmpty()) {
             for (Class<?> entityClass : entityClasses.values()) {
-                // Get table name from @Entity annotation or use class simple name
-                String tableName = getEntityTableName(entityClass);
+                // Try to get table name from APT-generated metadata first
+                io.vidocq.mansart.persistence.spi.EntityMetadata meta = 
+                    io.vidocq.mansart.persistence.spi.EntityMetadataRegistry.getMetadata(entityClass);
+                String tableName = meta != null ? meta.tableName() : getEntityTableName(entityClass);
                 String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
                 if (ddl != null && !ddl.isEmpty()) {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
-                    } catch (SQLException e) {
-                        // Log but continue with other tables
-                    }
-                }
-            }
-        }
-        
-        // Always try to create tables for known TCK classes
-        // This is needed because TCK entity classes are loaded dynamically via Arquillian
-        // and may not be in entityClasses
-        createTablesForKnownClasses(connection);
-    }
-
-    /**
-     * Fallback method to create tables for known TCK entity classes.
-     * This is used when entityModels is not populated at runtime.
-     * Uses context class loader to access TCK classes deployed by Arquillian.
-     */
-    private void createTablesForKnownClasses(Connection connection) throws SQLException {
-        // First, create known TCK join tables (these have hardcoded names in TCK cleanup methods)
-        // Use IF NOT EXISTS for H2 to avoid errors if tables already exist
-        createKnownJoinTables(connection);
-        
-        // Known TCK entity classes from various test categories
-        // Includes all entities that might have tables referenced in cleanup/setup methods
-        String[] tckEntityClasses = {
-            // Mansart test entities - new package structure
-            "io.vidocq.mansart.persistence.core.testentities.common.TestEntity",
-            "io.vidocq.mansart.persistence.core.testentities.common.VersionedEntity",
-            "io.vidocq.mansart.persistence.core.testentities.common.SimpleEntity",
-            "io.vidocq.mansart.persistence.core.testentities.callback.CallbackEntity",
-            "io.vidocq.mansart.persistence.core.testentities.listener.AuditedEntity",
-            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Author",
-            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Book",
-            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Pupil",
-            "io.vidocq.mansart.persistence.core.testentities.model.relationship.Course",
-            "io.vidocq.mansart.persistence.core.testentities.model.namedquery.Department",
-            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Person",
-            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Student",
-            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Manager",
-            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Employee",
-            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Vehicle",
-            "io.vidocq.mansart.persistence.core.testentities.model.inheritance.Car",
-            "io.vidocq.mansart.persistence.core.testentities.model.lazy.Employee",
-            "io.vidocq.mansart.persistence.core.testentities.model.dirty.Product",
-            // StoredProcedureQuery test entities
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee",
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee2",
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.EmployeeMappedSC",
-            // Entity-Basic test entities
-            "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Coffee",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Foo",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.basic.Bar",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.basic.A",
-            // API tests entities
-            "ee.jakarta.tck.persistence.core.entitytest.apitests.Coffee",
-            "ee.jakarta.tck.persistence.core.entitytest.apitests.Foo",
-            "ee.jakarta.tck.persistence.core.entitytest.apitests.Bar",
-            "ee.jakarta.tck.persistence.core.entitytest.apitests.CoffeeMappedSC",
-            // Entity-Detach test entities
-            "ee.jakarta.tck.persistence.core.entitytest.detach.basic.A",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.manyXmany.A",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.manyXmany.B",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.manyXone.A",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.manyXone.B",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.oneXmany.A",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.oneXmany.B",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.oneXone.A",
-            "ee.jakarta.tck.persistence.core.entitytest.detach.oneXone.B",
-            // Cascade test entities
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.manyXmany.A",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.manyXmany.B",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.manyXone.A",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.manyXone.B",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.oneXmany.A",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.oneXmany.B",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.oneXone.A",
-            "ee.jakarta.tck.persistence.core.entitytest.cascadeall.oneXone.B",
-            // Persist relationship entities
-            "ee.jakarta.tck.persistence.core.entitytest.persist.manyXmany.A",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.manyXmany.B",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.manyXone.A",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.manyXone.B",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.oneXmany.A",
-            "ee.jakarta.tck.persistence.core.entitytest.persist.oneXmany.B",
-            // Annotations-Entity test entities
-            "ee.jakarta.tck.persistence.core.annotations.AnnotationTestEntity",
-            // Type test entities
-            "ee.jakarta.tck.persistence.core.entitytest.bigdecimal.A",
-            "ee.jakarta.tck.persistence.core.entitytest.biginteger.A",
-            // Other common TCK entities
-            "ee.jakarta.tck.persistence.core.entitytest.transaction.SimpleEntity",
-            "ee.jakarta.tck.persistence.core.entitytest.cache.CacheTestEntity",
-            // StoredProcedureQuery test entities
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee",
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.Employee2",
-            "ee.jakarta.tck.persistence.core.StoredProcedureQuery.EmployeeMappedSC"
-        };
-        
-        // Use context class loader to access TCK classes
-        ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-        if (contextClassLoader == null) {
-            contextClassLoader = getClass().getClassLoader();
-        }
-        
-        for (String className : tckEntityClasses) {
-            try {
-                Class<?> entityClass = Class.forName(className, true, contextClassLoader);
-                String simpleName = entityClass.getSimpleName();
-                String tableName = getEntityTableName(entityClass);
-                String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
-                if (ddl != null && !ddl.isEmpty()) {
-                    try (Statement stmt = connection.createStatement()) {
-                        stmt.execute(ddl);
-                    }
-                }
-            } catch (ClassNotFoundException e) {
-                // Entity class not loaded yet - try with default class loader
-                try {
-                    Class<?> entityClass = Class.forName(className);
-                    String tableName = getEntityTableName(entityClass);
-                    String ddl = generateCreateTableDDLFromClass(entityClass, tableName);
-                    if (ddl != null && !ddl.isEmpty()) {
-                        try (Statement stmt = connection.createStatement()) {
-                            stmt.execute(ddl);
+                        if (tableName.equals("EMPLOYEE")) {
+                            System.err.println("[MansartSchema] EMPLOYEE DDL: " + ddl);
                         }
-                    }
-                } catch (ClassNotFoundException e2) {
-                    // Entity class truly not available - this is expected for optional test categories
-                }
-            }
-        }
-    }
-    
-    /**
-     * Creates known TCK join tables that have hardcoded names in cleanup methods.
-     * These are join tables for ManyToMany relationships that the TCK's removeTestData
-     * methods try to DELETE from.
-     */
-    private void createKnownJoinTables(Connection connection) throws SQLException {
-        // TCK uses specific hardcoded join table names in cleanup methods
-        // H2 stores unquoted identifiers in UPPER CASE, so we need to create tables
-        // with the exact case that the TCK uses (uppercase)
-        // These need to be created regardless of whether we can load the entity classes
-        String[] joinTableNames = {
-            // Join tables from TCK
-            "AEJB_1XM_BI_BTOB",  // ManyToMany join table - exact case from TCK
-            "AEJB_1XM_BI_B",    // Another join table
-            "AEJB_1X1_B_BTOB",  // OneToOne join table
-            "AEJB_MXM_A_B",     // ManyToMany join table
-            "AEJB_1XM_A_B",     // OneToMany join table
-            "AEJB_1X1_A_B",     // OneToOne join table
-            "ANE_1XM_BI_BTOB",
-            "BIDIR1XMPERSON_BIDIRMXMPROJECT",
-            "UNI1XMPERSON_UNI1XMPROJECT",
-            "UNIMXMPERSON_UNIMXMPROJECT",
-            "COLTAB_EMP_EMBEDED_ADDRESS",
-            "PERSON_INSURANCE",
-            "COURSE_STUDENT",
-            "PROJECT_PERSON",
-            "FKS_ANOOP_CNOOP",
-            "ENROLLMENTS",
-            // Entity tables from Mansart tests
-            "AUDITEDENTITY",
-            "CALLBACKENTITY",
-            "SIMPLEENTITY",
-            "TESTENTITY",
-            "VERSIONEDENTITY",
-            "DEPARTMENT",
-            "PRODUCT",
-            "AUTHOR",
-            "BOOK",
-            "PUPIL",
-            "COURSE",
-            "PERSON",
-            "STUDENT",
-            "MANAGER",
-            "EMPLOYEE",
-            "INHERITANCE_EMPLOYEE",
-            "VEHICLE",
-            "CAR",
-            // Entity tables from TCK
-            "COFFEE",           // From API tests
-            "FOO",              // From API tests
-            "BAR",              // From API tests
-            "COFFEE_MAPPED_SC", // From API tests
-            "DATATYPES",        // From types.generator tests (Client3, Client4)
-            "DATATYPES2",       // From types tests
-            "EMPLOYEE",         // From JPQL tests
-            "A_ADDRESS",
-            "A_BASIC",
-            "A_BIGDECIMAL",
-            "A_BIGINTEGER",
-            "B_EMBEDDABLE",
-            "BIDIR1X1PERSON",
-            "BIDIR1XMPROJECT",
-            "BIDIRMX1PERSON",
-            "BIDIRMXMPERSON",
-            "BOOK",
-            "CUST_TABLE",
-            "CUSTOMER1",
-            "DEPARTMENT",
-            "DEPARTMENT_2",
-            "DID1BDEPENDENT",
-            "DID1DEPENDENT",
-            "DID2BDEPENDENT",
-            "DID2DEPENDENT",
-            "DID3BDEPENDENT",
-            "DID3DEPENDENT",
-            "DID4BMEDICALHISTORY",
-            "DID4MEDICALHISTORY",
-            "DID5BMEDICALHISTORY",
-            "DID5MEDICALHISTORY",
-            "DID6BMEDICALHISTORY",
-            "DID6MEDICALHISTORY",
-            "EMP_MAPKEYCOL",
-            "EMP_MAPKEYCOL2",
-            "INSURANCE",
-            "LAWBOOK",
-            "LINEITEM_TABLE",
-            "MEMBER",
-            "NAMEONLYINXML",
-            "NOENTITYLISTENER_TABLE",
-            "ORDER1",
-            "ORDER2",
-            "PARTTIMEEMPLOYEE",
-            "PRICED_PRODUCT_TABLE",
-            "PRODUCT_DETAILS",
-            "PRODUCT_TABLE_DISCRIMINATOR",
-            "PURCHASE_ORDER",
-            "UNI1X1PERSON",
-            "UNI1XMPERSON",
-            "UNIMX1PERSON",
-            // Additional TCK tables from full run
-            "ADDRESS",
-            "AEC",
-            "BIDIR1X1PROJECT",
-            "BIDIR1XMPERSON",
-            "BIDIRMX1PROJECT",
-            "BNE_1XM_BI_BTOB",
-            "COLTAB_ADDRESS",
-            "COMPLAINT",
-            "COURSE_2",
-            "DATATYPES3",
-            "DATE_TABLE",
-            "DATES_TABLE",
-            "DEPARTMENT2",
-            "DID1BEMPLOYEE",
-            "DID1EMPLOYEE",
-            "DID2BEMPLOYEE",
-            "DID2EMPLOYEE",
-            "DID3BEMPLOYEE",
-            "DID3EMPLOYEE",
-            "DID4BPERSON",
-            "DID4PERSON",
-            "DID5BPERSON",
-            "DID5PERSON",
-            "DID6BPERSON",
-            "DID6PERSON",
-            "EMPLOYEE_2",
-            "EMPLOYEE_EMBEDED_ADDRESS",
-            "FKS_ALIAS_CUSTOMER",
-            "ITEM",
-            "NOENTITYANNOTATION",
-            "ORDER_TABLE",
-            "PERSON_ANNUALREVIEW",
-            "PHONES",
-            "PRODUCT_TABLE",
-            "RETAILORDER2",
-            "SEMESTER",
-            "STUDENT",
-            "UUIDTYPE",
-            // Additional TCK tables from second run
-            "ALIAS_TABLE",
-            "ANNUALREVIEW",
-            "BIDIRMXMPERSON_BIDIRMXMPROJECT",
-            "COLTAB",
-            "COURSE",
-            "CUBICLE",
-            "CUSTOMER_TABLE",
-            "MOVIETICKET",
-            "PERSON",
-            "STORE",
-            "STUDENT_2",
-            "UNI1X1PROJECT",
-            "UNI1XMPROJECT",
-            "UNIMX1PROJECT",
-            "UNIMXMPROJECT",
-            // Additional TCK tables from third run
-            "BIDIRMXMPROJECT",
-            "BOOKSTORE",
-            "CREDITCARD_TABLE",
-            "CUST_ORDER",
-            "CUSTOMERS",
-            "PROJECT",
-            "TEAM",
-            // Additional TCK tables from fourth run
-            "COMPANY",
-            "HARDWARE",
-            "SPOUSE_TABLE",
-            "THEATRELOCATION_THEATRECOMPANY"
-        };
-        
-        for (String tableName : joinTableNames) {
-            try (Statement stmt = connection.createStatement()) {
-                // Create a simple table with ID column for entity tables
-                // or join columns for join tables
-                // For TCK compatibility: do NOT quote table names (H2 stores unquoted identifiers in uppercase)
-                // but do quote column names to avoid SQL keyword conflicts
-                String ddl;
-                if (tableName.contains("_")) {
-                    // Join table - create with join columns
-                    // For H2 and PostgreSQL, use IF NOT EXISTS to avoid errors
-                    if ("h2".equals(dialectName) || "postgresql".equals(dialectName)) {
-                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
-                              quoteColumnIdentifier("id") + " BIGINT NOT NULL, " +
-                              quoteColumnIdentifier("entity_a_id") + " BIGINT, " +
-                              quoteColumnIdentifier("entity_b_id") + " BIGINT" +
-                              ")";
-                    } else {
-                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
-                              quoteColumnIdentifier("id") + " BIGINT NOT NULL, " +
-                              quoteColumnIdentifier("entity_a_id") + " BIGINT, " +
-                              quoteColumnIdentifier("entity_b_id") + " BIGINT" +
-                              ")";
-                    }
-                } else {
-                    // Entity table - create with ID column
-                    if ("h2".equals(dialectName) || "postgresql".equals(dialectName)) {
-                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
-                              quoteColumnIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, " +
-                              quoteColumnIdentifier("name") + " VARCHAR(255)" +
-                              ")";
-                    } else {
-                        ddl = "CREATE TABLE IF NOT EXISTS " + quoteIdentifier(tableName) + " (" +
-                              quoteColumnIdentifier("id") + " BIGINT NOT NULL PRIMARY KEY, " +
-                              quoteColumnIdentifier("name") + " VARCHAR(255)" +
-                              ")";
+                    } catch (SQLException e) {
+                        System.err.println("[MansartSchema] DDL error (entityClass " + entityClass.getName() + "): " + ddl + " -> " + e.getMessage());
                     }
                 }
-                stmt.execute(ddl);
-            } catch (SQLException e) {
-                // Table might already exist - this is OK
             }
         }
     }
@@ -451,7 +109,6 @@ public class MansartSchemaManager implements SchemaManager {
      * Generates CREATE TABLE DDL from a class by inspecting its fields and annotations.
      * This is a fallback when EntityModel is not available.
      * Scans for @Id, @Column, @Basic, and other JPA annotations.
-     * Also creates join tables for ManyToMany relationships.
      */
     private List<Class<?>> getEntitySubclasses(Class<?> entityClass) {
         List<Class<?>> subclasses = new ArrayList<>();
@@ -512,53 +169,107 @@ public class MansartSchemaManager implements SchemaManager {
             }
         }
         for (java.lang.reflect.Field field : allFields) {
-            // Skip static and final fields - they are not persistent
+            // Skip static, final, and Java transient fields - they are not persistent
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
-                java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
+                java.lang.reflect.Modifier.isFinal(field.getModifiers()) ||
+                java.lang.reflect.Modifier.isTransient(field.getModifiers())) {
                 continue;
             }
             String fieldName = field.getName();
             Class<?> fieldType = field.getType();
             
-            // Check for @Id annotation
-            boolean isId = field.isAnnotationPresent(jakarta.persistence.Id.class);
+            // Check for @Id annotation (field or getter)
+            boolean isId = hasAnnotation(field, jakarta.persistence.Id.class);
             
             // Check for @GeneratedValue annotation to determine if we need AUTO_INCREMENT
             boolean isAutoGenerated = false;
             if (isId) {
-                jakarta.persistence.GeneratedValue generatedValue = field.getAnnotation(jakarta.persistence.GeneratedValue.class);
+                jakarta.persistence.GeneratedValue generatedValue = getAnnotationOnFieldOrGetter(field, jakarta.persistence.GeneratedValue.class);
                 if (generatedValue != null) {
                     isAutoGenerated = generatedValue.strategy() == jakarta.persistence.GenerationType.IDENTITY
                             || generatedValue.strategy() == jakarta.persistence.GenerationType.AUTO;
                 }
             }
             
-            // Check for @Column annotation
-            jakarta.persistence.Column columnAnn = field.getAnnotation(jakarta.persistence.Column.class);
+            // Check for @Column annotation (field or getter)
+            jakarta.persistence.Column columnAnn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.Column.class);
             String columnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : fieldName;
+            if (entityClass.getSimpleName().equals("Employee") && entityClass.getPackage().getName().contains("tck")) {
+                System.err.println("[MansartSchema] Entity " + entityClass.getName() + " field=" + fieldName + " @Column=" + (columnAnn != null ? columnAnn.name() : "null") + " → columnName=" + columnName + " isId=" + isId);
+            }
             boolean nullable = columnAnn == null || columnAnn.nullable();
             int length = columnAnn != null && columnAnn.length() > 0 ? columnAnn.length() : 255;
             
-            // Check for @Basic annotation (optional, most fields are basic by default)
-            boolean isBasic = field.isAnnotationPresent(jakarta.persistence.Basic.class);
+            // Check for @Lob annotation (field or getter)
+            boolean isLob = hasAnnotation(field, jakarta.persistence.Lob.class);
             
-            // Skip non-persistent fields
-            if (field.isAnnotationPresent(jakarta.persistence.Transient.class)) {
+            // Check for @Temporal annotation (field or getter)
+            jakarta.persistence.Temporal temporalAnn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.Temporal.class);
+            jakarta.persistence.TemporalType temporalType = temporalAnn != null ? temporalAnn.value() : null;
+            
+            // Check for @Basic annotation (optional, most fields are basic by default)
+            boolean isBasic = hasAnnotation(field, jakarta.persistence.Basic.class);
+            
+            // Skip non-persistent fields (field or getter)
+            if (hasAnnotation(field, jakarta.persistence.Transient.class)) {
                 continue;
             }
             
             // Handle relationship fields - create join tables for ManyToMany
-            if (field.isAnnotationPresent(jakarta.persistence.ManyToMany.class)) {
-                jakarta.persistence.ManyToMany manyToMany = field.getAnnotation(jakarta.persistence.ManyToMany.class);
+            if (hasAnnotation(field, jakarta.persistence.ManyToMany.class)) {
+                jakarta.persistence.ManyToMany manyToMany = getAnnotationOnFieldOrGetter(field, jakarta.persistence.ManyToMany.class);
                 String joinTableName = getJoinTableName(entityClass, field, manyToMany);
                 // Skip the field itself, but remember to create join table later
                 continue;
             }
             
             // Skip other relationship fields (for now, simplified DDL)
-            if (field.isAnnotationPresent(jakarta.persistence.ManyToOne.class) ||
-                field.isAnnotationPresent(jakarta.persistence.OneToOne.class) ||
-                field.isAnnotationPresent(jakarta.persistence.OneToMany.class)) {
+            if (hasAnnotation(field, jakarta.persistence.ManyToOne.class) ||
+                hasAnnotation(field, jakarta.persistence.OneToOne.class) ||
+                hasAnnotation(field, jakarta.persistence.OneToMany.class)) {
+                // But handle @JoinColumn - create the FK column in the main table
+                jakarta.persistence.JoinColumn joinColumn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.JoinColumn.class);
+                if (joinColumn != null && !joinColumn.name().isEmpty()) {
+                    String fkColName = joinColumn.name();
+                    StringBuilder fkColDef = new StringBuilder();
+                    fkColDef.append(quoteColumnIdentifier(fkColName)).append(" BIGINT");
+                    if (!joinColumn.nullable()) {
+                        fkColDef.append(" NOT NULL");
+                    }
+                    columnDefs.add(fkColDef.toString());
+                }
+                continue;
+            }
+            
+            // Handle @ElementCollection fields - treat as basic columns in the main table
+            // For TCK compatibility: the INSERT path includes these as columns
+            if (hasAnnotation(field, jakarta.persistence.ElementCollection.class)) {
+                // Determine element type from generic type
+                Class<?> elementType = fieldType;
+                if (java.util.Collection.class.isAssignableFrom(fieldType)) {
+                    java.lang.reflect.Type genericType = field.getGenericType();
+                    if (genericType instanceof java.lang.reflect.ParameterizedType pt) {
+                        java.lang.reflect.Type[] typeArgs = pt.getActualTypeArguments();
+                        if (typeArgs.length > 0 && typeArgs[0] instanceof Class) {
+                            elementType = (Class<?>) typeArgs[0];
+                        }
+                    }
+                }
+                // Also check @Column annotation for element collection column name
+                jakarta.persistence.CollectionTable collectionTable = getAnnotationOnFieldOrGetter(field, jakarta.persistence.CollectionTable.class);
+                if (collectionTable != null && !collectionTable.name().isEmpty()) {
+                    // Has explicit collection table - still create as column for TCK compatibility
+                    // since INSERT includes it in the main table
+                }
+                String elementColName = columnName;
+                String elementSqlType = mapJavaTypeToSqlType(elementType, length);
+                
+                StringBuilder colDef = new StringBuilder();
+                colDef.append(quoteColumnIdentifier(elementColName)).append(" ").append(elementSqlType);
+                if (!nullable) {
+                    colDef.append(" NOT NULL");
+                }
+                columnDefs.add(colDef.toString());
                 continue;
             }
             
@@ -566,7 +277,18 @@ public class MansartSchemaManager implements SchemaManager {
             colDef.append(quoteColumnIdentifier(columnName)).append(" ");
             
             // Map Java type to SQL type with length
-            String sqlType = mapJavaTypeToSqlType(fieldType, length);
+            String sqlType;
+            if (isLob) {
+                sqlType = "BLOB";
+            } else if (temporalType == jakarta.persistence.TemporalType.TIME) {
+                sqlType = "TIME";
+            } else if (temporalType == jakarta.persistence.TemporalType.DATE) {
+                sqlType = "DATE";
+            } else if (temporalType == jakarta.persistence.TemporalType.TIMESTAMP) {
+                sqlType = "TIMESTAMP";
+            } else {
+                sqlType = mapJavaTypeToSqlType(fieldType, length);
+            }
             colDef.append(sqlType);
             
             if (isId || !nullable) {
@@ -923,8 +645,8 @@ public class MansartSchemaManager implements SchemaManager {
         if ("postgresql".equals(dialectName)) {
             return "\"" + identifier + "\"";
         } else if ("h2".equals(dialectName)) {
-            // H2: use backticks to preserve case sensitivity and avoid SQL keyword conflicts
-            return "`" + identifier + "`";
+            // H2: use double quotes to preserve case sensitivity (consistent with H2 dialect)
+            return "\"" + identifier + "\"";
         } else {
             // Default: double-quote identifiers
             return "\"" + identifier + "\"";
@@ -933,18 +655,162 @@ public class MansartSchemaManager implements SchemaManager {
 
     /**
      * Quotes a column identifier based on the dialect.
-     * For H2, returns backtick-quoted identifiers to avoid SQL keyword conflicts.
+     * For H2, returns double-quoted identifiers to preserve case sensitivity.
      * For PostgreSQL, returns double-quoted identifiers.
      */
     private String quoteColumnIdentifier(String identifier) {
         if ("postgresql".equals(dialectName)) {
             return "\"" + identifier + "\"";
         } else if ("h2".equals(dialectName)) {
-            // H2: use backticks to avoid SQL keyword conflicts
-            return "`" + identifier + "`";
+            // H2: use double quotes to preserve case sensitivity (consistent with H2 dialect)
+            return "\"" + identifier + "\"";
         } else {
             // Default: double-quote identifiers
             return "\"" + identifier + "\"";
         }
+    }
+
+    /**
+     * Checks if an annotation is present on the field OR its corresponding getter method.
+     * JPA supports both field-level and property-level (getter) annotations.
+     */
+    /**
+     * Finds the getter method name for a field, handling non-standard camelCase
+     * field names (e.g. "wareHouse" -> "getWarehouse", not "getWareHouse").
+     * Tries standard JavaBean convention first, then falls back to variants
+     * that handle camelCase acronyms.
+     */
+    private String findGetterName(java.lang.reflect.Field field, String prefix) {
+        String fieldName = field.getName();
+        // Standard JavaBean: capitalize first char only
+        String standard = prefix + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        try {
+            field.getDeclaringClass().getMethod(standard);
+            return standard;
+        } catch (NoSuchMethodException ignored) {
+            // Fallback: for camelCase acronyms like "wareHouse", try "getWarehouse"
+            // (second char lowercased)
+            if (fieldName.length() > 1 && Character.isUpperCase(fieldName.charAt(1))) {
+                String fallback = prefix + Character.toUpperCase(fieldName.charAt(0))
+                        + Character.toLowerCase(fieldName.charAt(1))
+                        + fieldName.substring(2);
+                try {
+                    field.getDeclaringClass().getMethod(fallback);
+                    return fallback;
+                } catch (NoSuchMethodException ignored2) {
+                    // Try all-uppercase acronym: "getURL", "getHIREDATE"
+                    String acronym = prefix + fieldName.toUpperCase();
+                    try {
+                        field.getDeclaringClass().getMethod(acronym);
+                        return acronym;
+                    } catch (NoSuchMethodException ignored3) {
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Finds the setter method name for a field, using the same camelCase
+     * acronym handling as findGetterName.
+     */
+    private String findSetterName(java.lang.reflect.Field field) {
+        String fieldName = field.getName();
+        String standard = "set" + Character.toUpperCase(fieldName.charAt(0)) + fieldName.substring(1);
+        try {
+            field.getDeclaringClass().getMethod(standard, field.getType());
+            return standard;
+        } catch (NoSuchMethodException ignored) {
+            if (fieldName.length() > 1 && Character.isUpperCase(fieldName.charAt(1))) {
+                String fallback = "set" + Character.toUpperCase(fieldName.charAt(0))
+                        + Character.toLowerCase(fieldName.charAt(1))
+                        + fieldName.substring(2);
+                try {
+                    field.getDeclaringClass().getMethod(fallback, field.getType());
+                    return fallback;
+                } catch (NoSuchMethodException ignored2) {
+                    String acronym = "set" + fieldName.toUpperCase();
+                    try {
+                        field.getDeclaringClass().getMethod(acronym, field.getType());
+                        return acronym;
+                    } catch (NoSuchMethodException ignored3) {
+                        return null;
+                    }
+                }
+            }
+            return null;
+        }
+    }
+
+    private boolean hasAnnotation(java.lang.reflect.Field field, Class<? extends java.lang.annotation.Annotation> annotationType) {
+        if (field.isAnnotationPresent(annotationType)) {
+            return true;
+        }
+        // Check getters (get/is)
+        String getterName = findGetterName(field, "get");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method getter = field.getDeclaringClass().getMethod(getterName);
+                if (getter.isAnnotationPresent(annotationType)) return true;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        getterName = findGetterName(field, "is");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method isGetter = field.getDeclaringClass().getMethod(getterName);
+                if (isGetter.isAnnotationPresent(annotationType)) return true;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        // Check setters (set) — JPA property access checks both getters and setters
+        String setterName = findSetterName(field);
+        if (setterName != null) {
+            try {
+                java.lang.reflect.Method setter = field.getDeclaringClass().getMethod(setterName, field.getType());
+                if (setter.isAnnotationPresent(annotationType)) return true;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        return false;
+    }
+
+    /**
+     * Gets an annotation from the field OR its corresponding getter/setter method.
+     * JPA property access checks both getters and setters for annotations.
+     */
+    @SuppressWarnings("unchecked")
+    private <A extends java.lang.annotation.Annotation> A getAnnotationOnFieldOrGetter(
+            java.lang.reflect.Field field, Class<A> annotationType) {
+        A ann = field.getAnnotation(annotationType);
+        if (ann != null) {
+            return ann;
+        }
+        // Check getters (get/is)
+        String getterName = findGetterName(field, "get");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method getter = field.getDeclaringClass().getMethod(getterName);
+                A result = getter.getAnnotation(annotationType);
+                if (result != null) return result;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        getterName = findGetterName(field, "is");
+        if (getterName != null) {
+            try {
+                java.lang.reflect.Method isGetter = field.getDeclaringClass().getMethod(getterName);
+                A result = isGetter.getAnnotation(annotationType);
+                if (result != null) return result;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        // Check setters (set) — JPA property access checks both getters and setters
+        String setterName = findSetterName(field);
+        if (setterName != null) {
+            try {
+                java.lang.reflect.Method setter = field.getDeclaringClass().getMethod(setterName, field.getType());
+                A result = setter.getAnnotation(annotationType);
+                if (result != null) return result;
+            } catch (NoSuchMethodException ignored) {}
+        }
+        return null;
     }
 }

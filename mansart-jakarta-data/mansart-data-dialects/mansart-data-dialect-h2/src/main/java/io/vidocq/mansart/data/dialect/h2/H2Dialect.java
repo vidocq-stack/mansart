@@ -101,7 +101,7 @@ public final class H2Dialect implements Dialect {
         for (Attribute<?, ?> a : model.attributes()) {
             if (a == model.id() && model.id().generated()) continue;
             if (!first) { cols.append(", "); vals.append(", "); }
-            cols.append(" `").append(a.columnName()).append("` ");
+            cols.append(" \"").append(a.columnName()).append("\" ");
             vals.append('?');
             first = false;
         }
@@ -122,7 +122,7 @@ public final class H2Dialect implements Dialect {
         for (Attribute<?, ?> a : model.attributes()) {
             if (a == model.id()) continue;
             if (!first) sb.append(", ");
-            sb.append(" `").append(a.columnName()).append("` = ?");
+            sb.append(" \"").append(a.columnName()).append("\" = ?");
             first = false;
         }
         appendWhere(sb, where, plan);
@@ -146,12 +146,12 @@ public final class H2Dialect implements Dialect {
         boolean first = true;
         for (Attribute<?, ?> a : model.attributes()) {
             if (!first) { cols.append(", "); vals.append(", "); }
-            cols.append(" `").append(a.columnName()).append("` ");
+            cols.append(" \"").append(a.columnName()).append("\" ");
             vals.append('?');
             first = false;
         }
         String sql = "MERGE INTO " + qualified(model)
-                + " (" + cols + ") KEY (`" + model.id().columnName() + "`) VALUES (" + vals + ")";
+                + " (" + cols + ") KEY (\"" + model.id().columnName() + "\") VALUES (" + vals + ")";
         return new SqlFragment(sql, java.util.List.of());
     }
 
@@ -268,8 +268,8 @@ public final class H2Dialect implements Dialect {
 
     private String qualified(EntityModel<?> model) {
         return (model.schema() == null || model.schema().isEmpty())
-                ? "`" + model.tableName() + "`"
-                : "`" + model.schema() + "`. `" + model.tableName() + "`";
+                ? "\"" + model.tableName() + "\""
+                : "\"" + model.schema() + "\". \"" + model.tableName() + "\"";
     }
 
     private void appendColumnList(StringBuilder sb, EntityModel<?> model) {
@@ -286,7 +286,7 @@ public final class H2Dialect implements Dialect {
         boolean first = true;
         for (Attribute<?, ?> a : model.attributes()) {
             if (!first) sb.append(", ");
-            sb.append(rootAlias).append(".`").append(a.columnName()).append("`");
+            sb.append(rootAlias).append(".\"").append(a.columnName()).append("\"");
             first = false;
         }
     }
@@ -303,17 +303,17 @@ public final class H2Dialect implements Dialect {
                     : plan.aliasByPath().get(path.prefix(path.steps().size() - 1));
             var step = path.steps().get(path.steps().size() - 1);
             sb.append(" INNER JOIN ");
-            if (!step.targetSchemaName().isEmpty()) sb.append(" `").append(step.targetSchemaName()).append("`.");
-            sb.append(" `").append(step.targetTableName()).append("` ").append(alias)
-              .append(" ON ").append(parentAlias).append(".`").append(step.foreignKeyColumn()).append("`")
-              .append(" = ").append(alias).append(".`").append(step.referencedColumn()).append("`");
+            if (!step.targetSchemaName().isEmpty()) sb.append(" \"").append(step.targetSchemaName()).append("\".");
+            sb.append(" \"").append(step.targetTableName()).append("\" ").append(alias)
+              .append(" ON ").append(parentAlias).append(".\"").append(step.foreignKeyColumn()).append("\"")
+              .append(" = ").append(alias).append(".\"").append(step.referencedColumn()).append("\"");
         }
     }
 
     /** M8-3 — qualify a column with its owning table alias (root if plain attr, joined alias if joined). */
     private String col(Attribute<?, ?> a, Joins.Plan plan) {
-        if (plan.isEmpty()) return "`" + a.columnName() + "`";
-        return plan.tableAliasFor(a) + ".`" + a.columnName() + "`";
+        if (plan.isEmpty()) return "\"" + a.columnName() + "\"";
+        return plan.tableAliasFor(a) + ".\"" + a.columnName() + "\"";
     }
 
     private void appendWhere(StringBuilder sb, Where where, Joins.Plan plan) {
