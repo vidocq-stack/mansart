@@ -15,11 +15,19 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.lifecycle.Startables;
 
 import javax.sql.DataSource;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Produces a PostgreSQL DataSource via Testcontainers for TCK test deployments.
  * The container is started once per JVM and cleaned up on shutdown.
+ * The official TCK PostgreSQL DDL is executed after container startup.
  */
 @ApplicationScoped
 public class PostgresDataSourceProducer {
@@ -32,9 +40,55 @@ public class PostgresDataSourceProducer {
                 .withUsername("testuser")
                 .withPassword("testpass");
         Startables.deepStart(container).join();
-        // Ensure the container is not stopped when the static initializer completes
+        executeTckDdl(container);
         Runtime.getRuntime().addShutdownHook(new Thread(container::stop));
         POSTGRES = container;
+    }
+
+    private static void executeTckDdl(PostgreSQLContainer<?> container) {
+        try (Connection conn = container.createConnection("");
+             Statement stmt = conn.createStatement()) {
+            String ddlPath = "/sql/postgresql/postgresql.ddl.persistence.sql";
+            try (InputStream is = PostgresDataSourceProducer.class.getResourceAsStream(ddlPath)) {
+                if (is == null) {
+                    System.err.println("[TCK] WARNING: DDL not found at " + ddlPath + " — schema generation must be used");
+                    return;
+                }
+                List<String> statements = parseSqlStatements(is);
+                for (String sql : statements) {
+                    String trimmed = sql.trim();
+                    if (!trimmed.isEmpty() && !trimmed.startsWith("--")) {
+                        stmt.execute(trimmed);
+                    }
+                }
+                System.out.println("[TCK] Official PostgreSQL DDL executed successfully");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to execute TCK DDL", e);
+        }
+    }
+
+    private static List<String> parseSqlStatements(InputStream is) throws Exception {
+        List<String> statements = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String trimmed = line.trim();
+                if (trimmed.startsWith("--")) {
+                    continue;
+                }
+                sb.append(trimmed).append(" ");
+                if (trimmed.endsWith(";")) {
+                    statements.add(sb.toString());
+                    sb.setLength(0);
+                }
+            }
+        }
+        if (sb.length() > 0) {
+            statements.add(sb.toString());
+        }
+        return statements;
     }
 
     @Produces

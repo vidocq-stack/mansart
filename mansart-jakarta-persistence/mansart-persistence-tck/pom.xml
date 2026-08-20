@@ -337,6 +337,7 @@
                                 <vehicle>standalone</vehicle>
                                 <db.supports.sequence>true</db.supports.sequence>
                                 <persistence.second.level.caching.supported>true</persistence.second.level.caching.supported>
+                                <tck.schema.action>create</tck.schema.action>
                                 <!-- Required by TCK PMClientBase.getPersistenceUnitProperties() -->
                                 <jpa.provider.implementation.specific.properties>jakarta.persistence.schema-generation.database.action=create:jakarta.persistence.schema-generation.scripts.action=create:jakarta.persistence.schema-generation.create-database-schemas=true</jpa.provider.implementation.specific.properties>
                             </systemPropertyVariables>
@@ -363,6 +364,7 @@
                         <configuration>
                             <systemPropertyVariables>
                                 <mansart.tck.dialect>pg</mansart.tck.dialect>
+                                <tck.schema.action>none</tck.schema.action>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>

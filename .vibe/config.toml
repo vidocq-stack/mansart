@@ -1,7 +1,7 @@
 applied_migrations = [
     "bash_read_only_defaults_v1",
 ]
-active_model = ""
+active_model = "qwen"
 
 [[mcp_servers]]
 name = "java-lsp"
@@ -39,6 +39,7 @@ allowlist = [
     "/Users/yblazart/.vibe/*",
     "/Users/yblazart/.vibe/skills/*",
     "/Users/yblazart/projects/perso/vidocq/*",
+    "/Users/yblazart/projects/perso/vidocq/mansart/mvnw",
     "basename",
     "cat",
     "cd",

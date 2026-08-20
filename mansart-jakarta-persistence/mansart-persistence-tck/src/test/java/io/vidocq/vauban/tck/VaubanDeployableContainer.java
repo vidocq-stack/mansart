@@ -58,6 +58,7 @@ public class VaubanDeployableContainer implements DeployableContainer<VaubanCont
         try {
             var classBytecodeMap = new LinkedHashMap<String, byte[]>();
             var classNames = new ArrayList<String>();
+            var resourceMap = new LinkedHashMap<String, byte[]>();
 
             for (Map.Entry<ArchivePath, Node> entry : archive.getContent().entrySet()) {
                 var path = entry.getKey().get();
@@ -70,24 +71,34 @@ public class VaubanDeployableContainer implements DeployableContainer<VaubanCont
                     extractClass(asset, classBytecodeMap, classNames);
                 }
 
+                // Extract service files and other resources (META-INF/services/*, beans.xml, etc.)
+                if (!path.endsWith(".class") && !path.endsWith(".jar")) {
+                    extractResource(asset, path, resourceMap);
+                }
+
                 // Extract .class files from nested JARs (WEB-INF/lib/*.jar)
                 if (path.endsWith(".jar") && path.contains("lib")) {
                     try (var is = asset.openStream();
                          var jarIs = new JarInputStream(is)) {
                         var jarEntry = jarIs.getNextJarEntry();
                         while (jarEntry != null) {
-                            if (jarEntry.getName().endsWith(".class")
-                                    && !jarEntry.getName().contains("module-info")) {
+                            var entryName = jarEntry.getName();
+                            if (entryName.endsWith(".class")
+                                    && !entryName.contains("module-info")) {
                                 var bytes = jarIs.readAllBytes();
-                try {
-                    var classInfo = ClassFileScanner.scan(bytes);
-                    var className = classInfo.name().value();
-                    classBytecodeMap.put(className, bytes);
-                    classNames.add(className);
-                } catch (Exception e) {
-                    System.out.println("Failed to scan class in JAR: " + e.getMessage());
-                    e.printStackTrace();
-                }
+                                try {
+                                    var classInfo = ClassFileScanner.scan(bytes);
+                                    var className = classInfo.name().value();
+                                    classBytecodeMap.put(className, bytes);
+                                    classNames.add(className);
+                                } catch (Exception e) {
+                                    System.out.println("Failed to scan class in JAR: " + e.getMessage());
+                                    e.printStackTrace();
+                                }
+                            } else if (!entryName.endsWith(".class") && !entryName.endsWith("/")) {
+                                // Extract non-class resources from nested JARs
+                                var bytes = jarIs.readAllBytes();
+                                resourceMap.put(entryName, bytes);
                             }
                             jarEntry = jarIs.getNextJarEntry();
                         }
@@ -96,7 +107,7 @@ public class VaubanDeployableContainer implements DeployableContainer<VaubanCont
             }
 
             var archiveClassLoader = new ByteArrayClassLoader(
-                    Thread.currentThread().getContextClassLoader(), classBytecodeMap);
+                    Thread.currentThread().getContextClassLoader(), classBytecodeMap, resourceMap);
 
             // Check if the archive has beans.xml (determines bean archive vs non-bean archive)
             boolean hasBeanArchiveDescriptor = archive.getContent().keySet().stream()
@@ -154,6 +165,16 @@ public class VaubanDeployableContainer implements DeployableContainer<VaubanCont
         }
     }
 
+    private void extractResource(org.jboss.shrinkwrap.api.asset.Asset asset,
+            String path, Map<String, byte[]> resourceMap) {
+        try (InputStream is = asset.openStream()) {
+            var bytes = is.readAllBytes();
+            resourceMap.put(path, bytes);
+        } catch (Exception e) {
+            // Skip unreadable assets
+        }
+    }
+
     @Override
     public void undeploy(Archive<?> archive) throws DeploymentException {
         try {
@@ -168,14 +189,16 @@ public class VaubanDeployableContainer implements DeployableContainer<VaubanCont
 
     /**
      * ClassLoader that loads classes from bytecode byte arrays
-     * and serves getResourceAsStream for .class resources.
+     * and serves getResourceAsStream for .class resources and service files.
      */
     public static class ByteArrayClassLoader extends ClassLoader {
         private final Map<String, byte[]> classes;
+        private final Map<String, byte[]> resources;
 
-        ByteArrayClassLoader(ClassLoader parent, Map<String, byte[]> classes) {
+        ByteArrayClassLoader(ClassLoader parent, Map<String, byte[]> classes, Map<String, byte[]> resources) {
             super(parent);
             this.classes = classes;
+            this.resources = resources;
         }
 
         /** Register dynamically generated bytecode (e.g., intercepted subclasses). */
@@ -223,12 +246,18 @@ public class VaubanDeployableContainer implements DeployableContainer<VaubanCont
 
         @Override
         public InputStream getResourceAsStream(String name) {
+            // First check if it's a class resource
             if (name.endsWith(".class")) {
                 var className = name.replace('/', '.').replace(".class", "");
                 var bytes = classes.get(className);
                 if (bytes != null) {
                     return new ByteArrayInputStream(bytes);
                 }
+            }
+            // Check if it's a regular resource (service files, beans.xml, etc.)
+            var resourceBytes = resources.get(name);
+            if (resourceBytes != null) {
+                return new ByteArrayInputStream(resourceBytes);
             }
             return super.getResourceAsStream(name);
         }

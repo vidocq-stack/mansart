@@ -33,6 +33,7 @@ import javax.tools.Diagnostic;
 import io.vidocq.mansart.persistence.processor.parse.EntityScanner;
 import io.vidocq.mansart.persistence.processor.metadata.EntityMetadataGenerator;
 import io.vidocq.mansart.persistence.processor.metadata.StaticMetamodelGenerator;
+import io.vidocq.mansart.persistence.processor.metadata.CallbackDispatcherGenerator;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -81,6 +82,7 @@ public final class MansartProcessor extends AbstractProcessor {
     private EntityScanner entityScanner;
     private EntityMetadataGenerator entityMetadataGenerator;
     private StaticMetamodelGenerator staticMetamodelGenerator;
+    private CallbackDispatcherGenerator callbackDispatcherGenerator;
     private Filer filer;
 
     @Override
@@ -92,6 +94,7 @@ public final class MansartProcessor extends AbstractProcessor {
         this.entityScanner = new EntityScanner(env);
         this.entityMetadataGenerator = new EntityMetadataGenerator(sourceSink);
         this.staticMetamodelGenerator = new StaticMetamodelGenerator(sourceSink);
+        this.callbackDispatcherGenerator = new CallbackDispatcherGenerator(sourceSink, env.getMessager());
     }
 
     @Override
@@ -120,8 +123,11 @@ public final class MansartProcessor extends AbstractProcessor {
                     continue;
                 }
 
-                // Generate entity metadata class
+                // Generate entity metadata class (DEBT-05: MethodHandle accessors)
                 entityMetadataGenerator.generate(metadata);
+
+                // Generate lifecycle callback dispatcher (DEBT-06)
+                callbackDispatcherGenerator.generate(metadata);
 
                 // Generate static metamodel class
                 staticMetamodelGenerator.generate(metadata);

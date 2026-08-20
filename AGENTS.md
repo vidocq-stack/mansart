@@ -103,9 +103,25 @@ to files, never to the conversation:
    (→ `BUG.md`), perf numbers with `/log-bench` (→ `BENCH.md`). The next session must
    be able to resume from files alone.
 
+### OpenCode setup for this repository (`.opencode/`)
+
+- Primary agent: **`persistence-dev`** (Qwen3.6-35B-A3B 8bit via oMLX). Subagents:
+  `tck-runner`, `spec-reader`, `persistence-auditor`, `gate-reviewer`, `tracker`,
+  plus `jpms-guardian`, `classfile-codegen`, `dependency-gatekeeper`,
+  `virtual-threads-reviewer`.
+- Commands: `/status` (session start) → `/tck-fix <Client>` or a debt item →
+  `/gate` → `/session-end`. Also `/tck <args>`, `/spec <q>`, `/audit`, `/log-bug`,
+  `/log-bench`.
+- Skills (loaded on demand): `mansart-persistence`, `mansart-persistence-tck`.
+- **Remediation backlog: `PERSISTENCE-DEBT.md`** (charter-violating shortcuts found on
+  2026-08-19). Read its open items at session start; no new code may add to it.
+- **Progress metric = TCK PASS / Total.** "Fewer errors" is not progress and never
+  justifies a tick. No TCK class names in runtime code, no reflection/`Proxy`, no
+  `return null` stubs — see `PERSISTENCE-DEBT.md` sections A–C for the list being removed.
+
 ### Local-model tool-call reliability
 
-Local models (Qwen3-Coder-Next via oMLX) emit increasingly malformed tool calls as
+Local models (Qwen3.6 / Devstral via oMLX) emit increasingly malformed tool calls as
 the context grows — missing required keys (`SchemaError(Missing key at ["filePath"])`),
 wrong key casing, truncated JSON. Known OpenCode limitation with OpenAI-compatible
 models. Rules:
@@ -116,14 +132,13 @@ models. Rules:
 - **SchemaError fallback**: if `write`/`edit` is rejected with a SchemaError twice in
   a row, STOP retrying the tool. Create or modify the file via bash instead:
   `cat > path/to/File.java <<'EOF' ... EOF`. Do not loop on the failing tool.
-- **Model routing**: for write-heavy phases (scaffolding many new files), prefer
-  Devstral (`/models` in OpenCode, `/config` in Vibe) — it is tuned for agentic edit
-  formats. Qwen stays the default for reasoning-heavy coding.
+- **Model routing**: `omlx/Qwen3.6-35B-A3B-8bit` for everything (agents included);
+  `Qwen3.6-35B-A3B-4bit` is the cheap small model (titles, summaries).
 
 ### State files: delegate to the `tracker` subagent
 
 `PERSISTENCE-STATUS.md`, `BUG.md`, and `BENCH.md` are updated ONLY through the
-**`tracker` subagent** (pinned to Devstral). Delegate every tracker/bug/bench update
+**`tracker` subagent**. Delegate every tracker/bug/bench update
 to it instead of editing yourself. Its rules apply to everyone:
 
 - **Edit forward only.** NEVER `git checkout` / `git reset` / `git restore` a state

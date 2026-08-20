@@ -33,7 +33,6 @@ import java.io.PrintWriter;
  */
 public final class StaticMetamodelGenerator {
 
-    private static final String GENERATED_ANNOTATION = "javax.annotation.processing.Generated";
 
     private final SourceSink sink;
 
@@ -69,9 +68,7 @@ public final class StaticMetamodelGenerator {
             w.println("import jakarta.persistence.metamodel.SetAttribute;");
             w.println("import jakarta.persistence.metamodel.ListAttribute;");
             w.println("import jakarta.persistence.metamodel.MapAttribute;");
-            w.println("import " + GENERATED_ANNOTATION + ";");
             w.println();
-            w.println("@Generated(\"io.vidocq.mansart.persistence.processor.MansartProcessor\")");
             w.println("@StaticMetamodel(" + simpleName + ".class)");
             w.println("public abstract class " + className + " {");
             w.println();
