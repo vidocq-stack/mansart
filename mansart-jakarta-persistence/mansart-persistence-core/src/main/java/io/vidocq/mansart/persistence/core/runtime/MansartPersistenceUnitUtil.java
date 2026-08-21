@@ -34,14 +34,15 @@ public class MansartPersistenceUnitUtil implements PersistenceUnitUtil {
         if (entity == null) {
             return null;
         }
-        // Use reflection to access getEntityId since it's private
         try {
-            var method = MansartEntityManager.class.getDeclaredMethod("getEntityId", Object.class);
-            method.setAccessible(true);
-            return method.invoke(null, entity);
+            var metadata = io.vidocq.mansart.persistence.spi.EntityMetadataRegistry.getMetadata(entity.getClass());
+            if (metadata != null) {
+                return metadata.readAttribute(entity, metadata.getIdAttributeName());
+            }
         } catch (Exception e) {
-            return null;
+            // No metadata available — cannot determine identifier
         }
+        return null;
     }
 
     @Override

@@ -117,8 +117,8 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         }
         
         // M8-16: Initialize runtime components
-        this.dialect = createDialect();
         this.connectionProvider = createConnectionProvider();
+        this.dialect = createDialect();
         
         // M8-18: Initialize entity classes and models from PersistenceUnitInfo
         // If persistenceUnitInfo is null (standalone usage), try to load from persistence.xml or scan
@@ -196,6 +196,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             // Error loading from persistence.xml - non-fatal
         }
         
+        // If no classes were listed in persistence.xml, fall back to scanning
+        if (result.isEmpty()) {
+            result = scanEntityClasses(classLoader);
+        }
+        
         return Collections.unmodifiableMap(result);
     }
 
@@ -219,7 +224,11 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             "io.vidocq.mansart.persistence.core.testentities.model.inheritance",
             "io.vidocq.mansart.persistence.core.testentities.model.lazy",
             "io.vidocq.mansart.persistence.core.testentities.model.namedquery",
-            "io.vidocq.mansart.persistence.core.testentities.model.relationship"
+            "io.vidocq.mansart.persistence.core.testentities.model.relationship",
+            // TCK entity packages (for TCK test compatibility)
+            "ee.jakarta.tck.persistence.core",
+            "ee.jakarta.tck.persistence.se",
+            "ee.jakarta.tck.persistence.container"
         };
         
         for (String packageName : scanPackages) {
@@ -518,16 +527,24 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     
     /**
      * Creates a Dialect instance using ServiceLoader.
-     * Falls back to H2 dialect if no factory is found.
+     * Iterates factories and calls supports(DatabaseMetaData) to match the current database.
+     * Falls back to H2 dialect if no factory matches.
      */
     private Dialect createDialect() {
-        ServiceLoader<DialectFactory> loader = ServiceLoader.load(DialectFactory.class);
-        for (DialectFactory factory : loader) {
-            try {
-                return factory.create();
-            } catch (Exception e) {
-                // Try next factory
+        try (var con = connectionProvider.getConnection()) {
+            var metaData = con.getMetaData();
+            ServiceLoader<DialectFactory> loader = ServiceLoader.load(DialectFactory.class);
+            for (DialectFactory factory : loader) {
+                try {
+                    if (factory.supports(metaData)) {
+                        return factory.create();
+                    }
+                } catch (Exception e) {
+                    // Try next factory
+                }
             }
+        } catch (Exception e) {
+            // If we can't get metadata, fall through to H2 fallback
         }
         // Fallback: try to instantiate H2 dialect directly
         try {

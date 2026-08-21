@@ -22,7 +22,6 @@ package io.vidocq.mansart.persistence.core.runtime;
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
-import io.vidocq.mansart.data.dialect.SqlFragment;
 import io.vidocq.mansart.persistence.core.criteria.MansartCriteriaBuilder;
 import io.vidocq.mansart.persistence.core.jpql.JPQLParser;
 import io.vidocq.mansart.persistence.core.jpql.JpqlExecutor;
@@ -30,35 +29,26 @@ import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 import io.vidocq.mansart.persistence.spi.Bootstrap;
 import io.vidocq.mansart.persistence.spi.LifecycleCallbackDispatcher;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
-
+import jakarta.persistence.Cache;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.Cache;
 import jakarta.persistence.EntityTransaction;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.Query;
-import jakarta.persistence.SequenceGenerator;
-import jakarta.persistence.TableGenerator;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodType;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.Statement;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 /**
  * Runtime implementation of {@link EntityManager}.
@@ -95,7 +85,7 @@ public class MansartEntityManager implements EntityManager {
 
     /**
      * Gets the ID value from an entity.
-     * Phase 1 (DEBT-05): uses EntityMetadata SPI; falls back to registry lookup.
+     * Phase 1 (DEBT-05): uses EntityMetadata SPI; throws if metadata is unavailable.
      *
      * @param entity the entity
      * @return the ID value, or null if the entity has no ID
@@ -106,22 +96,15 @@ public class MansartEntityManager implements EntityManager {
         if (metadata != null) {
             return metadata.readAttribute(entity, metadata.getIdAttributeName());
         }
-        // Fallback: try to find id field via reflection
-        try {
-            java.lang.reflect.Field f = findIdField(entity.getClass());
-            if (f != null) {
-                f.setAccessible(true);
-                return f.get(entity);
-            }
-        } catch (Exception ignored) {}
-        return null;
+        throw new IllegalStateException("No EntityMetadata for " + entity.getClass().getName() +
+            " — entity was not processed by the APT processor");
     }
 
     /**
      * Sets the ID value on an entity.
      * Phase 1 (DEBT-05): uses EntityMetadata SPI.
      *
-     * @param entity the entity
+     * @param entity  the entity
      * @param idValue the ID value to set
      */
     private void setEntityId(Object entity, Object idValue) {
@@ -131,33 +114,8 @@ public class MansartEntityManager implements EntityManager {
             metadata.writeAttribute(entity, metadata.getIdAttributeName(), idValue);
             return;
         }
-        // Fallback: try to find id field via reflection
-        try {
-            java.lang.reflect.Field f = findIdField(entity.getClass());
-            if (f != null) {
-                f.setAccessible(true);
-                f.set(entity, idValue);
-                return;
-            }
-        } catch (Exception ignored) {}
-        throw new RuntimeException("Cannot set ID on entity " + entity.getClass().getName());
-    }
-
-    /**
-     * Finds the @Id field in an entity class hierarchy.
-     * Fallback for when EntityMetadata is not available.
-     */
-    private static java.lang.reflect.Field findIdField(Class<?> entityClass) {
-        Class<?> current = entityClass;
-        while (current != null && current != Object.class) {
-            for (java.lang.reflect.Field field : current.getDeclaredFields()) {
-                if (field.isAnnotationPresent(jakarta.persistence.Id.class)) {
-                    return field;
-                }
-            }
-            current = current.getSuperclass();
-        }
-        return null;
+        throw new IllegalStateException("No EntityMetadata for " + entity.getClass().getName() +
+            " — entity was not processed by the APT processor");
     }
 
     /**
@@ -275,17 +233,17 @@ public class MansartEntityManager implements EntityManager {
         // If metadata is not available, callbacks are silently skipped
         // (entity was not processed by the APT processor)
     }
-    
+
     // Transaction state for resource-local mode (when transactionManager is null)
     private final AtomicReference<Boolean> transactionActive = new AtomicReference<>(false);
     private final AtomicReference<Boolean> transactionRollbackOnly = new AtomicReference<>(false);
     private final AtomicReference<Integer> transactionTimeout = new AtomicReference<>(null);
-    
+
     // Shared connection for the lifetime of this EntityManager
     // This is needed for H2 in-memory databases where AUTO_INCREMENT is connection-scoped
     // and each new connection resets the sequence
     private Connection sharedConnection;
-    
+
     // Track detached entity IDs (className:id) to ensure find() returns null after detach
     // as expected by some TCK tests
     private final java.util.Set<Object> detachedKeys = new java.util.HashSet<>();
@@ -341,7 +299,7 @@ public class MansartEntityManager implements EntityManager {
         this.connectionProvider = connectionProvider;
         this.initialized = (entityClasses != null && !entityClasses.isEmpty()) || initialized;
         this.transactionManager = transactionManager;
-        
+
     }
 
     private MansartEntityManager(EntityManagerFactory entityManagerFactory, Bootstrap bootstrap, Dialect dialect,
@@ -371,20 +329,21 @@ public class MansartEntityManager implements EntityManager {
     private Object createCacheKey(Class<?> entityClass, Object id) {
         return entityClass.getName() + ":" + id;
     }
+
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey) {
         if (primaryKey == null) {
             return null;
         }
-        
+
         // Create cache key once
         Object cacheKey = createCacheKey(entityClass, primaryKey);
-        
+
         // Check if entity was detached - return null if so (as expected by TCK tests)
         if (detachedKeys.contains(cacheKey)) {
             return null;
         }
-        
+
         // Check L1 cache first
         Object entity = cache.get(cacheKey);
         if (entity != null && entityClass.isInstance(entity)) {
@@ -404,7 +363,7 @@ public class MansartEntityManager implements EntityManager {
                 return entityClass.cast(entity);
             }
         }
-        
+
         // If not in cache, try to load from database (M9-10: DB loading)
         // Only load from DB if entity is not in detachedKeys set (TCK expects null after detach)
         if (dialect != null && connectionProvider != null && !detachedKeys.contains(cacheKey)) {
@@ -421,7 +380,7 @@ public class MansartEntityManager implements EntityManager {
                 return entityClass.cast(entity);
             }
         }
-        
+
         return null;
     }
 
@@ -485,13 +444,13 @@ public class MansartEntityManager implements EntityManager {
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
-        
+
         // Invoke PrePersist callback (M9-3)
         invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_PERSIST);
-        
+
         // Generate ID for the entity using strategy-aware generator (M9-10)
         Long generatedId = generateId(entity);
-        
+
         // Check if we should set the ID before insert.
         // IDENTITY: database generates ID, don't set it.
         // AUTO/SEQUENCE/TABLE: application generates ID, set it before insert.
@@ -503,40 +462,40 @@ public class MansartEntityManager implements EntityManager {
                 shouldSetId = false;
             }
         }
-        
+
         try {
             if (shouldSetId) {
                 // Set the ID using MethodHandles (no reflection)
                 setEntityId(entity, generatedId);
             }
-            
+
             // Get the actual ID value from the entity (after conversion or from DB)
             Object actualId = shouldSetId ? getEntityId(entity) : null;
-            
+
             // Execute INSERT in database (M9-10: Phase 1 - DB persistence for TCK)
             // This ensures JPQL queries can find persisted entities
             if (dialect != null && connectionProvider != null) {
                 executeInsert(entity, actualId);
             }
-            
+
             // For IDENTITY strategy, the ID is generated by the database and set on the entity
             // during executeInsert, so we need to get it from the entity after the insert
             if (!shouldSetId) {
                 actualId = getEntityId(entity);
             }
-            
+
             // Store in L1 cache with actual ID
             cache.put(createCacheKey(entity.getClass(), actualId), entity);
-            
+
             // Store in L2 cache (M8-18: Cache support)
             Cache l2Cache = entityManagerFactory.getCache();
             if (l2Cache instanceof MansartCache) {
                 ((MansartCache) l2Cache).put(entity.getClass(), actualId, entity);
             }
-            
+
             // Invoke PostPersist callback (M9-3)
             invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_PERSIST);
-            
+
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist entity: " + e.getMessage(), e);
         }
@@ -548,16 +507,16 @@ public class MansartEntityManager implements EntityManager {
      * This ensures that JPQL queries can find persisted entities in the database.
      *
      * @param entity the entity to insert
-     * @param id the ID value to use for the entity
+     * @param id     the ID value to use for the entity
      * @throws SQLException if the insert fails
      */
     @SuppressWarnings("unchecked")
     private void executeInsert(Object entity, Object id) throws SQLException {
         Class<?> entityClass = entity.getClass();
-        
+
         // Try to get EntityModel from APT-generated models
         EntityModel<Object> entityModel = (EntityModel<Object>) entityModels.get(entityClass);
-        
+
         if (entityModel != null) {
             // Use dialect-based insert with EntityModel
             executeInsertWithEntityModel(entity, id, entityModel);
@@ -567,7 +526,7 @@ public class MansartEntityManager implements EntityManager {
             executeInsertWithReflection(entity, id, entityClass);
         }
     }
-    
+
     /**
      * Executes INSERT using EntityModel and dialect.
      */
@@ -575,7 +534,7 @@ public class MansartEntityManager implements EntityManager {
     private void executeInsertWithEntityModel(Object entity, Object id, EntityModel<Object> entityModel) throws SQLException {
         io.vidocq.mansart.data.dialect.SqlFragment insertFragment = dialect.insert(entityModel, true);
         String idColumnName = entityModel.id().columnName();
-        
+
         Connection connection = getConnection();
         try (java.sql.PreparedStatement ps = connection.prepareStatement(
                 insertFragment.sql(), new String[]{idColumnName})) {
@@ -612,175 +571,89 @@ public class MansartEntityManager implements EntityManager {
             }
         }
     }
-    
+
     /**
-     * Fallback: executes INSERT using reflection to inspect entity fields.
+     * Fallback: executes INSERT using EntityMetadata SPI to read/write entity state.
      * Used when EntityModel is not available (e.g., TCK entities).
      */
     private void executeInsertWithReflection(Object entity, Object id, Class<?> entityClass) throws SQLException {
-        // Get table name from APT-generated metadata first, then fall back to annotation
         io.vidocq.mansart.persistence.spi.EntityMetadata meta = resolveMetadata(entityClass);
-        String tableName = meta != null ? meta.tableName() : getTableNameFromAnnotation(entityClass);
+        if (meta == null) {
+            throw new IllegalStateException("No EntityMetadata for " + entityClass.getName() +
+                " — entity was not processed by the APT processor");
+        }
+
+        String tableName = meta.tableName();
         if (tableName == null || tableName.isEmpty()) {
             tableName = entityClass.getSimpleName().toLowerCase();
         }
-        
-        // Collect all fields including inherited ones
-        java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
-        collectAllFields(entityClass, allFields);
-        
-        // Collect all persistent fields
-        java.util.List<java.lang.reflect.Field> columns = new java.util.ArrayList<>();
+
+        String idAttributeName = meta.getIdAttributeName();
+        Class<?> idAttributeType = meta.getIdAttributeType();
+
+        // Build INSERT SQL using metadata persistent attributes
+        java.util.List<String> persistentAttrs = meta.getPersistentAttributeOrder();
+        java.util.List<String> columnNames = new java.util.ArrayList<>();
         java.util.List<Object> values = new java.util.ArrayList<>();
-        
-        // Find ID field first (from all fields, including inherited)
-        java.lang.reflect.Field idField = null;
-        String idColumnName = null;
-        boolean idGenerated = false;
-        
-        for (java.lang.reflect.Field field : allFields) {
-            field.setAccessible(true);
-            // Skip static and final fields - they cannot be @Id
-            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
-                java.lang.reflect.Modifier.isFinal(field.getModifiers())) {
-                continue;
+
+        for (String attrName : persistentAttrs) {
+            if (meta.isRelationship(attrName)) continue;
+
+            // Skip ID if auto-generated (null)
+            if (attrName.equals(idAttributeName)) {
+                Object attrValue = meta.readAttribute(entity, attrName);
+                if (attrValue == null) continue;
             }
-            if (hasAnnotation(field, jakarta.persistence.Id.class)) {
-                idField = field;
-                GeneratedValue generatedValue = getAnnotationOnFieldOrGetter(field, GeneratedValue.class);
-                idGenerated = generatedValue != null;
-                jakarta.persistence.Column columnAnn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.Column.class);
-                idColumnName = columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
-                break;
-            }
+
+            columnNames.add(attrName);
+            values.add(meta.readAttribute(entity, attrName));
         }
-        
-        // Add ID first - but only if it's not null (for auto-generated IDs, don't include in INSERT)
-        if (idField != null && id != null) {
-            columns.add(idField);
-            values.add(id);
-        }
-        
-        // Add other persistent fields
-        String idFieldName = idField != null ? idField.getName() : null;
-        for (java.lang.reflect.Field field : allFields) {
-            field.setAccessible(true);
-            
-            // Skip ID field - use both name comparison and annotation check for safety
-            if (idFieldName != null && idFieldName.equals(field.getName())) continue;
-            if (hasAnnotation(field, jakarta.persistence.Id.class)) continue;
-            
-            field.setAccessible(true);
-            
-            // Skip static, final, and Java transient fields - they are not persistent
-            if (java.lang.reflect.Modifier.isStatic(field.getModifiers()) ||
-                java.lang.reflect.Modifier.isFinal(field.getModifiers()) ||
-                java.lang.reflect.Modifier.isTransient(field.getModifiers())) {
-                continue;
-            }
-            
-            // Skip JPA @Transient fields (field or getter)
-            if (hasAnnotation(field, jakarta.persistence.Transient.class)) {
-                continue;
-            }
-            
-            // Skip relationship fields (for now, simplified)
-            if (hasAnnotation(field, jakarta.persistence.OneToMany.class) ||
-                hasAnnotation(field, jakarta.persistence.ManyToOne.class) ||
-                hasAnnotation(field, jakarta.persistence.ManyToMany.class) ||
-                hasAnnotation(field, jakarta.persistence.OneToOne.class)) {
-                // But handle @JoinColumn - include FK column in INSERT
-                jakarta.persistence.JoinColumn joinColumn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.JoinColumn.class);
-                if (joinColumn != null && !joinColumn.name().isEmpty()) {
-                    columns.add(field);
-                    values.add(null);
-                }
-                continue;
-            }
-            
-            // Handle @ElementCollection and collection-type fields - skip in INSERT
-            // Collection types can't be stored directly in a single column.
-            // @ElementCollection fields are handled by collection tables (not implemented).
-            // Unannotated collection fields (e.g., callback tracking List<Integer>) are
-            // transient test artifacts and should not be persisted.
-            Class<?> thisFieldType = field.getType();
-            if (java.util.Collection.class.isAssignableFrom(thisFieldType) ||
-                java.util.Map.class.isAssignableFrom(thisFieldType)) {
-                continue;
-            }
-            
-            columns.add(field);
-            try {
-                values.add(field.get(entity));
-            } catch (IllegalAccessException e) {
-                values.add(null);
-            }
-        }
-        
+
         // Build INSERT SQL
-        // Use dialect-specific identifier quoting
         StringBuilder sql = new StringBuilder("INSERT INTO ");
-        
-        // Table name: use quoteTableIdentifier for dialect-specific quoting
         String quotedTableName = quoteTableIdentifier(tableName);
         sql.append(quotedTableName).append(" (");
-        
-        // Column names: use quoteColumnIdentifier for dialect-specific quoting
-        // For H2: use backticks to avoid SQL keyword conflicts
-        for (int i = 0; i < columns.size(); i++) {
+
+        for (int i = 0; i < columnNames.size(); i++) {
             if (i > 0) sql.append(", ");
-            String columnName = getColumnName(columns.get(i));
-            sql.append(quoteColumnIdentifier(columnName));
+            sql.append(quoteColumnIdentifier(columnNames.get(i)));
         }
         sql.append(") VALUES (");
-        
-        // Placeholders
-        for (int i = 0; i < columns.size(); i++) {
+
+        for (int i = 0; i < columnNames.size(); i++) {
             if (i > 0) sql.append(", ");
             sql.append("?");
         }
         sql.append(")");
-        
+
         String insertSql = sql.toString();
-        
+
         Connection connection = getConnection();
         java.sql.PreparedStatement ps;
-        // For H2 with ID columns, always use RETURN_GENERATED_KEYS to get auto-incremented IDs
-        // even if there's no @GeneratedValue annotation, since we added AUTO_INCREMENT to all ID columns
-        if (("H2".equals(dialect.name()) || idGenerated) && idField != null) {
-            ps = connection.prepareStatement(insertSql, new String[]{idColumnName});
+        if (meta.getPrimaryKeyMetadata() != null && meta.getPrimaryKeyMetadata().isAutoGenerated()) {
+            ps = connection.prepareStatement(insertSql, new String[]{idAttributeName});
         } else {
             ps = connection.prepareStatement(insertSql);
         }
         try (ps) {
             for (int i = 0; i < values.size(); i++) {
-                dialect.bind(ps, i + 1, values.get(i), values.get(i) != null ? values.get(i).getClass() : Object.class);
+                Object v = values.get(i);
+                dialect.bind(ps, i + 1, v, v != null ? v.getClass() : Object.class);
             }
             ps.executeUpdate();
-            
-            // Retrieve generated ID if this is an auto-generated ID field
-            if (idGenerated && idField != null) {
+
+            // Retrieve generated ID if auto-generated
+            if (meta.getPrimaryKeyMetadata() != null && meta.getPrimaryKeyMetadata().isAutoGenerated()) {
                 try (java.sql.ResultSet keys = ps.getGeneratedKeys()) {
                     if (keys.next()) {
-                        Object generatedKey = dialect.extract(keys, 1, idField.getType());
-                        try {
-                            idField.setAccessible(true);
-                            idField.set(entity, generatedKey);
-                        } catch (IllegalAccessException e) {
-                            // Try using MethodHandles as fallback
-                            try {
-                                io.vidocq.mansart.persistence.spi.EntityMetadata _m = resolveMetadata(entity.getClass());
-                                _m.writeAttribute(entity, _m.getIdAttributeName(), generatedKey);
-                            } catch (Throwable t) {
-                                // Ignore
-                            }
-                        }
+                        Object generatedKey = dialect.extract(keys, 1, idAttributeType);
+                        meta.writeAttribute(entity, idAttributeName, generatedKey);
                     }
                 }
             }
         }
     }
-    
+
     /**
      * Collects all fields from a class including inherited fields.
      */
@@ -808,7 +681,7 @@ public class MansartEntityManager implements EntityManager {
             }
             current = current.getSuperclass();
         }
-        
+
         // Check @Entity annotation for name, including inherited
         current = entityClass;
         while (current != null && current != Object.class) {
@@ -818,11 +691,11 @@ public class MansartEntityManager implements EntityManager {
             }
             current = current.getSuperclass();
         }
-        
+
         // Default to simple class name - must match getEntityTableName in MansartSchemaManager
         return entityClass.getSimpleName();
     }
-    
+
     /**
      * Gets column name from @Column annotation or field name.
      */
@@ -835,85 +708,64 @@ public class MansartEntityManager implements EntityManager {
         jakarta.persistence.Column columnAnn = getAnnotationOnFieldOrGetter(field, jakarta.persistence.Column.class);
         return columnAnn != null && !columnAnn.name().isEmpty() ? columnAnn.name() : field.getName();
     }
-    
-    /**
-     * Quotes SQL table identifier for the current dialect.
 
     /**
+     * Quotes SQL table identifier for the current dialect.
+     * <p>
+     * /**
      * Executes SELECT from database to find an entity by its primary key.
      * Used when entity is not found in L1 or L2 cache.
      */
+    @SuppressWarnings("unchecked")
     private <T> T executeFindFromDatabase(Class<T> entityClass, Object primaryKey) {
+        io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entityClass);
+        if (metadata == null) {
+            throw new IllegalStateException("No EntityMetadata for " + entityClass.getName() +
+                " — entity was not processed by the APT processor");
+        }
+
+        String tableName = metadata.tableName();
+        if (tableName == null || tableName.isEmpty()) {
+            tableName = entityClass.getSimpleName().toLowerCase();
+        }
+
+        String idColumnName = metadata.getIdAttributeName();
+
+        // Build SELECT SQL
+        String quotedTableName = quoteTableIdentifier(tableName);
+        String quotedIdColumn = quoteColumnIdentifier(idColumnName);
+        String sql = "SELECT * FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
+
         try {
-            io.vidocq.mansart.persistence.spi.EntityMetadata metadata = resolveMetadata(entityClass);
-            String tableName = metadata != null ? metadata.tableName() : getTableNameFromAnnotation(entityClass);
-            if (tableName == null || tableName.isEmpty()) {
-                tableName = entityClass.getSimpleName().toLowerCase();
-            }
-
-            String idColumnName = metadata != null ? metadata.getIdAttributeName() : "id";
-
-            // Build SELECT SQL
-            String quotedTableName = quoteTableIdentifier(tableName);
-            String quotedIdColumn = quoteColumnIdentifier(idColumnName);
-            String sql = "SELECT * FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
-
             Connection connection = getConnection();
             try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
                 dialect.bind(ps, 1, primaryKey, primaryKey != null ? primaryKey.getClass() : Object.class);
                 try (java.sql.ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        // Create new instance
+                        // Create new instance using APT-generated factory
                         @SuppressWarnings("unchecked")
-                        T entity = entityClass.getDeclaredConstructor().newInstance();
+                        T entity = (T) metadata.createInstance();
 
                         // Populate all persistent attributes from ResultSet
-                        if (metadata != null) {
-                            java.util.List<String> attrs = metadata.getPersistentAttributeOrder();
-                            for (String attrName : attrs) {
-                                // Skip relationships
-                                if (metadata.isRelationship(attrName)) continue;
-                                try {
-                                    int columnIndex = rs.findColumn(attrName);
-                                    // Best-effort type detection — dialect.extract handles most cases
-                                    Object value = dialect.extract(rs, columnIndex, Object.class);
-                                    if (value != null) {
-                                        metadata.writeAttribute(entity, attrName, value);
-                                    }
-                                } catch (SQLException ignored) {}
-                            }
-                        } else {
-                            // Fallback: use allFields + reflection
-                            java.util.List<java.lang.reflect.Field> allFields = new java.util.ArrayList<>();
-                            collectAllFields(entityClass, allFields);
-                            for (java.lang.reflect.Field field : allFields) {
-                                field.setAccessible(true);
-                                if (hasAnnotation(field, jakarta.persistence.OneToMany.class) ||
-                                    hasAnnotation(field, jakarta.persistence.ManyToOne.class) ||
-                                    hasAnnotation(field, jakarta.persistence.ManyToMany.class) ||
-                                    hasAnnotation(field, jakarta.persistence.OneToOne.class)) {
-                                    continue;
+                        java.util.List<String> attrs = metadata.getPersistentAttributeOrder();
+                        for (String attrName : attrs) {
+                            if (metadata.isRelationship(attrName)) continue;
+                            try {
+                                int columnIndex = rs.findColumn(attrName);
+                                Object value = dialect.extract(rs, columnIndex, Object.class);
+                                if (value != null) {
+                                    metadata.writeAttribute(entity, attrName, value);
                                 }
-                                String columnName = getColumnName(field);
-                                try {
-                                    int columnIndex = rs.findColumn(columnName);
-                                    Object value = dialect.extract(rs, columnIndex, field.getType());
-                                    if (value != null) field.set(entity, value);
-                                } catch (SQLException ignored) {
-                                    try {
-                                        int columnIndex = rs.findColumn(field.getName());
-                                        Object value = dialect.extract(rs, columnIndex, field.getType());
-                                        if (value != null) field.set(entity, value);
-                                    } catch (SQLException ignored2) {}
-                                }
+                            } catch (SQLException e) {
+                                // Column not in result set — skip
                             }
                         }
                         return entity;
                     }
                 }
             }
-        } catch (Exception e) {
-            // Unable to load from database
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to execute find query for " + entityClass.getName(), e);
         }
         return null;
     }
@@ -930,11 +782,11 @@ public class MansartEntityManager implements EntityManager {
             tableName = entityClass.getSimpleName().toLowerCase();
         }
         String idColumnName = metadata != null ? metadata.getIdAttributeName() : "id";
-        
+
         String quotedTableName = quoteTableIdentifier(tableName);
         String quotedIdColumn = quoteColumnIdentifier(idColumnName);
         String sql = "DELETE FROM " + quotedTableName + " WHERE " + quotedIdColumn + " = ?";
-        
+
         Connection connection = getConnection();
         try (java.sql.PreparedStatement ps = connection.prepareStatement(sql)) {
             dialect.bind(ps, 1, id, id != null ? id.getClass() : Object.class);
@@ -981,25 +833,25 @@ public class MansartEntityManager implements EntityManager {
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
-        
+
         // Get the entity's ID using MethodHandles
         Object id = getEntityId(entity);
-        
+
         if (id != null && cache.containsKey(createCacheKey(entity.getClass(), id))) {
             // Entity exists, update it
             // Invoke PreUpdate callback (M9-3)
             invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_UPDATE);
-            
+
             cache.put(createCacheKey(entity.getClass(), id), entity);
             // Update L2 cache
             Cache l2Cache = entityManagerFactory.getCache();
             if (l2Cache instanceof MansartCache) {
                 ((MansartCache) l2Cache).put(entity.getClass(), id, entity);
             }
-            
+
             // Invoke PostUpdate callback (M9-3)
             invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_UPDATE);
-            
+
             return entity;
         } else {
             // Entity doesn't exist, persist it (which will handle L2 cache and callbacks)
@@ -1013,10 +865,10 @@ public class MansartEntityManager implements EntityManager {
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
-        
+
         // Invoke PreRemove callback (M9-3)
         invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_REMOVE);
-        
+
         Object id = getEntityId(entity);
         if (id != null) {
             // Execute DELETE in database
@@ -1027,7 +879,7 @@ public class MansartEntityManager implements EntityManager {
                     throw new RuntimeException("Failed to delete entity: " + e.getMessage(), e);
                 }
             }
-            
+
             cache.remove(createCacheKey(entity.getClass(), id));
             // Remove from L2 cache
             Cache l2Cache = entityManagerFactory.getCache();
@@ -1035,7 +887,7 @@ public class MansartEntityManager implements EntityManager {
                 ((MansartCache) l2Cache).evict(entity.getClass(), id);
             }
         }
-        
+
         // Invoke PostRemove callback (M9-3)
         invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.POST_REMOVE);
     }
@@ -1069,17 +921,17 @@ public class MansartEntityManager implements EntityManager {
         if (!contains(entity)) {
             throw new IllegalArgumentException("Entity must be managed");
         }
-        
+
         // Get the ID value
         Object idValue = getEntityId(entity);
         if (idValue == null) {
             throw new IllegalArgumentException("Entity has no ID");
         }
-        
+
         // Clear L1 cache for this entity
         Object cacheKey = createCacheKey(entity.getClass(), idValue);
         cache.remove(cacheKey);
-        
+
         // Reload from database
         Object reloaded = executeFindFromDatabase(entity.getClass(), idValue);
         if (reloaded != null) {
@@ -1135,7 +987,7 @@ public class MansartEntityManager implements EntityManager {
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
-        
+
         Object id = getEntityId(entity);
         if (id != null) {
             Object cacheKey = createCacheKey(entity.getClass(), id);
@@ -1155,7 +1007,7 @@ public class MansartEntityManager implements EntityManager {
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
-        
+
         Object id = getEntityId(entity);
         return id != null && cache.containsKey(createCacheKey(entity.getClass(), id));
     }
@@ -1225,7 +1077,7 @@ public class MansartEntityManager implements EntityManager {
         var typedQuery = new MansartQuery.Generic<T>(parsed, qlString, dialect, connectionProvider, entityModels, entityClasses, cache);
         return typedQuery;
     }
-    
+
     /**
      * Gets the query cache from the EntityManagerFactory.
      * Returns null if the factory doesn't have a query cache.
@@ -1339,7 +1191,7 @@ public class MansartEntityManager implements EntityManager {
         if (transactionManager != null) {
             int status = transactionManager.getStatus();
             return status == jakarta.transaction.Status.STATUS_ACTIVE ||
-                   status == jakarta.transaction.Status.STATUS_MARKED_ROLLBACK;
+                    status == jakarta.transaction.Status.STATUS_MARKED_ROLLBACK;
         }
         return false;
     }
@@ -1380,28 +1232,28 @@ public class MansartEntityManager implements EntityManager {
     public boolean isOpen() {
         return open.get();
     }
-    
+
     // Transaction state accessors for resource-local mode
     public boolean isTransactionActive() {
         return transactionActive.get();
     }
-    
+
     public void setTransactionActive(boolean active) {
         transactionActive.set(active);
     }
-    
+
     public boolean isTransactionRollbackOnly() {
         return transactionRollbackOnly.get();
     }
-    
+
     public void setTransactionRollbackOnly(boolean rollbackOnly) {
         transactionRollbackOnly.set(rollbackOnly);
     }
-    
+
     public Integer getTransactionTimeout() {
         return transactionTimeout.get();
     }
-    
+
     public void setTransactionTimeout(Integer timeout) {
         transactionTimeout.set(timeout);
     }
@@ -1463,7 +1315,7 @@ public class MansartEntityManager implements EntityManager {
         // Return all named entity graphs as EntityGraph<? super T>
         // All named entity graphs are applicable to any entity class for TCK purposes
         @SuppressWarnings("unchecked")
-        List<jakarta.persistence.EntityGraph<? super T>> result = (List<jakarta.persistence.EntityGraph<? super T>>) 
+        List<jakarta.persistence.EntityGraph<? super T>> result = (List<jakarta.persistence.EntityGraph<? super T>>)
                 (List<?>) MansartEntityManagerFactory.getNamedEntityGraphs();
         // Filter out nulls
         result.removeIf(Objects::isNull);
@@ -1579,14 +1431,16 @@ public class MansartEntityManager implements EntityManager {
             try {
                 java.lang.reflect.Method getter = field.getDeclaringClass().getMethod(getterName);
                 if (getter.isAnnotationPresent(annotationType)) return true;
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
         }
         getterName = findGetterName(field, "is");
         if (getterName != null) {
             try {
                 java.lang.reflect.Method isGetter = field.getDeclaringClass().getMethod(getterName);
                 if (isGetter.isAnnotationPresent(annotationType)) return true;
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
         }
         // Check setters (set) — JPA property access checks both getters and setters
         String setterName = findSetterName(field);
@@ -1594,7 +1448,8 @@ public class MansartEntityManager implements EntityManager {
             try {
                 java.lang.reflect.Method setter = field.getDeclaringClass().getMethod(setterName, field.getType());
                 if (setter.isAnnotationPresent(annotationType)) return true;
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
         }
         return false;
     }
@@ -1617,7 +1472,8 @@ public class MansartEntityManager implements EntityManager {
                 java.lang.reflect.Method getter = field.getDeclaringClass().getMethod(getterName);
                 A result = getter.getAnnotation(annotationType);
                 if (result != null) return result;
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
         }
         getterName = findGetterName(field, "is");
         if (getterName != null) {
@@ -1625,7 +1481,8 @@ public class MansartEntityManager implements EntityManager {
                 java.lang.reflect.Method isGetter = field.getDeclaringClass().getMethod(getterName);
                 A result = isGetter.getAnnotation(annotationType);
                 if (result != null) return result;
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
         }
         // Check setters (set) — JPA property access checks both getters and setters
         String setterName = findSetterName(field);
@@ -1634,7 +1491,8 @@ public class MansartEntityManager implements EntityManager {
                 java.lang.reflect.Method setter = field.getDeclaringClass().getMethod(setterName, field.getType());
                 A result = setter.getAnnotation(annotationType);
                 if (result != null) return result;
-            } catch (NoSuchMethodException ignored) {}
+            } catch (NoSuchMethodException ignored) {
+            }
         }
         return null;
     }

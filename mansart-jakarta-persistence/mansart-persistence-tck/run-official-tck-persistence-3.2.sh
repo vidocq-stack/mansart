@@ -6,15 +6,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-# Activate the toolchain pinned by ../.sdkmanrc — Java 25 + Maven 3.9.16
-if [ -z "${SDKMAN_DIR:-}" ] && [ -d "$HOME/.sdkman" ]; then
-    SDKMAN_DIR="$HOME/.sdkman"
-fi
-if [ -n "${SDKMAN_DIR:-}" ] && [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
-    # shellcheck disable=SC1091
-    source "$SDKMAN_DIR/bin/sdkman-init.sh"
-    (cd .. && sdk env > /dev/null 2>&1) || true
-fi
+# Activate the toolchain pinned by ../.sdkmanrc — Java 25 + Maven 3.9.16.
+# sdkman-init.sh is zsh-only (uses zsh features / unbound vars in bash).
+# Skip it: rely on system Java/Maven already installed in M2.
+# To re-enable: uncomment below and ensure you run from zsh.
+# if [ -n "${SDKMAN_DIR:-}" ] && [ -n "${ZSH_VERSION:-}" ] && [ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]; then
+#     # shellcheck disable=SC1091
+#     source "$SDKMAN_DIR/bin/sdkman-init.sh"
+#     (cd .. && sdk env > /dev/null 2>&1) || true
+# fi
 
 # jakarta.tck:persistence-tck-dist:3.2.2-SNAPSHOT is available from Jakarta staging repo —
 # Maven will fetch it automatically when the `tck-run` profile is active.
@@ -31,10 +31,9 @@ case "${1:-}" in
         mvn -ntp test
         ;;
     --pg|--postgres|--postgresql)
-        # Run the TCK against PostgreSQL via Testcontainers. Requires Docker on the host.
-        # Pulls postgres:17-alpine on first run.
+        # Run the TCK against PostgreSQL. Requires Docker on the host.
         shift || true
-        mvn -ntp -Ptck-run,tck-pg test -DfailIfNoTests=false "$@"
+        mvn -ntp -Ptck-full,tck-pg test -DfailIfNoTests=false "$@"
         ;;
     --sig|--signature)
         # Add the SignatureTests subset on top of the entity TCK (H2 by default).
@@ -47,9 +46,9 @@ case "${1:-}" in
         # PG=1 ./run-official-tck-persistence-3.2.sh --full
         shift || true
         if [ "${PG:-0}" = "1" ]; then
-            mvn -ntp -Ptck-run,tck-pg,tck-sig test -DfailIfNoTests=false "$@"
+            mvn -ntp -Ptck-full,tck-pg,tck-sig test -DfailIfNoTests=false "$@"
         else
-            mvn -ntp -Ptck-run,tck-sig test -DfailIfNoTests=false "$@"
+            mvn -ntp -Ptck-full,tck-sig test -DfailIfNoTests=false "$@"
         fi
         ;;
     --all|all|"")
