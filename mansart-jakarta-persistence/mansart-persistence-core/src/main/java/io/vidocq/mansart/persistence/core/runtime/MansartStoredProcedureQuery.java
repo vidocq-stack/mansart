@@ -75,6 +75,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public StoredProcedureQuery registerStoredProcedureParameter(int position, Class<?> type, ParameterMode mode) {
+        checkOpen();
         String paramName = "param_" + position;
         OutputParameterInfo info = new OutputParameterInfo(position, paramName, type, mode);
         outputParameters.put(paramName, info);
@@ -85,6 +86,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public StoredProcedureQuery registerStoredProcedureParameter(String parameterName, Class<?> type, ParameterMode mode) {
+        checkOpen();
         int position = nextParameterPosition++;
         OutputParameterInfo info = new OutputParameterInfo(position, parameterName, type, mode);
         outputParameters.put(parameterName, info);
@@ -94,6 +96,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public Object getOutputParameterValue(int position) {
+        checkOpen();
         if (!outputParametersByPosition.containsKey(position)) {
             throw new IllegalArgumentException("No output parameter at position " + position);
         }
@@ -102,6 +105,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public Object getOutputParameterValue(String parameterName) {
+        checkOpen();
         if (!outputParameters.containsKey(parameterName)) {
             throw new IllegalArgumentException("No output parameter named " + parameterName);
         }
@@ -110,6 +114,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public Object getParameterValue(int position) {
+        checkOpen();
         // For StoredProcedureQuery, parameters must be explicitly registered
         if (!outputParametersByPosition.containsKey(position)) {
             throw new IllegalArgumentException("No parameter at position " + position);
@@ -120,6 +125,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public Object getParameterValue(String name) {
+        checkOpen();
         // For StoredProcedureQuery, parameters must be explicitly registered
         if (!outputParameters.containsKey(name)) {
             throw new IllegalArgumentException("No parameter named " + name);
@@ -130,6 +136,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public <T> T getParameterValue(Parameter<T> param) {
+        checkOpen();
         if (param == null) {
             throw new IllegalArgumentException("Parameter cannot be null");
         }
@@ -152,6 +159,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public boolean execute() {
+        checkOpen();
         // According to JPA spec, execute() returns true if there are results available,
         // false otherwise. Since our implementation returns empty result list,
         // we return false to match TCK expectations.
@@ -160,121 +168,142 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public int executeUpdate() {
+        checkOpen();
         return 0;
     }
 
     @Override
     public List getResultList() {
+        checkOpen();
         return Collections.emptyList();
     }
 
     @Override
     public Object getSingleResult() {
+        checkOpen();
         List results = getResultList();
         return results.isEmpty() ? null : results.get(0);
     }
 
     @Override
     public Object getSingleResultOrNull() {
+        checkOpen();
         return getSingleResult();
     }
 
     @Override
     public boolean hasMoreResults() {
+        checkOpen();
         return false;
     }
 
     @Override
     public int getUpdateCount() {
+        checkOpen();
         return 0;
     }
 
     @Override
     public StoredProcedureQuery setHint(String hintName, Object value) {
+        checkOpen();
         super.setHint(hintName, value);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(String name, Object value) {
+        checkOpen();
         super.setParameter(name, value);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(int position, Object value) {
+        checkOpen();
         super.setParameter(position, value);
         return this;
     }
 
     @Override
     public <T> StoredProcedureQuery setParameter(Parameter<T> param, T value) {
+        checkOpen();
         super.setParameter(param, value);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(Parameter<Calendar> param, Calendar value, TemporalType temporalType) {
+        checkOpen();
         super.setParameter(param, value, temporalType);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(Parameter<java.util.Date> param, java.util.Date value, TemporalType temporalType) {
+        checkOpen();
         super.setParameter(param, value, temporalType);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(String name, Calendar value, TemporalType temporalType) {
+        checkOpen();
         super.setParameter(name, value, temporalType);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(String name, java.util.Date value, TemporalType temporalType) {
+        checkOpen();
         super.setParameter(name, value, temporalType);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(int position, Calendar value, TemporalType temporalType) {
+        checkOpen();
         super.setParameter(position, value, temporalType);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setParameter(int position, java.util.Date value, TemporalType temporalType) {
+        checkOpen();
         super.setParameter(position, value, temporalType);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setFlushMode(FlushModeType flushMode) {
+        checkOpen();
         super.setFlushMode(flushMode);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setCacheRetrieveMode(CacheRetrieveMode mode) {
+        checkOpen();
         super.setCacheRetrieveMode(mode);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setCacheStoreMode(CacheStoreMode mode) {
+        checkOpen();
         super.setCacheStoreMode(mode);
         return this;
     }
 
     @Override
     public StoredProcedureQuery setTimeout(Integer timeout) {
+        checkOpen();
         super.setTimeout(timeout);
         return this;
     }
 
     @Override
     public LockModeType getLockMode() {
+        checkOpen();
         // According to JPA spec, getLockMode() is not supported for StoredProcedureQuery
         // and should throw IllegalStateException
         throw new IllegalStateException("Lock mode is not supported for StoredProcedureQuery");
@@ -283,6 +312,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
     // M9-10: Override getParameter methods to include registered stored procedure parameters
     @Override
     public Set<Parameter<?>> getParameters() {
+        checkOpen();
         Set<Parameter<?>> result = new java.util.HashSet<>();
         
         // Add bound parameters from parent
@@ -301,6 +331,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public Parameter<?> getParameter(String name) {
+        checkOpen();
         // Check bound parameters first
         Parameter<?> param = super.getParameter(name);
         if (param != null) {
@@ -316,6 +347,7 @@ public class MansartStoredProcedureQuery extends MansartQuery implements StoredP
 
     @Override
     public Parameter<?> getParameter(int position) {
+        checkOpen();
         // Check bound parameters first
         Parameter<?> param = super.getParameter(position);
         if (param != null) {

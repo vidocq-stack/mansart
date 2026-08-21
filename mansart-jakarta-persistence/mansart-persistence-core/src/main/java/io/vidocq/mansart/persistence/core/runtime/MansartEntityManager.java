@@ -332,6 +332,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey) {
+        checkOpen();
         if (primaryKey == null) {
             return null;
         }
@@ -386,26 +387,31 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, Map<String, Object> properties) {
+        checkOpen();
         return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode) {
+        checkOpen();
         return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode, Map<String, Object> properties) {
+        checkOpen();
         return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey, jakarta.persistence.FindOption... options) {
+        checkOpen();
         return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T find(jakarta.persistence.EntityGraph<T> entityGraph, Object primaryKey, jakarta.persistence.FindOption... options) {
+        checkOpen();
         // EntityGraph and FindOption parameters are ignored for now
         // Proper implementation would use the entity graph for lazy loading hints
         // We don't have access to the root type from EntityGraph interface, so use Object
@@ -416,12 +422,14 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T getReference(Class<T> entityClass, Object primaryKey) {
+        checkOpen();
         // For now, delegate to find() - proper implementation would return a proxy
         return find(entityClass, primaryKey);
     }
 
     @Override
     public <T> T getReference(T entity) {
+        checkOpen();
         if (entity == null) {
             return null;
         }
@@ -441,6 +449,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void persist(Object entity) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -833,6 +842,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> T merge(T entity) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -865,6 +875,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void remove(Object entity) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -897,6 +908,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void lock(Object entity, LockModeType lockMode) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -908,16 +920,19 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void lock(Object entity, LockModeType lockMode, Map<String, Object> properties) {
+        checkOpen();
         lock(entity, lockMode);
     }
 
     @Override
     public void lock(Object entity, LockModeType lockMode, jakarta.persistence.LockOption... options) {
+        checkOpen();
         lock(entity, lockMode);
     }
 
     @Override
     public void refresh(Object entity) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -945,26 +960,31 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void refresh(Object entity, Map<String, Object> properties) {
+        checkOpen();
         refresh(entity);
     }
 
     @Override
     public void refresh(Object entity, LockModeType lockMode) {
+        checkOpen();
         refresh(entity);
     }
 
     @Override
     public void refresh(Object entity, LockModeType lockMode, Map<String, Object> properties) {
+        checkOpen();
         refresh(entity);
     }
 
     @Override
     public void refresh(Object entity, jakarta.persistence.RefreshOption... options) {
+        checkOpen();
         refresh(entity);
     }
 
     @Override
     public void flush() {
+        checkOpen();
         // In auto-commit mode (default), changes are immediately synchronized with the database
         // In transaction-scoped mode, changes will be synchronized at transaction commit
         // For now, this is a no-op as we don't buffer changes
@@ -972,21 +992,25 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void setFlushMode(FlushModeType flushMode) {
+        checkOpen();
         this.flushMode = flushMode != null ? flushMode : FlushModeType.AUTO;
     }
 
     @Override
     public FlushModeType getFlushMode() {
+        checkOpen();
         return flushMode;
     }
 
     @Override
     public void clear() {
+        checkOpen();
         cache.clear();
     }
 
     @Override
     public void detach(Object entity) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -1007,6 +1031,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public boolean contains(Object entity) {
+        checkOpen();
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");
         }
@@ -1017,6 +1042,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public LockModeType getLockMode(Object entity) {
+        checkOpen();
         // For now, return NONE as we don't implement locking yet
         return LockModeType.NONE;
     }
@@ -1027,35 +1053,42 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public void setCacheRetrieveMode(jakarta.persistence.CacheRetrieveMode cacheRetrieveMode) {
+        checkOpen();
         this.cacheRetrieveMode = cacheRetrieveMode != null ? cacheRetrieveMode : jakarta.persistence.CacheRetrieveMode.USE;
     }
 
     @Override
     public void setCacheStoreMode(jakarta.persistence.CacheStoreMode cacheStoreMode) {
+        checkOpen();
         this.cacheStoreMode = cacheStoreMode != null ? cacheStoreMode : jakarta.persistence.CacheStoreMode.USE;
     }
 
     @Override
     public jakarta.persistence.CacheRetrieveMode getCacheRetrieveMode() {
+        checkOpen();
         return cacheRetrieveMode;
     }
 
     @Override
     public jakarta.persistence.CacheStoreMode getCacheStoreMode() {
+        checkOpen();
         return cacheStoreMode;
     }
 
     @Override
     public void setProperty(String propertyName, Object value) {
+        checkOpen();
     }
 
     @Override
     public Map<String, Object> getProperties() {
+        checkOpen();
         return Map.of();
     }
 
     @Override
     public Query createQuery(String qlString) {
+        checkOpen();
         if (qlString == null || qlString.trim().isEmpty()) {
             throw new IllegalArgumentException("Query string must not be null or empty");
         }
@@ -1064,11 +1097,12 @@ public class MansartEntityManager implements EntityManager {
         var parser = new JPQLParser(entityClasses);
         var parsed = parser.parse(qlString, null);
         QueryCache cache = getQueryCache();
-        return new MansartQuery(parsed, qlString, dialect, connectionProvider, entityModels, entityClasses, cache);
+        { var _q = new MansartQuery(parsed, qlString, dialect, connectionProvider, entityModels, entityClasses, cache); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
+        checkOpen();
         if (qlString == null || qlString.trim().isEmpty()) {
             throw new IllegalArgumentException("Query string must not be null or empty");
         }
@@ -1078,6 +1112,7 @@ public class MansartEntityManager implements EntityManager {
         QueryCache cache = getQueryCache();
         @SuppressWarnings("unchecked")
         var typedQuery = new MansartQuery.Generic<T>(parsed, qlString, dialect, connectionProvider, entityModels, entityClasses, cache);
+        typedQuery.bindEntityManager(this);
         return typedQuery;
     }
 
@@ -1094,93 +1129,108 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public <T> TypedQuery<T> createQuery(jakarta.persistence.criteria.CriteriaQuery<T> criteriaQuery) {
+        checkOpen();
         // Return a stub TypedQuery for TCK compatibility
         QueryCache qc = getQueryCache();
-        return new MansartQuery.Generic<>(null, null, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery.Generic<T>(null, null, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public <T> TypedQuery<T> createQuery(jakarta.persistence.criteria.CriteriaSelect<T> selectQuery) {
+        checkOpen();
         // Return a stub TypedQuery for TCK compatibility
         QueryCache qc = getQueryCache();
-        return new MansartQuery.Generic<>(null, null, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery.Generic<T>(null, null, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public Query createQuery(jakarta.persistence.criteria.CriteriaUpdate<?> updateQuery) {
+        checkOpen();
         // Return a stub Query for TCK compatibility
         QueryCache qc = getQueryCache();
-        return new MansartQuery(null, null, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery(null, null, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public Query createQuery(jakarta.persistence.criteria.CriteriaDelete<?> deleteQuery) {
+        checkOpen();
         // Return a stub Query for TCK compatibility
         QueryCache qc = getQueryCache();
-        return new MansartQuery(null, null, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery(null, null, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public Query createNamedQuery(String name) {
+        checkOpen();
         // Return a stub Query for TCK compatibility
         // TODO: Implement proper named query lookup
         QueryCache qc = getQueryCache();
-        return new MansartQuery(null, name, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery(null, name, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public <T> TypedQuery<T> createNamedQuery(String name, Class<T> resultClass) {
+        checkOpen();
         // Return a stub TypedQuery for TCK compatibility
         // TODO: Implement proper named query lookup
         QueryCache qc = getQueryCache();
-        return new MansartQuery.Generic<>(null, name, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery.Generic<T>(null, name, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public <T> TypedQuery<T> createQuery(jakarta.persistence.TypedQueryReference<T> reference) {
+        checkOpen();
         // Return a stub TypedQuery for TCK compatibility
         // TODO: Implement proper TypedQueryReference handling
         QueryCache qc = getQueryCache();
-        return new MansartQuery.Generic<>(null, null, dialect, connectionProvider, entityModels, entityClasses, qc);
+        { var _q = new MansartQuery.Generic<T>(null, null, dialect, connectionProvider, entityModels, entityClasses, qc); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public Query createNativeQuery(String sqlString) {
-        return new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public <T> Query createNativeQuery(String sqlString, Class<T> resultClass) {
-        return new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public Query createNativeQuery(String sqlString, String resultSetMapping) {
-        return new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartNativeQuery(sqlString, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createNamedStoredProcedureQuery(String name) {
-        return new MansartStoredProcedureQuery(name, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartStoredProcedureQuery(name, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName) {
-        return new MansartStoredProcedureQuery(procedureName, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartStoredProcedureQuery(procedureName, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName, Class<?>... resultClasses) {
-        return new MansartStoredProcedureQuery(procedureName, resultClasses, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartStoredProcedureQuery(procedureName, resultClasses, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public jakarta.persistence.StoredProcedureQuery createStoredProcedureQuery(String procedureName, String... resultSetMappings) {
-        return new MansartStoredProcedureQuery(procedureName, resultSetMappings, dialect, connectionProvider, entityModels, entityClasses);
+        checkOpen();
+        { var _q = new MansartStoredProcedureQuery(procedureName, resultSetMappings, dialect, connectionProvider, entityModels, entityClasses); _q.bindEntityManager(this); return _q; }
     }
 
     @Override
     public void joinTransaction() {
+        checkOpen();
         // If there's a JTA transaction active, we can join it
         if (transactionManager != null && transactionManager.getStatus() == jakarta.transaction.Status.STATUS_ACTIVE) {
             // Transaction is already active, we're joined by default in JTA mode
@@ -1191,6 +1241,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public boolean isJoinedToTransaction() {
+        checkOpen();
         if (transactionManager != null) {
             int status = transactionManager.getStatus();
             return status == jakarta.transaction.Status.STATUS_ACTIVE ||
@@ -1212,11 +1263,24 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public Object getDelegate() {
+        checkOpen();
         return this;
+    }
+
+    /**
+     * Jakarta Persistence 3.2 §3.1.1: every EntityManager method except
+     * {@code isOpen} and {@code getTransaction} must throw
+     * {@code IllegalStateException} once the EntityManager has been closed.
+     */
+    private void checkOpen() {
+        if (!open.get()) {
+            throw new IllegalStateException("EntityManager is closed");
+        }
     }
 
     @Override
     public void close() {
+        checkOpen();
         open.set(false);
         // Clear detached keys set
         detachedKeys.clear();
@@ -1269,21 +1333,25 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public EntityManagerFactory getEntityManagerFactory() {
+        checkOpen();
         return entityManagerFactory;
     }
 
     @Override
     public CriteriaBuilder getCriteriaBuilder() {
+        checkOpen();
         return MansartCriteriaBuilder.getInstance(null);
     }
 
     @Override
     public Metamodel getMetamodel() {
+        checkOpen();
         return MansartMetamodel.getInstance();
     }
 
     @Override
     public <T> jakarta.persistence.EntityGraph<T> createEntityGraph(Class<T> rootType) {
+        checkOpen();
         if (rootType == null) {
             throw new IllegalArgumentException("Root type cannot be null");
         }
@@ -1293,6 +1361,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public jakarta.persistence.EntityGraph<?> createEntityGraph(String graphName) {
+        checkOpen();
         if (graphName == null || graphName.isEmpty()) {
             throw new IllegalArgumentException("Graph name cannot be null or empty");
         }
@@ -1303,6 +1372,7 @@ public class MansartEntityManager implements EntityManager {
 
     @Override
     public jakarta.persistence.EntityGraph<?> getEntityGraph(String graphName) {
+        checkOpen();
         if (graphName == null || graphName.isEmpty()) {
             throw new IllegalArgumentException("Graph name cannot be null or empty");
         }

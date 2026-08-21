@@ -46,6 +46,23 @@ import java.util.concurrent.ConcurrentHashMap;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class MansartNativeQuery implements Query {
 
+    // EntityManager this query was created by; null for internally-built queries
+    private jakarta.persistence.EntityManager boundEntityManager;
+
+    /**
+     * Binds this query to its creating EntityManager so every method can enforce
+     * the closed-EntityManager rule (Jakarta Persistence 3.2 section 3.1.1).
+     */
+    public void bindEntityManager(jakarta.persistence.EntityManager entityManager) {
+        this.boundEntityManager = entityManager;
+    }
+
+    protected final void checkOpen() {
+        if (boundEntityManager != null && !boundEntityManager.isOpen()) {
+            throw new IllegalStateException("EntityManager is closed");
+        }
+    }
+
     private final String sql;
     private final Dialect dialect;
     private final JpqlExecutor.ConnectionProvider connectionProvider;
@@ -74,6 +91,7 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public int executeUpdate() {
+        checkOpen();
         if (connectionProvider == null || dialect == null) {
             throw new jakarta.persistence.PersistenceException(
                     "Native query execution not configured.");
@@ -90,6 +108,7 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public List getResultList() {
+        checkOpen();
         if (connectionProvider == null || dialect == null) {
             throw new jakarta.persistence.PersistenceException(
                     "Native query execution not configured.");
@@ -106,6 +125,7 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Object getSingleResult() {
+        checkOpen();
         List results = getResultList();
         if (results.isEmpty()) {
             throw new jakarta.persistence.NoResultException("No result found for native query");
@@ -118,6 +138,7 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Object getSingleResultOrNull() {
+        checkOpen();
         List results = getResultList();
         return results.isEmpty() ? null : results.get(0);
     }
@@ -164,70 +185,83 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Query setMaxResults(int maxResult) {
+        checkOpen();
         this.maxResults = maxResult;
         return this;
     }
 
     @Override
     public int getMaxResults() {
+        checkOpen();
         return maxResults == Integer.MAX_VALUE ? 0 : maxResults;
     }
 
     @Override
     public Query setFirstResult(int startPosition) {
+        checkOpen();
         this.firstResult = startPosition;
         return this;
     }
 
     @Override
     public int getFirstResult() {
+        checkOpen();
         return firstResult;
     }
 
     @Override
     public Query setFlushMode(FlushModeType flushMode) {
+        checkOpen();
         this.flushMode = flushMode;
         return this;
     }
 
     @Override
     public FlushModeType getFlushMode() {
+        checkOpen();
         return flushMode;
     }
 
     @Override
     public Query setLockMode(LockModeType lockMode) {
+        checkOpen();
         this.lockMode = lockMode;
         return this;
     }
 
     @Override
     public LockModeType getLockMode() {
+        checkOpen();
         return lockMode;
     }
 
     @Override
     public Query setCacheRetrieveMode(CacheRetrieveMode cacheRetrieveMode) {
+        checkOpen();
         return this;
     }
 
     @Override
     public CacheRetrieveMode getCacheRetrieveMode() {
+        checkOpen();
         return CacheRetrieveMode.BYPASS;
     }
 
     @Override
     public Query setCacheStoreMode(CacheStoreMode cacheStoreMode) {
+        checkOpen();
         return this;
     }
 
     @Override
     public CacheStoreMode getCacheStoreMode() {
+        checkOpen();
         return CacheStoreMode.BYPASS;
     }
 
     @Override
     public Query setParameter(int position, Object value) {
+        checkOpen();
         while (positionParameters.size() <= position - 1) {
             positionParameters.add(null);
         }
@@ -237,42 +271,50 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Query setParameter(int position, Calendar value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(position, value);
     }
 
     @Override
     public Query setParameter(int position, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(position, value);
     }
 
     @Override
     public Query setParameter(String name, Object value) {
+        checkOpen();
         namedParameters.put(name, value);
         return this;
     }
 
     @Override
     public Query setParameter(String name, Calendar value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(name, value);
     }
 
     @Override
     public Query setParameter(String name, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(name, value);
     }
 
     @Override
     public Query setParameter(Parameter<Calendar> param, Calendar value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(param.getName(), value);
     }
 
     @Override
     public Query setParameter(Parameter<java.util.Date> param, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(param.getName(), value);
     }
 
     @Override
     public <T> Query setParameter(Parameter<T> param, T value) {
+        checkOpen();
         if (param != null) {
             namedParameters.put(param.getName(), value);
         }
@@ -281,72 +323,86 @@ public class MansartNativeQuery implements Query {
 
     @Override
     public Parameter<?> getParameter(String name) {
+        checkOpen();
         return null;
     }
 
     @Override
     public <T> Parameter<T> getParameter(String name, Class<T> resultType) {
+        checkOpen();
         return null;
     }
 
     @Override
     public Parameter<?> getParameter(int position) {
+        checkOpen();
         return null;
     }
 
     @Override
     public <T> Parameter<T> getParameter(int position, Class<T> resultType) {
+        checkOpen();
         return null;
     }
 
     @Override
     public Set<Parameter<?>> getParameters() {
+        checkOpen();
         return new HashSet<>();
     }
 
     @Override
     public boolean isBound(Parameter<?> param) {
+        checkOpen();
         return param != null && namedParameters.containsKey(param.getName());
     }
 
     @Override
     public <T> T getParameterValue(Parameter<T> param) {
+        checkOpen();
         return param == null ? null : (T) namedParameters.get(param.getName());
     }
 
     @Override
     public Object getParameterValue(String name) {
+        checkOpen();
         return namedParameters.get(name);
     }
 
     @Override
     public Object getParameterValue(int position) {
+        checkOpen();
         return position > 0 && position <= positionParameters.size() ? positionParameters.get(position - 1) : null;
     }
 
     @Override
     public Query setHint(String hintName, Object value) {
+        checkOpen();
         return this;
     }
 
     @Override
     public Map<String, Object> getHints() {
+        checkOpen();
         return Map.of();
     }
 
     @Override
     public <T> T unwrap(Class<T> type) {
+        checkOpen();
         return type.cast(this);
     }
 
     @Override
     public Query setTimeout(Integer timeout) {
+        checkOpen();
         this.timeout = timeout;
         return this;
     }
 
     @Override
     public Integer getTimeout() {
+        checkOpen();
         return timeout;
     }
 }

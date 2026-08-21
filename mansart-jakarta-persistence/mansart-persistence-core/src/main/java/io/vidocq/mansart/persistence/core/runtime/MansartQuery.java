@@ -53,6 +53,23 @@ import io.vidocq.mansart.persistence.core.jpql.QueryCache;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class MansartQuery implements Query {
 
+    // EntityManager this query was created by; null for internally-built queries
+    private jakarta.persistence.EntityManager boundEntityManager;
+
+    /**
+     * Binds this query to its creating EntityManager so every method can enforce
+     * the closed-EntityManager rule (Jakarta Persistence 3.2 section 3.1.1).
+     */
+    public void bindEntityManager(jakarta.persistence.EntityManager entityManager) {
+        this.boundEntityManager = entityManager;
+    }
+
+    protected final void checkOpen() {
+        if (boundEntityManager != null && !boundEntityManager.isOpen()) {
+            throw new IllegalStateException("EntityManager is closed");
+        }
+    }
+
     private final JPQLQuery parsedQuery;
     private final String jpqlString;
     private final Map<String, Object> namedParameters = new ConcurrentHashMap<>();
@@ -173,6 +190,7 @@ public class MansartQuery implements Query {
 
     @Override
     public int executeUpdate() {
+        checkOpen();
         // For TCK compatibility: return 0 for UPDATE/DELETE JPQL (not yet fully implemented)
         // This prevents UnsupportedOperationException and allows parameter tests to proceed
         return 0;
@@ -180,6 +198,7 @@ public class MansartQuery implements Query {
 
     @Override
     public Object getSingleResult() {
+        checkOpen();
         var list = getResultList();
         if (list.isEmpty()) throw new jakarta.persistence.NoResultException();
         if (list.size() > 1) throw new jakarta.persistence.NonUniqueResultException();
@@ -188,12 +207,14 @@ public class MansartQuery implements Query {
 
     @Override
     public Object getSingleResultOrNull() {
+        checkOpen();
         var list = getResultList();
         return list.isEmpty() ? null : list.get(0);
     }
 
     @Override
     public List getResultList() {
+        checkOpen();
         // M7-13: Execute the query via JpqlExecutor
         if (dialect == null || connectionProvider == null) {
             throw new jakarta.persistence.PersistenceException(
@@ -212,34 +233,40 @@ public class MansartQuery implements Query {
 
     @Override
     public Query setMaxResults(int maxResult) {
+        checkOpen();
         this.maxResults = maxResult;
         return this;
     }
 
     @Override
     public int getMaxResults() {
+        checkOpen();
         return maxResults == Integer.MAX_VALUE ? 0 : maxResults;
     }
 
     @Override
     public Query setFirstResult(int startPosition) {
+        checkOpen();
         this.firstResult = startPosition;
         return this;
     }
 
     @Override
     public int getFirstResult() {
+        checkOpen();
         return firstResult;
     }
 
     @Override
     public Query setParameter(String name, Object value) {
+        checkOpen();
         namedParameters.put(name, value);
         return this;
     }
 
     @Override
     public Query setParameter(int position, Object value) {
+        checkOpen();
         while (positionParameters.size() <= position) {
             positionParameters.add(null);
         }
@@ -249,16 +276,19 @@ public class MansartQuery implements Query {
 
     @Override
     public Query setParameter(Parameter<Calendar> param, Calendar value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(param, value);
     }
 
     @Override
     public Query setParameter(Parameter<java.util.Date> param, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+        checkOpen();
         return setParameter(param, value);
     }
 
     @Override
     public <T> Query setParameter(Parameter<T> param, T value) {
+        checkOpen();
         if (param != null) {
             String name = param.getName();
             Integer position = param.getPosition();
@@ -276,6 +306,7 @@ public class MansartQuery implements Query {
 
     @Override
     public boolean isBound(Parameter<?> param) {
+        checkOpen();
         if (param == null) return false;
         String name = param.getName();
         Integer position = param.getPosition();
@@ -306,6 +337,7 @@ public class MansartQuery implements Query {
 
     @Override
     public Object getParameterValue(String name) {
+        checkOpen();
         if (!namedParameters.containsKey(name)) {
             throw new IllegalArgumentException("Parameter with name '" + name + "' is not bound");
         }
@@ -314,6 +346,7 @@ public class MansartQuery implements Query {
 
     @Override
     public Object getParameterValue(int position) {
+        checkOpen();
         if (position <= 0 || position > positionParameters.size()) {
             throw new IllegalArgumentException("Parameter position " + position + " is not bound");
         }
@@ -322,6 +355,7 @@ public class MansartQuery implements Query {
 
     @Override
     public <T> T getParameterValue(Parameter<T> param) {
+        checkOpen();
         if (param == null) return null;
         String name = param.getName();
         Integer position = param.getPosition();
@@ -335,6 +369,7 @@ public class MansartQuery implements Query {
 
     @Override
     public Parameter<?> getParameter(int position) {
+        checkOpen();
         // Positional parameters start at 1
         // Check both declared and bound parameters
         if (position > 0 && (declaredPositionalParameters.contains(position) || 
@@ -349,6 +384,7 @@ public class MansartQuery implements Query {
 
     @Override
     public <T> Parameter<T> getParameter(int position, Class<T> type) {
+        checkOpen();
         // Return parameter at position with the specified type
         // Return Parameter object even if value is null - parameter slot exists
         if (position > 0 && position <= positionParameters.size()) {
@@ -360,6 +396,7 @@ public class MansartQuery implements Query {
 
     @Override
     public Parameter<?> getParameter(String name) {
+        checkOpen();
         // Return named parameter with its actual type
         // Check both declared and bound parameters
         if (name != null && (declaredNamedParameters.contains(name) || namedParameters.containsKey(name))) {
@@ -373,6 +410,7 @@ public class MansartQuery implements Query {
 
     @Override
     public <T> Parameter<T> getParameter(String name, Class<T> type) {
+        checkOpen();
         // Return named parameter with the specified type
         if (name != null && namedParameters.containsKey(name)) {
             return new MansartParameter<>(name, type);
@@ -383,6 +421,7 @@ public class MansartQuery implements Query {
 
     @Override
     public Set<Parameter<?>> getParameters() {
+        checkOpen();
         // Return all named and positional parameters as Parameter instances
         // Include both declared parameters (from JPQL) and bound parameters
         Set<Parameter<?>> result = new java.util.HashSet<>();
@@ -418,11 +457,13 @@ public class MansartQuery implements Query {
 
     @Override
     public Map<String, Object> getHints() {
+        checkOpen();
         return java.util.Collections.unmodifiableMap(hints);
     }
 
     @Override
     public Query setHint(String hintName, Object value) {
+        checkOpen();
         if (hintName != null) {
             hints.put(hintName, value);
         }
@@ -431,58 +472,69 @@ public class MansartQuery implements Query {
 
     @Override
     public Query setFlushMode(FlushModeType flushMode) {
+        checkOpen();
         this.flushMode = flushMode;
         return this;
     }
 
     @Override
     public FlushModeType getFlushMode() {
+        checkOpen();
         return flushMode;
     }
 
     @Override
     public Query setLockMode(LockModeType lockMode) {
+        checkOpen();
         return this;
     }
 
     @Override
     public LockModeType getLockMode() {
+        checkOpen();
         return LockModeType.NONE; // Default for regular queries
     }
 
     @Override
     public Integer getTimeout() {
+        checkOpen();
         return timeout;
     }
 
     @Override
     public Query setTimeout(Integer timeout) {
+        checkOpen();
         this.timeout = timeout;
         return this;
     }
 
     @Override
     public Query setCacheStoreMode(jakarta.persistence.CacheStoreMode mode) {
+        checkOpen();
         return this;
     }
 
     @Override
     public Query setCacheRetrieveMode(jakarta.persistence.CacheRetrieveMode mode) {
+        checkOpen();
         return this;
     }
 
     @Override
     public jakarta.persistence.CacheRetrieveMode getCacheRetrieveMode() {
+        checkOpen();
         return jakarta.persistence.CacheRetrieveMode.USE; // Default
     }
 
     @Override
     public jakarta.persistence.CacheStoreMode getCacheStoreMode() {
+        checkOpen();
         return jakarta.persistence.CacheStoreMode.USE; // Default
     }
 
     @Override
     public <T> T unwrap(Class<T> cls) {
+        checkOpen();
         if (cls == JPQLQuery.class) return (T) parsedQuery;
         throw new jakarta.persistence.PersistenceException("Not supported: " + cls.getName());
     }
@@ -554,22 +606,26 @@ public class MansartQuery implements Query {
 
         @Override
         public List<V> getResultList() {
+            checkOpen();
             return (List<V>) super.getResultList();
         }
 
         @Override
         public V getSingleResult() {
+            checkOpen();
             return (V) super.getSingleResult();
         }
 
         @Override
         public V getSingleResultOrNull() {
+            checkOpen();
             return (V) super.getSingleResultOrNull();
         }
 
         /** TypedQuery re-declaration of setMaxResults */
         @Override
         public TypedQuery<V> setMaxResults(int maxResult) {
+            checkOpen();
             super.setMaxResults(maxResult);
             return this;
         }
@@ -577,6 +633,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setFirstResult */
         @Override
         public TypedQuery<V> setFirstResult(int startPosition) {
+            checkOpen();
             super.setFirstResult(startPosition);
             return this;
         }
@@ -584,6 +641,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setParameter(String, Object) */
         @Override
         public TypedQuery<V> setParameter(String name, Object value) {
+            checkOpen();
             super.setParameter(name, value);
             return this;
         }
@@ -591,6 +649,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setParameter(int, Object) */
         @Override
         public TypedQuery<V> setParameter(int position, Object value) {
+            checkOpen();
             super.setParameter(position, value);
             return this;
         }
@@ -598,6 +657,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setParameter(Parameter, T) */
         @Override
         public <T> TypedQuery<V> setParameter(Parameter<T> param, T value) {
+            checkOpen();
             super.setParameter(param, value);
             return this;
         }
@@ -605,6 +665,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setHint */
         @Override
         public TypedQuery<V> setHint(String hintName, Object value) {
+            checkOpen();
             super.setHint(hintName, value);
             return this;
         }
@@ -612,6 +673,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setFlushMode */
         @Override
         public TypedQuery<V> setFlushMode(FlushModeType flushMode) {
+            checkOpen();
             super.setFlushMode(flushMode);
             return this;
         }
@@ -619,6 +681,7 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setLockMode */
         @Override
         public TypedQuery<V> setLockMode(LockModeType lockMode) {
+            checkOpen();
             super.setLockMode(lockMode);
             return this;
         }
@@ -626,63 +689,75 @@ public class MansartQuery implements Query {
         /** TypedQuery re-declaration of setTimeout */
         @Override
         public TypedQuery<V> setTimeout(Integer timeout) {
+            checkOpen();
             return this;
         }
 
         @Override
         public TypedQuery<V> setCacheStoreMode(jakarta.persistence.CacheStoreMode m) {
+            checkOpen();
             super.setCacheStoreMode(m);
             return this;
         }
 
         @Override
         public TypedQuery<V> setCacheRetrieveMode(jakarta.persistence.CacheRetrieveMode m) {
+            checkOpen();
             super.setCacheRetrieveMode(m);
             return this;
         }
 
         @Override
         public Map<String, Object> getHints() {
+            checkOpen();
             return super.getHints();
         }
 
         @Override
         public <T> T unwrap(Class<T> cls) {
+            checkOpen();
             return super.unwrap(cls);
         }
 
         @Override
         public <T> T getParameterValue(Parameter<T> param) {
+            checkOpen();
             return super.getParameterValue(param);
         }
 
         @Override
         public TypedQuery<V> setParameter(Parameter<Calendar> param, Calendar value, jakarta.persistence.TemporalType temporalType) {
+            checkOpen();
             return setParameter(param, value);
         }
 
         @Override
         public TypedQuery<V> setParameter(Parameter<java.util.Date> param, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+            checkOpen();
             return setParameter(param, value);
         }
 
         @Override
         public TypedQuery<V> setParameter(int position, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+            checkOpen();
             return setParameter(position, value);
         }
 
         @Override
         public TypedQuery<V> setParameter(int position, Calendar value, jakarta.persistence.TemporalType temporalType) {
+            checkOpen();
             return setParameter(position, value);
         }
 
         @Override
         public TypedQuery<V> setParameter(String name, java.util.Date value, jakarta.persistence.TemporalType temporalType) {
+            checkOpen();
             return setParameter(name, value);
         }
 
         @Override
         public TypedQuery<V> setParameter(String name, Calendar value, jakarta.persistence.TemporalType temporalType) {
+            checkOpen();
             return setParameter(name, value);
         }
 
