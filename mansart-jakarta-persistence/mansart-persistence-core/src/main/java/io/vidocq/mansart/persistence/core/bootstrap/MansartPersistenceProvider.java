@@ -65,41 +65,64 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
     }
     
     /**
-     * Finds PersistenceUnitInfo by parsing persistence.xml from classpath.
-     * Returns null if not found.
+     * Finds PersistenceUnitInfo by parsing every {@code META-INF/persistence.xml}
+     * visible from the context classloader. Returns null if no unit matches.
+     *
+     * <p>Several descriptors can declare a unit with the same name: in TCK
+     * standalone mode each test mounts a deployment jar (child classloader) whose
+     * persistence.xml re-declares the {@code JPATCK} unit WITH the test's entity
+     * classes, while the runner's own descriptor declares it without classes.
+     * The unit that lists managed classes wins.
      */
     private jakarta.persistence.spi.PersistenceUnitInfo findPersistenceUnitInfo(String emName, Map<?, ?> properties) {
         try {
-            // M9-10: Use context classloader to include test classes
+            // M9-10: Use context classloader to include test classes and TCK deployment jars
             ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
             if (classLoader == null) {
                 classLoader = getClass().getClassLoader();
             }
-            java.net.URL resource = classLoader.getResource("META-INF/persistence.xml");
-            if (resource == null) {
-                return null;
-            }
-            
+
             javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
+            // Prevent XXE: persistence.xml never needs external entities
+            factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             javax.xml.parsers.DocumentBuilder builder = factory.newDocumentBuilder();
-            org.w3c.dom.Document doc = builder.parse(resource.openStream());
-            
-            org.w3c.dom.NodeList puNodes = doc.getElementsByTagName("persistence-unit");
-            for (int i = 0; i < puNodes.getLength(); i++) {
-                org.w3c.dom.Node puNode = puNodes.item(i);
-                if (puNode.getNodeType() == org.w3c.dom.Node.ELEMENT_NODE) {
+
+            SimplePersistenceUnitInfo fallbackMatch = null;
+            java.util.Enumeration<java.net.URL> resources = classLoader.getResources("META-INF/persistence.xml");
+            while (resources.hasMoreElements()) {
+                java.net.URL resource = resources.nextElement();
+                org.w3c.dom.Document doc;
+                try (java.io.InputStream in = resource.openStream()) {
+                    doc = builder.parse(in);
+                }
+
+                org.w3c.dom.NodeList puNodes = doc.getElementsByTagName("persistence-unit");
+                for (int i = 0; i < puNodes.getLength(); i++) {
+                    org.w3c.dom.Node puNode = puNodes.item(i);
+                    if (puNode.getNodeType() != org.w3c.dom.Node.ELEMENT_NODE) {
+                        continue;
+                    }
                     org.w3c.dom.Element puElement = (org.w3c.dom.Element) puNode;
                     String name = puElement.getAttribute("name");
-                    if (emName == null || emName.equals(name)) {
-                        return new SimplePersistenceUnitInfo(name, puElement, classLoader);
+                    if (emName != null && !emName.equals(name)) {
+                        continue;
+                    }
+                    SimplePersistenceUnitInfo candidate = new SimplePersistenceUnitInfo(name, puElement, classLoader);
+                    if (!candidate.getManagedClassNames().isEmpty()) {
+                        return candidate;
+                    }
+                    if (fallbackMatch == null) {
+                        fallbackMatch = candidate;
                     }
                 }
             }
+            return fallbackMatch;
         } catch (Exception e) {
             // Error finding PersistenceUnitInfo - non-fatal
+            return null;
         }
-        return null;
     }
 
     /**
@@ -142,7 +165,9 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public void generateSchema(PersistenceUnitInfo info, Map<?, ?> properties) {
-        // Schema generation is handled by dialect
+        // Building the factory runs the schema-generation actions requested in
+        // the properties (MansartEntityManagerFactory.checkAndCreateSchema)
+        createContainerEntityManagerFactory(info, properties).close();
     }
 
     /**
@@ -154,7 +179,12 @@ public final class MansartPersistenceProvider implements PersistenceProvider {
      */
     @Override
     public boolean generateSchema(String puName, Map<?, ?> properties) {
-        return false; // Not implemented yet
+        jakarta.persistence.spi.PersistenceUnitInfo info = findPersistenceUnitInfo(puName, properties);
+        if (info == null) {
+            return false;
+        }
+        generateSchema(info, properties);
+        return true;
     }
 
     /**

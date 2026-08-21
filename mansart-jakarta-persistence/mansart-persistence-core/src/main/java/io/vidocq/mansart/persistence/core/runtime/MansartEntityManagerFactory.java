@@ -158,6 +158,9 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             if (resource != null) {
                 javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
                 factory.setNamespaceAware(true);
+                // Prevent XXE: descriptors never need external entities
+                factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
                 javax.xml.parsers.DocumentBuilder builder = factory.newDocumentBuilder();
                 org.w3c.dom.Document doc = builder.parse(resource.openStream());
                 
@@ -397,6 +400,9 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             if (resource != null) {
                 javax.xml.parsers.DocumentBuilderFactory factory = javax.xml.parsers.DocumentBuilderFactory.newInstance();
                 factory.setNamespaceAware(true);
+                // Prevent XXE: descriptors never need external entities
+                factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+                factory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
                 javax.xml.parsers.DocumentBuilder builder = factory.newDocumentBuilder();
                 org.w3c.dom.Document doc = builder.parse(resource.openStream());
                 
@@ -780,25 +786,22 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         if (schemaAction == null || schemaAction.isEmpty()) {
             schemaAction = System.getProperty("jakarta.persistence.schema-generation.database.action");
         }
-        System.err.println("[EMF] checkAndCreateSchema: action=" + schemaAction + ", dialect=" + dialect + ", properties=" + properties);
-        boolean shouldCreate = "create".equals(schemaAction) ||
-                             (schemaAction != null && schemaAction.toLowerCase().contains("create")) ||
-                             (dialect != null && "H2".equalsIgnoreCase(dialect.name()));
-        System.err.println("[EMF] shouldCreate=" + shouldCreate);
-        if (shouldCreate) {
-            try {
-                SchemaManager schemaManager = getSchemaManager();
-                if (schemaManager != null) {
-                    String createSchemas = (String) properties.get("jakarta.persistence.schema-generation.create-database-schemas");
-                    boolean createSchemaFlag = "true".equalsIgnoreCase(createSchemas);
-                    schemaManager.create(createSchemaFlag);
-                } else {
-                    System.err.println("[EMF] schemaManager is null!");
-                }
-            } catch (Exception e) {
-                System.err.println("[EMF] Schema creation FAILED: " + e.getMessage());
-                e.printStackTrace(System.err);
+        if (schemaAction == null || schemaAction.isEmpty()) {
+            // Historical default: H2 units implicitly create their schema; an explicit
+            // "none" (e.g. official TCK DDL applied out-of-band) is always respected
+            schemaAction = dialect != null && "H2".equalsIgnoreCase(dialect.name()) ? "create" : "none";
+        }
+        if (!schemaAction.toLowerCase().contains("create")) {
+            return;
+        }
+        try {
+            SchemaManager schemaManager = getSchemaManager();
+            if (schemaManager != null) {
+                String createSchemas = (String) properties.get("jakarta.persistence.schema-generation.create-database-schemas");
+                schemaManager.create("true".equalsIgnoreCase(createSchemas));
             }
+        } catch (Exception e) {
+            // Best-effort during bootstrap: entity tables may already exist
         }
     }
 }

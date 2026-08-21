@@ -21,6 +21,7 @@ package io.vidocq.mansart.persistence.processor.metadata;
 
 import io.vidocq.mansart.persistence.processor.SourceSink;
 import io.vidocq.mansart.persistence.processor.parse.EntityScanner;
+import io.vidocq.mansart.persistence.processor.parse.RelationshipInfo;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -125,6 +126,9 @@ public final class EntityMetadataGenerator {
 
             // ── Nested SimpleAccessor ──
             writeSimpleAccessorNested(w);
+
+            // ── Nested GeneratedRelationshipMetadata (only when needed) ──
+            writeRelationshipMetadataNested(w, entity);
 
             // ── Helper methods ──
             writeHelperMethods(w, entity);
@@ -471,24 +475,133 @@ public final class EntityMetadataGenerator {
         w.println("    }");
         w.println();
 
-        // Relationship methods (stub — no relationships in current entities)
+        writeRelationshipMethods(w, entity);
+    }
+
+    // ───────────────────── Relationship metadata ─────────────────────
+
+    private void writeRelationshipMethods(PrintWriter w, EntityScanner.EntityMetadata entity) {
+        java.util.List<EntityScanner.AttributeMetadata> relAttrs = new java.util.ArrayList<>();
+        for (EntityScanner.AttributeMetadata attr : entity.attributes()) {
+            if (attr.relationshipInfo() != null) {
+                relAttrs.add(attr);
+            }
+        }
+
+        if (relAttrs.isEmpty()) {
+            w.println("    @Override");
+            w.println("    public io.vidocq.mansart.persistence.spi.RelationshipMetadata getRelationshipMetadata(String attributeName) {");
+            w.println("        return null;");
+            w.println("    }");
+            w.println();
+
+            w.println("    @Override");
+            w.println("    public boolean isRelationship(String attributeName) {");
+            w.println("        return false;");
+            w.println("    }");
+            w.println();
+
+            w.println("    @Override");
+            w.println("    public Set<String> getRelationshipAttributeNames() {");
+            w.println("        return EMPTY_SET;");
+            w.println("    }");
+            w.println();
+            return;
+        }
+
+        w.println("    private static final Map<String, io.vidocq.mansart.persistence.spi.RelationshipMetadata> RELATIONSHIPS;");
+        w.println("    static {");
+        w.println("        final Map<String, io.vidocq.mansart.persistence.spi.RelationshipMetadata> _rels = new HashMap<>();");
+        for (EntityScanner.AttributeMetadata attr : relAttrs) {
+            RelationshipInfo rel = attr.relationshipInfo();
+            String key = attr.columnName() != null ? attr.columnName() : attr.name();
+            String targetName = targetEntityClassName(rel.targetEntityName());
+            String target = targetName == null ? "null" : targetName + ".class";
+            String joinColumn = rel.joinColumnName() == null || rel.joinColumnName().isEmpty()
+                    ? "null" : "\"" + rel.joinColumnName() + "\"";
+            String referencedColumn = rel.referencedColumnName() == null || rel.referencedColumnName().isEmpty()
+                    ? "null" : "\"" + rel.referencedColumnName() + "\"";
+            w.println("        _rels.put(\"" + key + "\", new GeneratedRelationshipMetadata(");
+            w.println("            io.vidocq.mansart.persistence.spi.RelationshipMetadata.RelationshipType." + rel.type().name() + ",");
+            w.println("            " + target + ",");
+            w.println("            " + joinColumn + ",");
+            w.println("            " + rel.joinColumnNullable() + ",");
+            w.println("            " + rel.optional() + ",");
+            w.println("            io.vidocq.mansart.persistence.spi.RelationshipMetadata.FetchType." + fetchTypeName(rel) + ",");
+            w.println("            " + cascadeTypesLiteral(rel) + ",");
+            w.println("            " + rel.orphanRemoval() + ",");
+            w.println("            " + referencedColumn + "));");
+        }
+        w.println("        RELATIONSHIPS = Collections.unmodifiableMap(_rels);");
+        w.println("    }");
+        w.println();
+
         w.println("    @Override");
         w.println("    public io.vidocq.mansart.persistence.spi.RelationshipMetadata getRelationshipMetadata(String attributeName) {");
-        w.println("        return null;");
+        w.println("        return RELATIONSHIPS.get(attributeName);");
         w.println("    }");
         w.println();
 
         w.println("    @Override");
         w.println("    public boolean isRelationship(String attributeName) {");
-        w.println("        return false;");
+        w.println("        return RELATIONSHIPS.containsKey(attributeName);");
         w.println("    }");
         w.println();
 
         w.println("    @Override");
         w.println("    public Set<String> getRelationshipAttributeNames() {");
-        w.println("        return EMPTY_SET;");
+        w.println("        return RELATIONSHIPS.keySet();");
         w.println("    }");
         w.println();
+    }
+
+    /**
+     * Normalizes the scanner's target entity name into a class literal base.
+     * To-many attributes carry the full collection type (e.g.
+     * {@code java.util.List<com.acme.Book>}) — the element type is the target.
+     */
+    private String targetEntityClassName(String targetEntityName) {
+        if (targetEntityName == null || targetEntityName.isEmpty()) {
+            return null;
+        }
+        String name = targetEntityName;
+        int lt = name.indexOf('<');
+        if (lt >= 0) {
+            int gt = name.lastIndexOf('>');
+            name = name.substring(lt + 1, gt > lt ? gt : name.length());
+            // Map<K, V> associations target the value type
+            int comma = name.lastIndexOf(',');
+            if (comma >= 0) {
+                name = name.substring(comma + 1);
+            }
+        }
+        name = name.trim();
+        return name.isEmpty() ? null : name;
+    }
+
+    private String fetchTypeName(RelationshipInfo rel) {
+        if (rel.fetchType() != null) {
+            return rel.fetchType().name();
+        }
+        // JPA defaults: to-many associations are LAZY, to-one associations are EAGER
+        return switch (rel.type()) {
+            case ONE_TO_MANY, MANY_TO_MANY -> "LAZY";
+            case MANY_TO_ONE, ONE_TO_ONE -> "EAGER";
+        };
+    }
+
+    private String cascadeTypesLiteral(RelationshipInfo rel) {
+        StringBuilder sb = new StringBuilder("new io.vidocq.mansart.persistence.spi.RelationshipMetadata.CascadeType[] {");
+        if (rel.cascadeTypes() != null) {
+            for (int i = 0; i < rel.cascadeTypes().length; i++) {
+                if (i > 0) {
+                    sb.append(", ");
+                }
+                sb.append("io.vidocq.mansart.persistence.spi.RelationshipMetadata.CascadeType.")
+                        .append(rel.cascadeTypes()[i].name());
+            }
+        }
+        return sb.append("}").toString();
     }
 
     // ───────────────────── Accessor methods (DEBT-05) ─────────────────────
@@ -585,11 +698,71 @@ public final class EntityMetadataGenerator {
         w.println();
     }
 
+    /**
+     * Generates a nested {@code GeneratedRelationshipMetadata} class holding the
+     * immutable relationship description captured by the scanner. Only emitted
+     * when the entity actually declares relationship attributes.
+     */
+    private void writeRelationshipMetadataNested(PrintWriter w, EntityScanner.EntityMetadata entity) {
+        boolean hasRelationship = false;
+        for (EntityScanner.AttributeMetadata attr : entity.attributes()) {
+            if (attr.relationshipInfo() != null) {
+                hasRelationship = true;
+                break;
+            }
+        }
+        if (!hasRelationship) {
+            return;
+        }
+
+        w.println("    /**");
+        w.println("     * Immutable relationship description generated from annotations.");
+        w.println("     */");
+        w.println("    private static final class GeneratedRelationshipMetadata implements io.vidocq.mansart.persistence.spi.RelationshipMetadata {");
+        w.println("        private final RelationshipType relationshipType;");
+        w.println("        private final Class<?> targetEntity;");
+        w.println("        private final String joinColumnName;");
+        w.println("        private final boolean joinColumnNullable;");
+        w.println("        private final boolean optional;");
+        w.println("        private final FetchType fetchType;");
+        w.println("        private final CascadeType[] cascadeTypes;");
+        w.println("        private final boolean orphanRemoval;");
+        w.println("        private final String referencedColumnName;");
+        w.println();
+        w.println("        GeneratedRelationshipMetadata(RelationshipType relationshipType, Class<?> targetEntity,");
+        w.println("                String joinColumnName, boolean joinColumnNullable, boolean optional,");
+        w.println("                FetchType fetchType, CascadeType[] cascadeTypes, boolean orphanRemoval,");
+        w.println("                String referencedColumnName) {");
+        w.println("            this.relationshipType = relationshipType;");
+        w.println("            this.targetEntity = targetEntity;");
+        w.println("            this.joinColumnName = joinColumnName;");
+        w.println("            this.joinColumnNullable = joinColumnNullable;");
+        w.println("            this.optional = optional;");
+        w.println("            this.fetchType = fetchType;");
+        w.println("            this.cascadeTypes = cascadeTypes;");
+        w.println("            this.orphanRemoval = orphanRemoval;");
+        w.println("            this.referencedColumnName = referencedColumnName;");
+        w.println("        }");
+        w.println();
+        w.println("        @Override public RelationshipType getRelationshipType() { return relationshipType; }");
+        w.println("        @Override public Class<?> getTargetEntity() { return targetEntity; }");
+        w.println("        @Override public String getJoinColumnName() { return joinColumnName; }");
+        w.println("        @Override public boolean isJoinColumnNullable() { return joinColumnNullable; }");
+        w.println("        @Override public boolean isOptional() { return optional; }");
+        w.println("        @Override public FetchType getFetchType() { return fetchType; }");
+        w.println("        @Override public CascadeType[] getCascadeTypes() { return cascadeTypes.clone(); }");
+        w.println("        @Override public boolean isOrphanRemoval() { return orphanRemoval; }");
+        w.println("        @Override public String getReferencedColumnName() { return referencedColumnName; }");
+        w.println("    }");
+        w.println();
+    }
+
     // ───────────────────── Utility ─────────────────────
 
     private String getGenerationType(EntityScanner.AttributeMetadata attribute) {
         if (attribute.genValueInfo() == null) {
-            return "jakarta.persistence.GenerationType.AUTO";
+            // No @GeneratedValue: the identifier is application-assigned
+            return "null";
         }
         return "jakarta.persistence.GenerationType." + attribute.genValueInfo().generationType();
     }

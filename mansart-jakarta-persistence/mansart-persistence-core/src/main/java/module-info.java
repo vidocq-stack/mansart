@@ -29,7 +29,10 @@ module io.vidocq.mansart.persistence.core {
     requires io.vidocq.mansart.transactions.core;
     
     uses io.vidocq.mansart.data.dialect.DialectFactory;
-    
+
+    provides jakarta.persistence.spi.PersistenceProvider
+            with io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider;
+
     exports io.vidocq.mansart.persistence.core.bootstrap;
     exports io.vidocq.mansart.persistence.core.cache;
     exports io.vidocq.mansart.persistence.core.criteria;

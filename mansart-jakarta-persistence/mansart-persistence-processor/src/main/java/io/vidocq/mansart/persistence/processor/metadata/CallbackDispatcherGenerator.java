@@ -166,7 +166,6 @@ public final class CallbackDispatcherGenerator {
                             }
                             @Override
                             public java.util.List<TypeElement> visitType(javax.lang.model.type.TypeMirror t, Void unused) {
-                                System.out.println("[DEBUG visitType] t=" + t);
                                 java.util.List<TypeElement> result = new java.util.ArrayList<>();
                                 if (t.getKind() == javax.lang.model.type.TypeKind.DECLARED) {
                                     var declared = (javax.lang.model.type.DeclaredType) t;
@@ -178,12 +177,10 @@ public final class CallbackDispatcherGenerator {
                             }
                             @Override
                             protected java.util.List<TypeElement> defaultAction(Object o, Void unused) {
-                                System.out.println("[DEBUG defaultAction] o=" + o + " class=" + (o == null ? "null" : o.getClass().getName()));
                                 return java.util.List.of();
                             }
                         };
                         java.util.List<TypeElement> listenerTypes = annotationValue.accept(visitor, null);
-                        System.out.println("[DEBUG listenerTypes] " + listenerTypes);
                         for (TypeElement listenerType : listenerTypes) {
                             scanClass(listenerType, discovery, true);
                         }

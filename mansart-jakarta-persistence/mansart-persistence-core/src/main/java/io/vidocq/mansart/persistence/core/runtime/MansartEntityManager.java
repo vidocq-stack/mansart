@@ -448,9 +448,6 @@ public class MansartEntityManager implements EntityManager {
         // Invoke PrePersist callback (M9-3)
         invokeLifecycleCallbacks(entity, LifecycleCallbackDispatcher.Phase.PRE_PERSIST);
 
-        // Generate ID for the entity using strategy-aware generator (M9-10)
-        Long generatedId = generateId(entity);
-
         // Check if we should set the ID before insert.
         // IDENTITY: database generates ID, don't set it.
         // AUTO/SEQUENCE/TABLE: application generates ID, set it before insert.
@@ -464,9 +461,11 @@ public class MansartEntityManager implements EntityManager {
         }
 
         try {
-            if (shouldSetId) {
+            // An identifier already assigned by the application is never overwritten:
+            // only generate one when the entity has no ID yet (M9-10).
+            if (shouldSetId && getEntityId(entity) == null) {
                 // Set the ID using MethodHandles (no reflection)
-                setEntityId(entity, generatedId);
+                setEntityId(entity, generateId(entity));
             }
 
             // Get the actual ID value from the entity (after conversion or from DB)

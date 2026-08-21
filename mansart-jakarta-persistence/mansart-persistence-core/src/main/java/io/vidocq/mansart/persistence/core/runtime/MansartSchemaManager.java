@@ -58,12 +58,9 @@ public class MansartSchemaManager implements SchemaManager {
     @Override
     public void create(boolean createSchemas) {
         try (Connection connection = connectionProvider.getConnection()) {
-            String url = connection.getMetaData().getURL();
-            System.err.println("[MansartSchema] create() called, entityModels=" + entityModels.size() + ", entityClasses=" + entityClasses.size() + ", url=" + url);
             createTables(connection);
         } catch (SQLException e) {
-            System.err.println("[MansartSchema] create() FAILED: " + e.getMessage());
-            e.printStackTrace(System.err);
+            throw new jakarta.persistence.PersistenceException("Schema creation failed", e);
         }
     }
 
@@ -77,7 +74,8 @@ public class MansartSchemaManager implements SchemaManager {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
                     } catch (SQLException e) {
-                        System.err.println("[MansartSchema] DDL error (EntityModel): " + ddl + " -> " + e.getMessage());
+                        // Table may already exist or the dialect may not support a
+                        // column type — schema creation is best-effort per table
                     }
                 }
             }
@@ -94,11 +92,9 @@ public class MansartSchemaManager implements SchemaManager {
                 if (ddl != null && !ddl.isEmpty()) {
                     try (Statement stmt = connection.createStatement()) {
                         stmt.execute(ddl);
-                        if (tableName.equals("EMPLOYEE")) {
-                            System.err.println("[MansartSchema] EMPLOYEE DDL: " + ddl);
-                        }
                     } catch (SQLException e) {
-                        System.err.println("[MansartSchema] DDL error (entityClass " + entityClass.getName() + "): " + ddl + " -> " + e.getMessage());
+                        // Table may already exist or the dialect may not support a
+                        // column type — schema creation is best-effort per table
                     }
                 }
             }

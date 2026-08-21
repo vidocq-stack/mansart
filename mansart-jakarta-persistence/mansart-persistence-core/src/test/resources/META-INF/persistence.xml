@@ -30,4 +30,12 @@
             <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
         </properties>
     </persistence-unit>
+
+    <!-- Mirrors the official TCK runner setup: a JPATCK unit with NO managed classes.
+         In standalone TCK mode each test contributes a deployment jar (child classloader)
+         whose persistence.xml declares the same unit name WITH the test's entity classes.
+         The provider must prefer the unit that lists classes. -->
+    <persistence-unit name="JPATCK" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</provider>
+    </persistence-unit>
 </persistence>

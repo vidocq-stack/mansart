@@ -55,7 +55,7 @@ public final class PrimaryKeyMetadata {
     public PrimaryKeyMetadata(String attributeName, Class<?> attributeType, GenerationType generationType, String generatorName) {
         this.attributeName = Objects.requireNonNull(attributeName, "attributeName must not be null");
         this.attributeType = Objects.requireNonNull(attributeType, "attributeType must not be null");
-        this.generationType = Objects.requireNonNull(generationType, "generationType must not be null");
+        this.generationType = generationType; // null means application-assigned identifier
         this.generatorName = generatorName;
     }
 
