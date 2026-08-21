@@ -26,6 +26,7 @@ import io.vidocq.mansart.persistence.processor.parse.RelationshipInfo;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Generates the entity metadata implementation class.
@@ -182,9 +183,24 @@ public final class EntityMetadataGenerator {
                 }
             }
 
-            w.print("        _map.put(\"" + name + "\", new SimpleAccessor<>(\"" + name + "\", " + rawType);
-            w.print(".class, _getterMh(" + declaringClass + ".class, \"" + name + "\", " + rawType);
-            w.println(".class), _setterMh(" + declaringClass + ".class, \"" + name + "\", " + rawType + ".class)));");
+            // The persistent-attribute lists are keyed by column name when @Column
+            // renames the attribute — register the accessor under BOTH names
+            List<String> accessorKeys = new ArrayList<>();
+            accessorKeys.add(name);
+            if (attr.columnName() != null && !attr.columnName().equals(name)) {
+                accessorKeys.add(attr.columnName());
+            }
+            for (String key : accessorKeys) {
+                if (attr.isPropertyAccess()) {
+                    w.print("        _map.put(\"" + key + "\", new SimpleAccessor<>(\"" + key + "\", " + rawType);
+                    w.print(".class, _propGetterMh(" + declaringClass + ".class, \"" + attr.getterName() + "\", " + rawType);
+                    w.println(".class), _propSetterMh(" + declaringClass + ".class, \"" + attr.setterName() + "\", " + rawType + ".class)));");
+                } else {
+                    w.print("        _map.put(\"" + key + "\", new SimpleAccessor<>(\"" + key + "\", " + rawType);
+                    w.print(".class, _getterMh(" + declaringClass + ".class, \"" + name + "\", " + rawType);
+                    w.println(".class), _setterMh(" + declaringClass + ".class, \"" + name + "\", " + rawType + ".class)));");
+                }
+            }
         }
 
         w.println("        ACCESSORS = _map.values().toArray(new io.vidocq.mansart.persistence.spi.AttributeAccessor[0]);");
@@ -265,6 +281,22 @@ public final class EntityMetadataGenerator {
         w.println("        } catch (NoSuchFieldException | java.lang.IllegalAccessException e) { throw new java.lang.ExceptionInInitializerError(e); }");
         w.println("    }");
         w.println();
+        w.println("    private static java.lang.invoke.MethodHandle _propGetterMh(Class<?> clazz, String getterName, Class<?> type) {");
+        w.println("        try {");
+        w.println("            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.privateLookupIn(clazz, java.lang.invoke.MethodHandles.lookup());");
+        w.println("            return lookup.findVirtual(clazz, getterName, MethodType.methodType(type));");
+        w.println("        } catch (NoSuchMethodException | java.lang.IllegalAccessException e) { throw new java.lang.ExceptionInInitializerError(e); }");
+        w.println("    }");
+        w.println();
+        w.println("    private static java.lang.invoke.MethodHandle _propSetterMh(Class<?> clazz, String setterName, Class<?> type) {");
+        w.println("        try {");
+        w.println("            java.lang.invoke.MethodHandles.Lookup lookup = java.lang.invoke.MethodHandles.privateLookupIn(clazz, java.lang.invoke.MethodHandles.lookup());");
+        w.println("            return lookup.findVirtual(clazz, setterName, MethodType.methodType(void.class, type));");
+        w.println("        } catch (NoSuchMethodException e) {");
+        w.println("            return null; // read-only property: writes will be rejected by the accessor");
+        w.println("        } catch (java.lang.IllegalAccessException e) { throw new java.lang.ExceptionInInitializerError(e); }");
+        w.println("    }");
+        w.println();
     }
 
     // ───────────────────── Instance fields ─────────────────────
@@ -325,9 +357,12 @@ public final class EntityMetadataGenerator {
         // Inheritance support
         io.vidocq.mansart.persistence.processor.parse.InheritanceParser.InheritanceInfo inheritanceInfo = entity.inheritanceInfo();
         if (inheritanceInfo != null) {
-            w.println("        this.inheritanceType = jakarta.persistence.InheritanceType." + inheritanceInfo.strategy() + ";");
-            w.println("        this.discriminatorColumn = \"" + inheritanceInfo.discriminatorColumn() + "\";");
-            w.println("        this.discriminatorValue = \"" + inheritanceInfo.discriminatorValue() + "\";");
+            // @Inheritance without an explicit strategy defaults to SINGLE_TABLE (JPA 11.1.24)
+            String strategy = inheritanceInfo.strategy() != null
+                    ? String.valueOf(inheritanceInfo.strategy()) : "SINGLE_TABLE";
+            w.println("        this.inheritanceType = jakarta.persistence.InheritanceType." + strategy + ";");
+            w.println("        this.discriminatorColumn = " + stringLiteralOrNull(inheritanceInfo.discriminatorColumn()) + ";");
+            w.println("        this.discriminatorValue = " + stringLiteralOrNull(inheritanceInfo.discriminatorValue()) + ";");
             if (inheritanceInfo.parentEntity() != null) {
                 w.println("        this.parentEntityClass = " + inheritanceInfo.parentEntity().getQualifiedName() + ".class;");
             } else {
@@ -691,6 +726,9 @@ public final class EntityMetadataGenerator {
         w.println();
         w.println("        @Override");
         w.println("        public void write(Object entity, Object value) {");
+        w.println("            if (setter == null) {");
+        w.println("                throw new UnsupportedOperationException(\"Attribute '\" + name + \"' has no setter\");");
+        w.println("            }");
         w.println("            try { setter.invoke(entity, value); }");
         w.println("            catch (java.lang.Throwable ex) { throw new RuntimeException(ex); }");
         w.println("        }");
@@ -758,6 +796,14 @@ public final class EntityMetadataGenerator {
     }
 
     // ───────────────────── Utility ─────────────────────
+
+    /** Emits a quoted string literal, or the {@code null} literal for a null/"null" value. */
+    private static String stringLiteralOrNull(Object value) {
+        if (value == null || "null".equals(String.valueOf(value))) {
+            return "null";
+        }
+        return "\"" + value + "\"";
+    }
 
     private String getGenerationType(EntityScanner.AttributeMetadata attribute) {
         if (attribute.genValueInfo() == null) {

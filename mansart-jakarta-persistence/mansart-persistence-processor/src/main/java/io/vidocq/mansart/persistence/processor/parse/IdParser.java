@@ -36,19 +36,16 @@ public final class IdParser {
      * @return an IdInfo containing name and type, or null if not annotated with @Id
      */
     public IdInfo parse(Element element) {
-        if (!element.getKind().isField()) {
-            return null;
+        if (element.getKind().isField()) {
+            VariableElement varElement = (VariableElement) element;
+            return new IdInfo(varElement.getSimpleName().toString(), varElement.asType().toString());
         }
-
-        VariableElement varElement = (VariableElement) element;
-
-        // Extract the field name
-        String name = varElement.getSimpleName().toString();
-        
-        // Extract the type
-        String type = varElement.asType().toString();
-
-        return new IdInfo(name, type);
+        // Property access: @Id on the getter — derive the attribute name and type from it
+        if (element instanceof javax.lang.model.element.ExecutableElement exec) {
+            String name = EntityScanner.propertyName(exec.getSimpleName().toString());
+            return new IdInfo(name, exec.getReturnType().toString());
+        }
+        return null;
     }
 
     /**

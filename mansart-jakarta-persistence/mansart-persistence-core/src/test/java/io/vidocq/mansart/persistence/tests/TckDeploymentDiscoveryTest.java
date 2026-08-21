@@ -97,7 +97,7 @@ class TckDeploymentDiscoveryTest {
                 ResultSet tables = connection.getMetaData().getTables(null, null, "%", null);
                 boolean simpleEntityTableExists = false;
                 while (tables.next()) {
-                    if (tables.getString("TABLE_NAME").contains("SimpleEntity")) {
+                    if (tables.getString("TABLE_NAME").toLowerCase(java.util.Locale.ROOT).contains("simpleentity")) {
                         simpleEntityTableExists = true;
                     }
                 }

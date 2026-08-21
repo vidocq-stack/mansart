@@ -58,6 +58,8 @@ public final class EntityScanner {
     private static final String ENTITY_ANNOTATION = "jakarta.persistence.Entity";
     private static final String TABLE_ANNOTATION = "jakarta.persistence.Table";
     private static final String ID_ANNOTATION = "jakarta.persistence.Id";
+    private static final String EMBEDDED_ID_ANNOTATION = "jakarta.persistence.EmbeddedId";
+    private static final String MAPPED_SUPERCLASS_ANNOTATION = "jakarta.persistence.MappedSuperclass";
     private static final String GENERATED_VALUE_ANNOTATION = "jakarta.persistence.GeneratedValue";
     private static final String VERSION_ANNOTATION = "jakarta.persistence.Version";
     private static final String TRANSIENT_ANNOTATION = "jakarta.persistence.Transient";
@@ -122,17 +124,11 @@ public final class EntityScanner {
         AttributeMetadata idAttribute = null;
         AttributeMetadata versionAttribute = null;
 
+        // Access type is determined by the placement of @Id: on a getter → property access
+        boolean propertyAccess = usesPropertyAccess(type);
+
         for (Element member : type.getEnclosedElements()) {
-            if (member.getKind() != ElementKind.FIELD) {
-                continue;
-            }
-            if (member.getModifiers().contains(Modifier.STATIC)) {
-                continue;
-            }
-            if (member.getModifiers().contains(Modifier.TRANSIENT)) {
-                continue;
-            }
-            if (hasAnnotation(member, TRANSIENT_ANNOTATION)) {
+            if (!isPersistentMember(member, propertyAccess)) {
                 continue;
             }
 
@@ -156,20 +152,16 @@ public final class EntityScanner {
             }
         }
 
-        // Collect inherited fields from parent entity classes
+        // Collect inherited members from parent entity classes. Only @Entity and
+        // @MappedSuperclass ancestors contribute persistent attributes (JPA 2.11.3) —
+        // this also stops the walk before java.lang.Object (whose getClass() would
+        // otherwise leak in as a property-access attribute).
         TypeElement current = getSuperclass(type);
-        while (current != null) {
+        while (current != null
+                && (hasAnnotation(current, ENTITY_ANNOTATION)
+                    || hasAnnotation(current, MAPPED_SUPERCLASS_ANNOTATION))) {
             for (Element member : current.getEnclosedElements()) {
-                if (member.getKind() != ElementKind.FIELD) {
-                    continue;
-                }
-                if (member.getModifiers().contains(Modifier.STATIC)) {
-                    continue;
-                }
-                if (member.getModifiers().contains(Modifier.TRANSIENT)) {
-                    continue;
-                }
-                if (hasAnnotation(member, TRANSIENT_ANNOTATION)) {
+                if (!isPersistentMember(member, propertyAccess)) {
                     continue;
                 }
 
@@ -178,7 +170,7 @@ public final class EntityScanner {
                     continue;
                 }
 
-                // Skip duplicates (child class may redeclare same field)
+                // Skip duplicates (child class may redeclare same member)
                 if (attributes.stream().anyMatch(a -> a.name().equals(attr.name()))) {
                     continue;
                 }
@@ -220,11 +212,21 @@ public final class EntityScanner {
     }
 
     private AttributeMetadata describe(Element element) {
-        if (!(element instanceof VariableElement varElement)) {
+        String name;
+        String getterName = null;
+        javax.lang.model.type.TypeMirror attributeType;
+        if (element instanceof VariableElement varElement) {
+            name = varElement.getSimpleName().toString();
+            attributeType = varElement.asType();
+        } else if (element instanceof ExecutableElement exec && isGetter(exec)) {
+            // Property access: the mapping annotations sit on the getter
+            getterName = exec.getSimpleName().toString();
+            name = propertyName(getterName);
+            attributeType = exec.getReturnType();
+        } else {
             return null;
         }
-        String name = varElement.getSimpleName().toString();
-        String javaTypeFqn = varElement.asType().toString();
+        String javaTypeFqn = attributeType.toString();
 
         boolean isId = hasAnnotation(element, ID_ANNOTATION);
         boolean isVersion = hasAnnotation(element, VERSION_ANNOTATION);
@@ -286,7 +288,7 @@ public final class EntityScanner {
             determineFetchType(element, basicInfo, relationshipInfo);
 
         // Determine attribute kind
-        AttributeKind kind = determineAttributeKind(element, javaTypeFqn, isId, isVersion, relationshipInfo);
+        AttributeKind kind = determineAttributeKind(attributeType, javaTypeFqn, isId, isVersion, relationshipInfo);
 
         return new AttributeMetadata(
                 element,
@@ -302,11 +304,77 @@ public final class EntityScanner {
                 isColumnNullable,
                 relationshipInfo,
                 basicInfo,
-                fetchType
+                fetchType,
+                getterName
         );
     }
 
-    private AttributeKind determineAttributeKind(Element element, String javaTypeFqn,
+    /**
+     * Returns whether the entity hierarchy uses property access, per the Jakarta
+     * Persistence access rules: access is determined by the placement of {@code @Id}
+     * (or {@code @EmbeddedId}) — on a getter means property access.
+     */
+    private boolean usesPropertyAccess(TypeElement type) {
+        TypeElement current = type;
+        while (current != null) {
+            for (Element member : current.getEnclosedElements()) {
+                if (hasAnnotation(member, ID_ANNOTATION)
+                        || hasAnnotation(member, EMBEDDED_ID_ANNOTATION)) {
+                    return member.getKind() == ElementKind.METHOD;
+                }
+            }
+            current = getSuperclass(current);
+        }
+        return false;
+    }
+
+    /**
+     * Returns whether {@code member} is a persistent attribute carrier for the
+     * given access type: a non-static, non-transient field (field access) or a
+     * non-static getter (property access).
+     */
+    private boolean isPersistentMember(Element member, boolean propertyAccess) {
+        if (member.getModifiers().contains(Modifier.STATIC)) {
+            return false;
+        }
+        if (hasAnnotation(member, TRANSIENT_ANNOTATION)) {
+            return false;
+        }
+        if (propertyAccess) {
+            return member instanceof ExecutableElement exec && isGetter(exec);
+        }
+        return member.getKind() == ElementKind.FIELD
+                && !member.getModifiers().contains(Modifier.TRANSIENT);
+    }
+
+    /** A JavaBeans getter: no parameter, non-void return, named getX or isX (boolean). */
+    private static boolean isGetter(ExecutableElement method) {
+        if (method.getKind() != ElementKind.METHOD || !method.getParameters().isEmpty()) {
+            return false;
+        }
+        if (method.getReturnType().getKind() == javax.lang.model.type.TypeKind.VOID) {
+            return false;
+        }
+        String name = method.getSimpleName().toString();
+        if (name.startsWith("get") && name.length() > 3) {
+            return true;
+        }
+        return name.startsWith("is") && name.length() > 2
+                && (method.getReturnType().getKind() == javax.lang.model.type.TypeKind.BOOLEAN
+                    || "java.lang.Boolean".equals(method.getReturnType().toString()));
+    }
+
+    /** Derives the JavaBeans property name from a getter name (getFoo/isFoo → foo). */
+    public static String propertyName(String getterName) {
+        String raw = getterName.startsWith("is") ? getterName.substring(2) : getterName.substring(3);
+        if (raw.length() > 1 && Character.isUpperCase(raw.charAt(1))) {
+            return raw; // e.g. getURL → URL, per JavaBeans decapitalization rules
+        }
+        return Character.toLowerCase(raw.charAt(0)) + raw.substring(1);
+    }
+
+    private AttributeKind determineAttributeKind(javax.lang.model.type.TypeMirror attributeType,
+                                                  String javaTypeFqn,
                                                   boolean isId, boolean isVersion,
                                                   RelationshipInfo relationshipInfo) {
         if (isId) return AttributeKind.ID;
@@ -317,7 +385,7 @@ public final class EntityScanner {
         if (isBoolean(javaTypeFqn)) return AttributeKind.BOOLEAN;
         if (isTemporal(javaTypeFqn)) return AttributeKind.TEMPORAL;
         if (isNumeric(javaTypeFqn)) return AttributeKind.NUMERIC;
-        if (isEnumType(element.asType())) return AttributeKind.ENUM;
+        if (isEnumType(attributeType)) return AttributeKind.ENUM;
 
         return AttributeKind.OBJECT;
     }
@@ -390,12 +458,12 @@ public final class EntityScanner {
                             }
                         }
                     }
-                    // Parent doesn't have @Table either - use parent's binary name
-                    return elements.getBinaryName(current).toString().replace('.', '_');
+                    // Parent doesn't have @Table either - use the parent's entity name
+                    return defaultTableName(current);
                 }
                 current = getSuperclass(current);
             }
-            return elements.getBinaryName(type).toString().replace('.', '_');
+            return defaultTableName(type);
         }
 
         Map<String, AnnotationValue> values = getAnnotationValues(tableMirror);
@@ -406,7 +474,26 @@ public final class EntityScanner {
                 return name;
             }
         }
-        return elements.getBinaryName(type).toString().replace('.', '_');
+        return defaultTableName(type);
+    }
+
+    /**
+     * JPA default table name (2.13): the entity name — {@code @Entity(name)} when
+     * present, otherwise the unqualified class name. Must match schemas created from
+     * spec-conformant DDL such as the official TCK scripts.
+     */
+    private String defaultTableName(TypeElement type) {
+        AnnotationMirror entityMirror = getAnnotationMirror(type, ENTITY_ANNOTATION);
+        if (entityMirror != null) {
+            AnnotationValue nameValue = getAnnotationValues(entityMirror).get("name");
+            if (nameValue != null) {
+                String name = nameValue.getValue().toString();
+                if (!name.isEmpty()) {
+                    return name;
+                }
+            }
+        }
+        return type.getSimpleName().toString();
     }
 
     private String readSchemaName(TypeElement type) {
@@ -502,12 +589,24 @@ public final class EntityScanner {
             boolean isColumnNullable,
             RelationshipInfo relationshipInfo,
             BasicParser.BasicInfo basicInfo,
-            io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType fetchType
+            io.vidocq.mansart.persistence.spi.AttributeMetadata.FetchType fetchType,
+            String getterName
     ) {
         public AttributeMetadata {
             if (isId && idInfo == null) {
                 throw new IllegalArgumentException("ID attribute must have idInfo");
             }
+        }
+
+        /** Whether this attribute is mapped with property access (annotations on the getter). */
+        public boolean isPropertyAccess() {
+            return getterName != null;
+        }
+
+        /** The matching JavaBeans setter name for a property-access attribute. */
+        public String setterName() {
+            String property = EntityScanner.propertyName(getterName);
+            return "set" + Character.toUpperCase(property.charAt(0)) + property.substring(1);
         }
     }
 

@@ -638,11 +638,12 @@ public class MansartSchemaManager implements SchemaManager {
      * For PostgreSQL, returns double-quoted identifiers.
      */
     private String quoteIdentifier(String identifier) {
+        // Fold-then-quote (consistent with MansartEntityManager): match schemas created
+        // from unquoted spec DDL — H2 folds to upper case, PostgreSQL to lower case
         if ("postgresql".equals(dialectName)) {
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toLowerCase(java.util.Locale.ROOT) + "\"";
         } else if ("h2".equals(dialectName)) {
-            // H2: use double quotes to preserve case sensitivity (consistent with H2 dialect)
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toUpperCase(java.util.Locale.ROOT) + "\"";
         } else {
             // Default: double-quote identifiers
             return "\"" + identifier + "\"";
@@ -655,11 +656,12 @@ public class MansartSchemaManager implements SchemaManager {
      * For PostgreSQL, returns double-quoted identifiers.
      */
     private String quoteColumnIdentifier(String identifier) {
+        // Fold-then-quote — must stay consistent with quoteIdentifier and with the
+        // DML emitted by MansartEntityManager
         if ("postgresql".equals(dialectName)) {
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toLowerCase(java.util.Locale.ROOT) + "\"";
         } else if ("h2".equals(dialectName)) {
-            // H2: use double quotes to preserve case sensitivity (consistent with H2 dialect)
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toUpperCase(java.util.Locale.ROOT) + "\"";
         } else {
             // Default: double-quote identifiers
             return "\"" + identifier + "\"";

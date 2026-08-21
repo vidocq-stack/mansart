@@ -799,11 +799,15 @@ public class MansartEntityManager implements EntityManager {
      * For H2: returns uppercase unquoted identifiers for TCK compatibility.
      */
     private String quoteTableIdentifier(String identifier) {
+        // Fold-then-quote: schemas created from spec-conformant UNQUOTED DDL (e.g. the
+        // official TCK scripts) store identifiers in the database's folded case — H2
+        // folds to upper, PostgreSQL to lower. Quoting the folded name matches both
+        // unquoted-DDL schemas and our own SchemaManager output, while staying safe
+        // for reserved words (ORDER, VALUE, ...).
         if ("postgresql".equals(dialect.name())) {
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toLowerCase(java.util.Locale.ROOT) + "\"";
         } else if ("H2".equals(dialect.name())) {
-            // H2: use double-quoted identifiers to preserve case sensitivity
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toUpperCase(java.util.Locale.ROOT) + "\"";
         } else {
             // Default: return unquoted identifier
             return identifier;
@@ -816,11 +820,11 @@ public class MansartEntityManager implements EntityManager {
      * For PostgreSQL: returns double-quoted identifiers.
      */
     private String quoteColumnIdentifier(String identifier) {
+        // Fold-then-quote — see quoteTableIdentifier
         if ("postgresql".equals(dialect.name())) {
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toLowerCase(java.util.Locale.ROOT) + "\"";
         } else if ("H2".equals(dialect.name())) {
-            // H2: use double quotes to preserve case sensitivity
-            return "\"" + identifier + "\"";
+            return "\"" + identifier.toUpperCase(java.util.Locale.ROOT) + "\"";
         } else {
             // Default: return unquoted identifier
             return identifier;

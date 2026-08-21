@@ -66,7 +66,10 @@ final class EntityClassScanner {
                 continue;
             }
             if (Files.isDirectory(p)) {
-                scanDirectory(p, entities, allClasses);
+                // Class directories are the project's own build output: companions found
+                // there come from a PREVIOUS run of this plugin and must not suppress
+                // regeneration (they may be stale) — collect entities only.
+                scanDirectory(p, entities, new LinkedHashSet<>());
             } else if (element.endsWith(".jar")) {
                 scanJar(p, entities, allClasses);
             }

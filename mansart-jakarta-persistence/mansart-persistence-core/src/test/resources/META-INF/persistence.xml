@@ -8,6 +8,7 @@
         <class>io.vidocq.mansart.persistence.core.testentities.common.TestEntity</class>
         <class>io.vidocq.mansart.persistence.core.testentities.callback.CallbackEntity</class>
         <class>io.vidocq.mansart.persistence.core.testentities.common.SimpleEntity</class>
+        <class>io.vidocq.mansart.persistence.core.testentities.common.PropertyAccessEntity</class>
         <class>io.vidocq.mansart.persistence.core.testentities.common.VersionedEntity</class>
         <class>io.vidocq.mansart.persistence.core.testentities.listener.AuditedEntity</class>
         <class>io.vidocq.mansart.persistence.core.testentities.model.dirty.Product</class>
