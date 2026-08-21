@@ -11,7 +11,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: Runtime EntityMetadata fallback for precompiled TCK entities (design decision needed: the APT registry cannot cover entities shipped as binaries in the TCK jars — 87% of remaining TCK errors are "No EntityMetadata for ee.jakarta.tck.*"; candidate approach: Class-File API reader over the TCK .class files at EMF bootstrap, consistent with the no-hot-reflection philosophy)
+- **Current task**: EntityMetadata generation for precompiled TCK entities via a `mansart-persistence-maven-plugin` (DECIDED with maintainer 2026-08-21: mirror `mansart-data-maven-plugin` / ExternalCodegenProcessor — run the APT pipeline over external sources such as the persistence-tck-spec-tests sources jar, so the TCK entities get generated metadata at build time; no runtime reflection). 87% of remaining TCK errors are "No EntityMetadata for ee.jakarta.tck.*".
 - **Next up**: TCK error analysis and remediation (native query "Table not found" bucket, NPEs in Criteria)
 - **Blockers**: M9-2 (Bean Validation integration — en cours de dev)
 
