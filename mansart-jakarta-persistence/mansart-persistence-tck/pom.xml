@@ -406,7 +406,7 @@
                                         <!-- AUTO_SERVER: the Maven JVM (ant init) and the forked
                                              surefire JVM must both open the same file database -->
                                         <sql classpathref="maven.test.classpath" driver="org.h2.Driver"
-                                             url="jdbc:h2:file:./target/testdb;AUTO_SERVER=TRUE" userid="sa" password=""
+                                             url="jdbc:h2:file:./target/testdb;AUTO_SERVER=TRUE;NON_KEYWORDS=VALUE" userid="sa" password=""
                                              onerror="continue" autocommit="true"
                                              encoding="UTF-8">
                                             <transaction src="src/test/resources/sql/h2/h2.ddl.persistence.sql"/>
@@ -434,7 +434,9 @@
                                 <persistence.unit.name.2>JPATCK2</persistence.unit.name.2>
                                 <jakarta.persistence.provider>io.vidocq.mansart.persistence.core.bootstrap.MansartPersistenceProvider</jakarta.persistence.provider>
                                 <jakarta.persistence.jdbc.driver>org.h2.Driver</jakarta.persistence.jdbc.driver>
-                                <jakarta.persistence.jdbc.url>jdbc:h2:file:./target/testdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1</jakarta.persistence.jdbc.url>
+                                <!-- NON_KEYWORDS=VALUE: the official TCK DDL and its native DML use the
+                                     H2 2.x reserved word `value` as an unquoted column name -->
+                                <jakarta.persistence.jdbc.url>jdbc:h2:file:./target/testdb;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;NON_KEYWORDS=VALUE</jakarta.persistence.jdbc.url>
                                 <jakarta.persistence.jdbc.user>sa</jakarta.persistence.jdbc.user>
                                 <jakarta.persistence.jdbc.password></jakarta.persistence.jdbc.password>
                                 <vehicle>standalone</vehicle>

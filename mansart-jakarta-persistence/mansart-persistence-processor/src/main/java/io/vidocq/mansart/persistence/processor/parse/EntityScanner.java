@@ -60,6 +60,7 @@ public final class EntityScanner {
     private static final String ID_ANNOTATION = "jakarta.persistence.Id";
     private static final String EMBEDDED_ID_ANNOTATION = "jakarta.persistence.EmbeddedId";
     private static final String MAPPED_SUPERCLASS_ANNOTATION = "jakarta.persistence.MappedSuperclass";
+    private static final String EMBEDDED_ANNOTATION = "jakarta.persistence.Embedded";
     private static final String GENERATED_VALUE_ANNOTATION = "jakarta.persistence.GeneratedValue";
     private static final String VERSION_ANNOTATION = "jakarta.persistence.Version";
     private static final String TRANSIENT_ANNOTATION = "jakarta.persistence.Transient";
@@ -227,6 +228,20 @@ public final class EntityScanner {
             return null;
         }
         String javaTypeFqn = attributeType.toString();
+
+        // Not yet supported: @Embedded attributes (need column expansion) and
+        // secondary-table columns (need multi-table INSERT). Skip them so the
+        // primary-table DML stays valid — partial persistence beats a hard failure.
+        if (hasAnnotation(element, EMBEDDED_ANNOTATION)) {
+            return null;
+        }
+        AnnotationMirror columnMirror = getAnnotationMirror(element, COLUMN_ANNOTATION);
+        if (columnMirror != null) {
+            AnnotationValue tableValue = getAnnotationValues(columnMirror).get("table");
+            if (tableValue != null && !tableValue.getValue().toString().isEmpty()) {
+                return null;
+            }
+        }
 
         boolean isId = hasAnnotation(element, ID_ANNOTATION);
         boolean isVersion = hasAnnotation(element, VERSION_ANNOTATION);
