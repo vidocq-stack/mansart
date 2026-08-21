@@ -368,6 +368,10 @@
                             <systemPropertyVariables>
                                 <mansart.tck.dialect>pg</mansart.tck.dialect>
                                 <tck.schema.action>none</tck.schema.action>
+                                <jakarta.persistence.jdbc.driver>org.postgresql.Driver</jakarta.persistence.jdbc.driver>
+                                <jakarta.persistence.jdbc.url>jdbc:postgresql://localhost:5433/testdb</jakarta.persistence.jdbc.url>
+                                <jakarta.persistence.jdbc.user>testuser</jakarta.persistence.jdbc.user>
+                                <jakarta.persistence.jdbc.password>testpass</jakarta.persistence.jdbc.password>
                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
