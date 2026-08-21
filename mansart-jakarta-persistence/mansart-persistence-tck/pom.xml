@@ -308,6 +308,29 @@
             </dependencies>
             <build>
                 <plugins>
+                    <!-- AOT-generate EntityMetadata companions for the precompiled TCK entities
+                         (the APT never ran on the TCK jars). Sources land in the same package as
+                         each entity and are compiled by test-compile. -->
+                    <plugin>
+                        <groupId>io.vidocq.mansart</groupId>
+                        <artifactId>mansart-persistence-maven-plugin</artifactId>
+                        <version>0.3.0-SNAPSHOT</version>
+                        <executions>
+                            <execution>
+                                <id>generate-tck-entity-metadata</id>
+                                <phase>generate-test-sources</phase>
+                                <goals>
+                                    <goal>generate-external-entities</goal>
+                                </goals>
+                                <configuration>
+                                    <classpathScope>test</classpathScope>
+                                    <packages>
+                                        <package>ee.jakarta.tck.persistence</package>
+                                    </packages>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
                     <!-- Unpack TCK spec-tests jar into test-classes so TestNG can find them -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>

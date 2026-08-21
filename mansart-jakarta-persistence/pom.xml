@@ -79,6 +79,7 @@
         <module>mansart-persistence-spi</module>
         <module>mansart-persistence-core</module>
         <module>mansart-persistence-processor</module>
+        <module>mansart-persistence-maven-plugin</module>
         <module>mansart-persistence-cdi</module>
         <module>mansart-persistence-tests</module>
         <module>mansart-persistence-tck</module>
