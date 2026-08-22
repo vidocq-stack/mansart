@@ -103,6 +103,7 @@ public final class CallbackDispatcherGenerator {
             w.println("import io.vidocq.mansart.persistence.spi.LifecycleCallbackDispatcher.Phase;");
             w.println("import java.lang.invoke.MethodHandle;");
             w.println("import java.lang.invoke.MethodHandles;");
+            w.println("import java.lang.invoke.MethodType;");
             w.println();
             w.println("public final class " + className + " implements LifecycleCallbackDispatcher {");
             w.println();
@@ -295,7 +296,7 @@ public final class CallbackDispatcherGenerator {
     // ───────────────────── Generate callback arrays ─────────────────────
 
     private void writeCallbackArrays(PrintWriter w, CallbackDiscovery discovery, String simpleName) {
-        // Entity callbacks: array of MethodHandle per phase
+        // Entity callbacks: pre-resolved MethodHandle[] per phase
         w.println("    private static final java.util.Map<Phase, MethodHandle[]> ENTITY_CALLBACKS;");
         w.println("    static {");
         w.println("        final java.util.EnumMap<Phase, MethodHandle[]> _entity = new java.util.EnumMap<>(Phase.class);");
@@ -304,13 +305,11 @@ public final class CallbackDispatcherGenerator {
             List<String> handles = discovery.entityCallbacks(phase);
             w.println("        _entity.put(Phase." + phase + ", new MethodHandle[] {");
             for (int i = 0; i < handles.size(); i++) {
-                // Generate handle lookup for entity callback
-                // handleKey is "fully.qualified.ClassName.methodName" — split on last dot only
                 String handleKey = handles.get(i);
                 int lastDot = handleKey.lastIndexOf('.');
                 String className = handleKey.substring(0, lastDot);
                 String methodName = handleKey.substring(lastDot + 1);
-                w.println("            entityHandle(\"" + className + "\", \"" + methodName + "\"),");
+                w.println("            LOOKUP.findVirtual(" + className + ".class, \"" + methodName + "\", MethodType.methodType(void.class)),");
             }
             w.println("        });");
         }
@@ -318,7 +317,7 @@ public final class CallbackDispatcherGenerator {
         w.println("    }");
         w.println();
 
-        // Listener callbacks: need both class instantiation and method handle
+        // Listener callbacks: pre-resolved MethodHandle[] per phase, listener instantiated at invoke time
         w.println("    private static final java.util.Map<Phase, ListenerCallback[]> LISTENER_CALLBACKS;");
         w.println("    static {");
         w.println("        final java.util.EnumMap<Phase, ListenerCallback[]> _listener = new java.util.EnumMap<>(Phase.class);");
@@ -328,7 +327,7 @@ public final class CallbackDispatcherGenerator {
             w.println("        _listener.put(Phase." + phase + ", new ListenerCallback[] {");
             for (int i = 0; i < listeners.size(); i++) {
                 CallbackDiscovery.ListenerCallback lc = listeners.get(i);
-                w.println("            new ListenerCallback(\"" + lc.declaringClass() + "\", \"" + lc.methodName() + "\"),");
+                w.println("            new ListenerCallback(" + lc.declaringClass() + ".class, LOOKUP.findVirtual(" + lc.declaringClass() + ".class, \"" + lc.methodName() + "\", MethodType.methodType(void.class, " + simpleName + ".class))),");
             }
             w.println("        });");
         }
@@ -340,17 +339,6 @@ public final class CallbackDispatcherGenerator {
     // ───────────────────── Generate invoke method ─────────────────────
 
     private void writeInvokeMethod(PrintWriter w, CallbackDiscovery discovery) {
-        w.println("    /** Entity callback handle resolver. */");
-        w.println("    private static MethodHandle entityHandle(String className, String methodName) {");
-        w.println("        try {");
-        w.println("            Class<?> clazz = Class.forName(className);");
-        w.println("            return LOOKUP.unreflect(clazz.getDeclaredMethod(methodName));");
-        w.println("        } catch (ReflectiveOperationException ex) {");
-        w.println("            throw new java.lang.ExceptionInInitializerError(ex);");
-        w.println("        }");
-        w.println("    }");
-        w.println();
-
         w.println("    @Override");
         w.println("    public void invoke(Object entity, Phase phase) {");
         w.println("        // Entity callbacks (void, no params)");
@@ -370,21 +358,8 @@ public final class CallbackDispatcherGenerator {
         w.println("        if (lcs != null) {");
         w.println("            for (ListenerCallback lc : lcs) {");
         w.println("                try {");
-        w.println("                    Class<?> lclazz = Class.forName(lc.declaringClass);");
-        w.println("                    Object listener = lclazz.getDeclaredConstructor().newInstance();");
-        w.println("                    MethodHandles.Lookup llookup = MethodHandles.privateLookupIn(lclazz, MethodHandles.lookup());");
-        w.println("                    // Find method accepting entity class (JPA: parameter type must be assignable from entity class)");
-        w.println("                    java.lang.reflect.Method m = null;");
-        w.println("                    for (java.lang.reflect.Method candidate : lclazz.getDeclaredMethods()) {");
-        w.println("                        if (candidate.getName().equals(lc.methodName) && candidate.getParameterCount() == 1) {");
-        w.println("                            if (candidate.getParameterTypes()[0].isAssignableFrom(entity.getClass())) {");
-        w.println("                                m = candidate; break;");
-        w.println("                            }");
-        w.println("                        }");
-        w.println("                    }");
-        w.println("                    if (m == null) throw new NoSuchMethodException(lc.methodName + \"(\" + entity.getClass().getName() + \")\");");
-        w.println("                    MethodHandle h = llookup.unreflect(m);");
-        w.println("                    h.invoke(listener, entity);");
+        w.println("                    Object listener = lc.listenerClass().getDeclaredConstructor().newInstance();");
+        w.println("                    lc.handle().invoke(listener, entity);");
         w.println("                } catch (java.lang.Throwable ex) {");
         w.println("                    throw new RuntimeException(\"Listener callback failed: \" + phase, ex);");
         w.println("                }");
@@ -393,16 +368,9 @@ public final class CallbackDispatcherGenerator {
         w.println("    }");
         w.println();
 
-        // ListenerCallback record
-        w.println("    /** Runtime holder for a listener callback. */");
-        w.println("    private static final class ListenerCallback {");
-        w.println("        final String declaringClass;");
-        w.println("        final String methodName;");
-        w.println("        ListenerCallback(String declaringClass, String methodName) {");
-        w.println("            this.declaringClass = declaringClass;");
-        w.println("            this.methodName = methodName;");
-        w.println("        }");
-        w.println("    }");
+        // ListenerCallback record: holds resolved class + MethodHandle
+        w.println("    /** Compile-time resolved listener callback. */");
+        w.println("    private static final record ListenerCallback(Class<?> listenerClass, MethodHandle handle) {}");
         w.println();
     }
 
