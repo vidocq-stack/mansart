@@ -84,6 +84,11 @@ to files, never to the conversation:
    and reviews to the specialist subagents; route builds/tests/TCK output through the
    `ctx` tools (see below). Load `/mansart-persistence` or `/mansart-persistence-tck`
    only when relevant.
+   **Iteration builds**: while iterating, target only the module under work —
+   `./mvnw -q -ntp -pl <module> -am test`, or `-DskipTests` plus targeted
+   `-Dtest=…` runs. The full build is required only at the validation gate below.
+   Never use `-o` (offline): TCK runners and non-public Jakarta artifacts may need
+   dependency resolution. Always `./mvnw` (never a system `mvn`).
 3. **Validation gate — before marking ANY task as done**: run the **full mansart
    build** from the repository root and require **BUILD SUCCESS** on every module:
 

@@ -14,10 +14,32 @@
           "modalities": { "input": ["text", "image"], "output": ["text"] },
           "attachment": true,
           "limit": { "context": 131072, "output": 32768 }
+        },
+        "Laguna-S-2.1-oQ4e-fast": {
+          "name": "Laguna-S 2.1 oQ4e fast (testing)",
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "attachment": false,
+          "limit": { "context": 262144, "output": 32768 }
         }
       }
     }
   },
   "model": "omlx/Qwen3.6-35B-A3B-8bit",
-  "small_model": "omlx/Qwen3.6-35B-A3B-4bit"
+  "small_model": "omlx/Qwen3.6-35B-A3B-4bit",
+  "mcp": {
+    "java-lsp": {
+      "type": "local",
+      "command": [
+        "/Users/yblazart/go/bin/mcp-language-server",
+        "--workspace",
+        "/Users/yblazart/projects/perso/vidocq/mansart",
+        "--lsp",
+        "/opt/homebrew/bin/jdtls",
+        "--",
+        "-data",
+        "/Users/yblazart/.cache/jdtls/mansart-workspace"
+      ],
+      "enabled": true
+    }
+  }
 }

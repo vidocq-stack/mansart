@@ -277,6 +277,8 @@ public final class EntityMetadataGenerator {
         w.println("    private final String versionAttributeName;");
         w.println("    private final Set<String> persistentAttributeNames;");
         w.println("    private final List<String> persistentAttributeOrder;");
+        // Relationship tracking
+        w.println("    private final Set<String> relationshipAttributeNames;");
         // Inheritance support
         w.println("    private final jakarta.persistence.InheritanceType inheritanceType;");
         w.println("    private final String discriminatorColumn;");
@@ -316,6 +318,21 @@ public final class EntityMetadataGenerator {
         } else {
             w.println("        this.persistentAttributeNames = Collections.emptySet();");
             w.println("        this.persistentAttributeOrder = Collections.emptyList();");
+        }
+
+        // Relationship attribute names
+        var relAttrs = entity.attributes().stream()
+            .filter(a -> a.relationshipInfo() != null)
+            .map(a -> a.name())
+            .toList();
+        if (relAttrs.isEmpty()) {
+            w.println("        this.relationshipAttributeNames = Collections.emptySet();");
+        } else {
+            w.println("        Set<String> _rel = new java.util.HashSet<>();");
+            for (String relAttr : relAttrs) {
+                w.println("        _rel.add(\"" + relAttr + "\");");
+            }
+            w.println("        this.relationshipAttributeNames = Collections.unmodifiableSet(_rel);");
         }
 
         // Inheritance support
@@ -471,7 +488,7 @@ public final class EntityMetadataGenerator {
         w.println("    }");
         w.println();
 
-        // Relationship methods (stub — no relationships in current entities)
+        // Relationship methods
         w.println("    @Override");
         w.println("    public io.vidocq.mansart.persistence.spi.RelationshipMetadata getRelationshipMetadata(String attributeName) {");
         w.println("        return null;");
@@ -480,13 +497,13 @@ public final class EntityMetadataGenerator {
 
         w.println("    @Override");
         w.println("    public boolean isRelationship(String attributeName) {");
-        w.println("        return false;");
+        w.println("        return relationshipAttributeNames.contains(attributeName);");
         w.println("    }");
         w.println();
 
         w.println("    @Override");
         w.println("    public Set<String> getRelationshipAttributeNames() {");
-        w.println("        return EMPTY_SET;");
+        w.println("        return relationshipAttributeNames;");
         w.println("    }");
         w.println();
     }
