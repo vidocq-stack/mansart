@@ -1,7 +1,7 @@
 ---
 description: Runs and triages the official Jakarta Persistence 3.2 TCK (and other mansart TCKs) via the out-of-reactor runner script. Use to run smoke/one class/full suite, to classify failures by root cause, and to produce PASS/Total numbers for the tracker. Never edits implementation code.
 mode: subagent
-model: omlx/Qwen3.6-35B-A3B-8bit
+model: omlx/Qwen3.6-35B-A3B-MLX-6bit
 permission:
   edit: deny
   bash: allow

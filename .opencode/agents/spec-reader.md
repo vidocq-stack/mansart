@@ -1,7 +1,7 @@
 ---
 description: Answers Jakarta Persistence 3.2 questions from primary sources on disk — the jakarta.persistence-api 3.2.0 sources jar (Javadoc is normative for API behaviour) and the official TCK test sources. Use before implementing any EntityManager/Query/Criteria/Metamodel method and when a TCK test's expectation is unclear.
 mode: subagent
-model: omlx/Qwen3.6-35B-A3B-8bit
+model: omlx/Qwen3.6-35B-A3B-MLX-6bit
 permission:
   edit: deny
   webfetch: allow

@@ -137,8 +137,12 @@ models. Rules:
 - **SchemaError fallback**: if `write`/`edit` is rejected with a SchemaError twice in
   a row, STOP retrying the tool. Create or modify the file via bash instead:
   `cat > path/to/File.java <<'EOF' ... EOF`. Do not loop on the failing tool.
-- **Model routing**: `omlx/Qwen3.6-35B-A3B-8bit` for everything (agents included);
-  `Qwen3.6-35B-A3B-4bit` is the cheap small model (titles, summaries).
+- **Model routing**: `omlx/Qwen3.6-35B-A3B-MLX-6bit` for the default and the working
+  agents (persistence-dev, tck-runner, spec-reader); `Qwen3.8-27B-MLX-4bit` (dense,
+  slower but stronger judgment) pinned to the reviewers (gate-reviewer,
+  persistence-auditor); the 6bit also serves as small_model (titles, summaries — the
+  old 4bit is no longer served by oMLX); `Qwen3.6-35B-A3B-8bit` kept as max-quality
+  fallback.
 
 ### State files: delegate to the `tracker` subagent
 

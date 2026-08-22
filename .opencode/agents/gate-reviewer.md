@@ -1,7 +1,7 @@
 ---
 description: Read-only pre-merge reviewer for a change set in mansart-jakarta-persistence. Checks TDD evidence, charter compliance (no reflection/proxy/TCK leakage, modules, zero deps, English), and that claimed results match git diff and test output. Use before marking a task done or committing.
 mode: subagent
-model: omlx/Qwen3.6-35B-A3B-8bit
+model: omlx/Qwen3.8-27B-MLX-4bit
 permission:
   edit: deny
   bash:

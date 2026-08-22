@@ -1,7 +1,7 @@
 ---
 description: Read-only audit of mansart-jakarta-persistence for spec-violating shortcuts — TCK knowledge in runtime code, reflection/dynamic proxies, fake stubs, tracker claims not backed by TCK results. Use before planning remediation work or after a batch of TCK fixes.
 mode: subagent
-model: omlx/Qwen3.6-35B-A3B-8bit
+model: omlx/Qwen3.8-27B-MLX-4bit
 permission:
   edit: deny
   bash:

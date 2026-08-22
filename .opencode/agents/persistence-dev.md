@@ -1,7 +1,7 @@
 ---
 description: Primary agent for Jakarta Persistence 3.2 work in mansart-jakarta-persistence. TDD, one task per session, TCK-driven, no shortcuts. Default agent for this repository.
 mode: primary
-model: omlx/Qwen3.6-35B-A3B-8bit
+model: omlx/Qwen3.6-35B-A3B-MLX-6bit
 permission:
   edit: allow
   webfetch: allow
