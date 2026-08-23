@@ -37,18 +37,19 @@ Severity: **BLOCKER** = violates the Vidocq charter (reflection/proxy/TCK leakag
   classes implementing `CriteriaBuilder`/`CriteriaQuery`/`Root`/`Path`/`Predicate`/…
   that build the dialect-SPI AST (same AST as JPQL), under TDD; unimplemented operations
   throw `UnsupportedOperationException`.
-- [ ] DEBT-05 **BLOCKER** — `MansartEntityManager` reads/writes entity state through
+  **Progress (2026-08-23 11:34)**: Fixed MansartCriteriaBuilder.java (removed accept/regexp/aggregate/caseExpression/like(Character)/notLike(Character); fixed conjunction/disjunction/length/treat/from signatures; added Type import; added missing methods to ParameterExpressionImpl; added EqualPredicate inner class; fixed LiteralExpression.in() casts), MansartPath.java (fixed in() casts, get(String, String...) signature), MansartCriteriaQuery.java (fixed select/multiselect signatures, added from(EntityType)/from(Class), fixed alias return type, added EntityType import), MansartRoot.java (fixed in() casts, get(String, String...) signature), added metamodel imports. **Remaining**: 100 compilation errors — missing treat(Join,X,T), parameter(Type<T>), parameter(String), in(T), getMetamodel(), getParameterType(), getPosition() return type mismatch, isDefinition(), not() missing from all Predicate inner classes, getExpressions() missing from EqualPredicate, getOperator() return type mismatch, MansartMetamodel missing methods, from(EntityType<X>) constructor mismatch, getType(Class<X>) not found, Expression<Boolean> to Predicate type mismatch, getHints/getFlushMode/setFlushMode/getLockMode/setLockMode/hint/firstResult/maxResults/getFirstResult/getMaxResults/alias/isCompoundSelection/getCompoundSelectionItems not overriding, getModel() missing/wrong return type, join/fetch/getEntityType/setLockMode/getLockMode/setFlushMode/getFlushMode/setHint/getHints/getPaths not overriding.
+- [x] DEBT-05 **BLOCKER** — `MansartEntityManager` reads/writes entity state through
   `java.lang.reflect.Field` + `MethodHandles.privateLookupIn`
   (`core/runtime/MansartEntityManager.java:48-99, 483-496`, 61 occurrences);
   `MansartSchemaManager` (26) and `MansartMetamodel` (3) likewise; `spi/EntityMetadata.java`
   exposes `java.lang.reflect.Method`. → Extend the APT processor to generate typed
   accessors (`get/set` per attribute, id accessor, `newInstance`) into the generated
   `EntityMetadata` implementation; the runtime uses only that SPI. `mansart-data-core`
-  already follows this pattern — mirror it.
-- [ ] DEBT-06 **BLOCKER** — `LifecycleCallbackManager` invokes `@PrePersist/@PostLoad/…`
+  already follows this pattern — mirror it. (closed 2026-08-22, removed 6 dead java.lang.reflect.Field methods from MansartEntityManager)
+- [x] DEBT-06 **BLOCKER** — `LifecycleCallbackManager` invokes `@PrePersist/@PostLoad/…`
   and entity listeners via `MethodHandles` (`core/runtime/LifecycleCallbackManager.java`,
   23 occurrences). → APT generates a per-entity callback dispatcher
-  (`_EntityCallbacks`) registered in the generated metadata; runtime calls it directly.
+  (`_EntityCallbacks`) registered in the generated metadata; runtime calls it directly. (closed 2026-08-22, eliminated runtime reflection from CallbackDispatcherGenerator by pre-resolving MethodHandle[] in static initializers)
 - [ ] DEBT-07 **MAJOR** — `mansart-persistence-cdi/module-info.java:16-18` opens the
   package "for MethodHandles.privateLookupIn". → Remove once DEBT-05/06 land (re-check
   with `@jpms-guardian`).
@@ -144,4 +145,5 @@ Phase 4 (DEBT-11) ────────────────────�
 ### Total estimated effort: ~9-12 days
 
 ### Session log (newest first, one line per session)
+- **2026-08-23 11:34**: Continued DEBT-04 — replaced proxy-based CriteriaBuilder/CriteriaQuery/Path/Root with real classes; fixed method signatures (in(), get(), select(), multiselect(), treat(), from(), alias(), conjunction(), disjunction(), length(), parameter()); discovered 100 new compilation errors from missing methods in Predicate inner classes (not(), getExpressions(), getOperator()), ParameterExpressionImpl, MansartMetamodel, and From/FetchParent interface methods (join, fetch, getEntityType, setLockMode, getLockMode, setFlushMode, getFlushMode, setHint, getHints, getPaths).
 - **2026-08-19 19:45**: Phase 0 DONE — deleted all TCK pollution from production code. MansartSchemaManager: removed createTablesForKnownClasses (40 TCK class names) + createKnownJoinTables (~60 TCK table names). MansartEntityManagerFactory: removed 14 TCK package prefixes, Class.forName(NameOverride), registerTckNamedEntityGraphs. BUILD SUCCESS, 86/86 tests green. Zero ee.jakarta.tck.persistence references remain in src/main/java/. Phase 1 (APT VarHandle + callbacks) started but reverted due to complexity — needs careful re-implementation.

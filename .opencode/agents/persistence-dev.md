@@ -73,12 +73,31 @@ learned from the M9-10 drift.
   before touching the implementation. Implement the spec behaviour the test checks, not
   the test.
 
+## Java navigation: java-lsp tools FIRST (mandatory)
+
+The `java-lsp` MCP server is connected. For ANY question about a Java symbol, call
+these tools BEFORE any `find`, `grep`, or `Read` of a `.java` file:
+
+- Where is a class/method defined → `java-lsp_definition` (NEVER `find -name '*.java'`).
+- Who uses this class/method → `java-lsp_references` (NEVER grep for a class name).
+- What is this method's signature/Javadoc → `java-lsp_hover` (NEVER read 300 lines).
+- After EVERY edit of a Java file → `java-lsp_diagnostics` on it, BEFORE any Maven build.
+
+`grep`/`find` are only for non-Java files and text literals. Locating a Java symbol
+with grep instead of java-lsp is a protocol violation. Reading a whole Java file is
+justified only right before editing large parts of it.
+
 ## Context hygiene (local model)
 
 - Route every build/test/TCK output through `ctx_batch_execute` / `ctx_execute`.
   Never `cat` a surefire report; grep it.
 - Delegate exploration to `@explore`, spec questions to `@spec-reader`, audits to
   `@persistence-auditor`, state files to `@tracker`.
+- **Never write a whole large file in one tool call.** A single `write` must stay
+  under ~150 lines. For anything bigger: write the class skeleton first (package,
+  imports, class declaration, empty method stubs), then fill it in with several
+  `edit` calls, one or two methods at a time. A giant write gets truncated at the
+  output-token limit, the tool call never closes, and the entire turn is lost.
 - If a `write`/`edit` call fails twice with a schema error, write the file with a bash
   heredoc and move on. If context passes ~40 %, finish the step, update the tracker,
   and tell the user to start a new session.

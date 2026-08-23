@@ -16,10 +16,10 @@
           "limit": { "context": 262144, "output": 32768 }
         },
         "Qwen3.6-35B-A3B-MLX-6bit": {
-          "name": "Qwen3.6 35B-A3B 6bit (default, 64k ctx)",
+          "name": "Qwen3.6 35B-A3B 6bit (default, 80k ctx)",
           "modalities": { "input": ["text", "image"], "output": ["text"] },
           "attachment": true,
-          "limit": { "context": 65536, "output": 32768 }
+          "limit": { "context": 81920, "output": 12288 }
         },
         "Qwen3.8-27B-MTPLX-Optimized-Speed": {
           "name": "Qwen3.8 27B MTPLX Optimized-Speed (testing)",

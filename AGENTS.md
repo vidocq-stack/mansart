@@ -132,8 +132,18 @@ wrong key casing, truncated JSON. Known OpenCode limitation with OpenAI-compatib
 models. Rules:
 
 - **Session hygiene**: one task per session (already the protocol). If context usage
-  passes ~40%, `/compact` or finish and start a fresh session — do not push a long
-  session through file-writing work.
+  passes ~60% (of the 80k declared limit, i.e. ~48k real tokens), `/compact` or
+  finish and start a fresh session — do not push a long session through
+  file-writing work.
+- **Declared context = compaction trigger, and it must leave enough usable input.**
+  OpenCode reserves `limit.output` out of `limit.context`; usable input is the
+  difference. With `output: 32768`, a 64k cap left ~32k of input — less than the
+  fixed prompt + compaction summary — and caused an infinite compaction loop
+  (2026-08-22). Current tuning (2026-08-23): `context: 81920` + `output: 12288`
+  → ~70k usable input, so auto-compaction fires BEFORE the ~60k zone where this
+  quant's tool-call discipline collapses (EOS mid-tool-call, giant truncated
+  writes — observed at 63k and 99k). Keep usable input (context − output) at
+  ≥ 64k and the server-side oMLX `max_context_window` at 131072 unchanged.
 - **SchemaError fallback**: if `write`/`edit` is rejected with a SchemaError twice in
   a row, STOP retrying the tool. Create or modify the file via bash instead:
   `cat > path/to/File.java <<'EOF' ... EOF`. Do not loop on the failing tool.

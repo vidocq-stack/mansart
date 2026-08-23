@@ -296,42 +296,59 @@ public final class CallbackDispatcherGenerator {
     // ───────────────────── Generate callback arrays ─────────────────────
 
     private void writeCallbackArrays(PrintWriter w, CallbackDiscovery discovery, String simpleName) {
+        // Count total callbacks to decide if try-catch is needed
+        int totalEntityCallbacks = 0;
+        int totalListenerCallbacks = 0;
+        for (LifecycleCallbackDispatcher.Phase phase : LifecycleCallbackDispatcher.Phase.values()) {
+            totalEntityCallbacks += discovery.entityCallbacks(phase).size();
+            for (CallbackDiscovery.ListenerCallback lc : discovery.listenerCallbacks(phase)) {
+                totalListenerCallbacks++;
+            }
+        }
+        boolean needsTryCatch = totalEntityCallbacks > 0 || totalListenerCallbacks > 0;
+
         // Entity callbacks: pre-resolved MethodHandle[] per phase
         w.println("    private static final java.util.Map<Phase, MethodHandle[]> ENTITY_CALLBACKS;");
+        w.println("    private static final java.util.Map<Phase, ListenerCallback[]> LISTENER_CALLBACKS;");
         w.println("    static {");
-        w.println("        final java.util.EnumMap<Phase, MethodHandle[]> _entity = new java.util.EnumMap<>(Phase.class);");
+
+        if (needsTryCatch) {
+            w.println("        try {");
+        }
+        w.println("            final java.util.EnumMap<Phase, MethodHandle[]> _entity = new java.util.EnumMap<>(Phase.class);");
 
         for (LifecycleCallbackDispatcher.Phase phase : LifecycleCallbackDispatcher.Phase.values()) {
             List<String> handles = discovery.entityCallbacks(phase);
-            w.println("        _entity.put(Phase." + phase + ", new MethodHandle[] {");
+            w.println("            _entity.put(Phase." + phase + ", new MethodHandle[] {");
             for (int i = 0; i < handles.size(); i++) {
                 String handleKey = handles.get(i);
                 int lastDot = handleKey.lastIndexOf('.');
                 String className = handleKey.substring(0, lastDot);
                 String methodName = handleKey.substring(lastDot + 1);
-                w.println("            LOOKUP.findVirtual(" + className + ".class, \"" + methodName + "\", MethodType.methodType(void.class)),");
+                w.println("                LOOKUP.findVirtual(" + className + ".class, \"" + methodName + "\", MethodType.methodType(void.class)),");
             }
-            w.println("        });");
+            w.println("            });");
         }
-        w.println("        ENTITY_CALLBACKS = java.util.Collections.unmodifiableMap(_entity);");
-        w.println("    }");
-        w.println();
+        w.println("            ENTITY_CALLBACKS = java.util.Collections.unmodifiableMap(_entity);");
 
-        // Listener callbacks: pre-resolved MethodHandle[] per phase, listener instantiated at invoke time
-        w.println("    private static final java.util.Map<Phase, ListenerCallback[]> LISTENER_CALLBACKS;");
-        w.println("    static {");
-        w.println("        final java.util.EnumMap<Phase, ListenerCallback[]> _listener = new java.util.EnumMap<>(Phase.class);");
+        w.println("            final java.util.EnumMap<Phase, ListenerCallback[]> _listener = new java.util.EnumMap<>(Phase.class);");
 
         for (LifecycleCallbackDispatcher.Phase phase : LifecycleCallbackDispatcher.Phase.values()) {
             List<CallbackDiscovery.ListenerCallback> listeners = discovery.listenerCallbacks(phase);
-            w.println("        _listener.put(Phase." + phase + ", new ListenerCallback[] {");
+            w.println("            _listener.put(Phase." + phase + ", new ListenerCallback[] {");
             for (int i = 0; i < listeners.size(); i++) {
                 CallbackDiscovery.ListenerCallback lc = listeners.get(i);
-                w.println("            new ListenerCallback(" + lc.declaringClass() + ".class, LOOKUP.findVirtual(" + lc.declaringClass() + ".class, \"" + lc.methodName() + "\", MethodType.methodType(void.class, " + simpleName + ".class))),");
+                w.println("                new ListenerCallback(" + lc.declaringClass() + ".class, LOOKUP.findVirtual(" + lc.declaringClass() + ".class, \"" + lc.methodName() + "\", MethodType.methodType(void.class, " + simpleName + ".class))),");
             }
-            w.println("        });");
+            w.println("            });");
         }
-        w.println("        LISTENER_CALLBACKS = java.util.Collections.unmodifiableMap(_listener);");
+        w.println("            LISTENER_CALLBACKS = java.util.Collections.unmodifiableMap(_listener);");
+
+        if (needsTryCatch) {
+            w.println("        } catch (NoSuchMethodException | IllegalAccessException ex) {");
+            w.println("            throw new java.lang.ExceptionInInitializerError(ex);");
+            w.println("        }");
+        }
         w.println("    }");
         w.println();
     }

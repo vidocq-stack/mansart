@@ -11,7 +11,7 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 ## Current focus
 
 - **Milestone**: M9 — Finalization
-- **Current task**: Fix JUnit Platform TestEngine discovery for Jakarta Persistence TCK
+- **Current task**: DEBT-04 — Replace proxy-based Criteria API with real classes
 - **Next up**: TCK error analysis and remediation
 - **Blockers**: M9-2 (Bean Validation integration — en cours de dev)
 
@@ -116,6 +116,8 @@ the mansart root — `./mvnw -ntp clean install` — with BUILD SUCCESS on every
 - 2026-08-16 — M8-12 — COMPLETED (Phase 1): Dirty tracking. Full build passes (33/33 modules), all tests pass (59/59 in mansart-persistence-core). Added Product entity with @Version field, DirtyTrackingTest with 3 tests for version field handling.
 - 2026-08-16 — M8-11 — COMPLETED (Phase 1): Lazy loading. Full build passes (33/33 modules), all tests pass (56/56 in mansart-persistence-core). Added AttributeMetadata SPI interface with FetchType enum, BasicParser for @Basic(fetch=LAZY) annotations, Employee entity with lazy field, LazyLoadingTest with 3 tests.
 ## Session log (newest first, one line per session)
+- **2026-08-23 11:34**: Continued DEBT-04 fixes; fixed CriteriaBuilder/CriteriaQuery/Path/Root signatures; 100 new errors from missing methods and signature mismatches in Predicate inner classes, ParameterExpressionImpl, MansartMetamodel, and From/FetchParent methods.
+- **2026-08-22**: Phase 1 complete — removed 6 dead reflection methods from EntityManager, rewrote CallbackDispatcherGenerator to pre-resolve MethodHandles (zero runtime reflection). Build SUCCESS, 94 tests pass. Next: DEBT-04 (Criteria API proxies → real classes building JPQL AST).
 - **2026-08-22** — BUILD FIX — Fixed `mansart-persistence-tck` Maven build failure: JUnit Platform `PreconditionViolationException: Cannot create Launcher without at least one TestEngine` was caused by `surefire-junit-platform` plugin dependency forcing JUnit Platform without any TestEngine on the classpath. TCK tests use JUnit 4 (`org.junit.Test`), not JUnit 5. Fix: removed `surefire-junit-platform` from base plugin dependencies (let surefire auto-detect TestNG for default profile), added `junit-vintage-engine` to the `tck-full` profile for JUnit 4 TCK tests. Full reactor BUILD SUCCESS. Default profile: 3/3 smoke tests pass via TestNG. tck-run profile: TCK tests actually run (functional signature errors, no more engine crash).
 - **2026-08-21**: JUnit 5 migration — engine successfully discovered and executed TCK tests (991 run vs 0 previously due to TestNG provider mismatch); 101 PASS, 888 errors (provider not found for JPATCK persistence unit, unknown entities, unwrap failures, DDL DROP-before-CREATE); TCK harness required for full execution; Current task: fix provider persistence unit discovery for TCK entities.
 - **2026-08-21**: DEBT-01 — COMPLETED: PostgreSQL routing verified. TCK runs against PostgreSQL (jdbc:postgresql://localhost:5433/testdb). Bootstrap (A_TckPgBootstrap) passes, system properties injected correctly. TCK: 123/1745 PASS, 1620 errors (JPA provider functionality gaps, not DB connectivity). Container managed manually via docker run. Next: TCK error analysis and remediation.
