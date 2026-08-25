@@ -27,7 +27,7 @@ and the real TCK / unit-test numbers. You then:
    `blocked:` note. If the session discovered work that does not fit the current
    card, append a NEW card at the end rather than growing an existing one.
    A new card names its goal, at most 4 files, the test that proves it, and its
-   dependencies. Cards stay small enough for one 53k-token session.
+   dependencies. Cards stay small enough for one 61k-token session.
 2. Rewrite the `## Current focus` block of `STATUS.md` (max 8 lines: the next
    card id, the one thing that is in flight, and any trap the next session must
    know about).

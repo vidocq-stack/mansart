@@ -22,6 +22,9 @@ import jakarta.persistence.spi.PersistenceProvider;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 
@@ -40,7 +43,11 @@ class ProviderDiscoveryTest {
 
     @Test
     void providerIsDiscoverableViaServiceLoader() {
-        var providers = ServiceLoader.load(PersistenceProvider.class).toList();
+        List<PersistenceProvider> providers = new ArrayList<>();
+        Iterator<PersistenceProvider> it = ServiceLoader.load(PersistenceProvider.class).iterator();
+        while (it.hasNext()) {
+            providers.add(it.next());
+        }
         assertThat(providers)
             .hasSize(1)
             .first()
@@ -49,8 +56,7 @@ class ProviderDiscoveryTest {
 
     @Test
     void createEntityManagerFactoryThrows() {
-        var provider = (PersistenceProvider) ServiceLoader.load(PersistenceProvider.class)
-            .findFirst().orElseThrow();
+        PersistenceProvider provider = ServiceLoader.load(PersistenceProvider.class).iterator().next();
 
         assertThatExceptionOfType(UnsupportedOperationException.class)
             .isThrownBy(() -> provider.createEntityManagerFactory("nonexistent", Map.of()))

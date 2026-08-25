@@ -126,7 +126,7 @@ prompt costs ~12 s of prefill on a cache miss; an 84k prompt costs ~21 s. Across
 40-turn session that is eight minutes against fourteen — and the fourteen-minute
 version makes worse decisions.
 
-### The budget, and why 53k
+### The budget, and why 61k
 
 The old truncation bug is worth understanding, because the fix is the whole
 arithmetic. Previously `max_tokens` was 12 288 with a thinking budget of 8 192,
@@ -151,18 +151,80 @@ binding number is OpenCode's:
 | OpenCode `limit.output` | 12 288 | **sent as `max_tokens` on every request** |
 | oMLX `thinking_budget_tokens` | 4 096 | subtracted from the above |
 | room left for the tool call | **8 192** | ≈ 600 lines of Java |
-| OpenCode `limit.context` | 65 536 | |
+| OpenCode `limit.context` | 73 728 | wall at 61 440 — see below |
 
 8 192 tokens for a tool call is twice what the broken configuration left, and far
 above the ~150-line write ceiling the agents are told to respect. Raising
 `limit.output` to 16 384 would buy more room per turn but would also raise the
-compaction reserve and shrink the window to ~49k; 12 288 is the better trade.
+reserve and shrink the window by the same amount; 12 288 is the better trade.
 
-OpenCode reserves `min(20000, output)` for compaction, so auto-compaction fires at
-`65 536 − 12 288 ≈ **53 000 tokens**`. That sits inside the fully-clean measured
-zone, with per-turn cache-miss prefill capped around 15 s.
+OpenCode reserves `min(20000, output)`, so the wall sits at
+`73 728 − 12 288 ≈ **61 440 tokens**`.
 
-Target split of the 53k working window (the first line is measured, not estimated
+Why 61k and not more. The wall was originally set at 53k (`limit.context` 65 536),
+and the first long session peaked at **53 792** — exactly where the arithmetic said
+it would, which is the useful confirmation that this model of the budget is right.
+It was then raised deliberately, because 53k was more conservative than the
+evidence required:
+
+- the only measured degradation point is **62 256 tokens**, where the model burned
+  1 093 output tokens on a task costing 289 elsewhere;
+- tool calls were still structurally valid at 83 750, so this is not a capacity
+  limit;
+- 61 440 sits just under the one point where behaviour is known to change.
+
+Going to 80k would put the wall at ~69 632 — roughly 7k *past* the only evidence we
+have. That is a guess dressed as a setting. If the 53k–70k band is ever measured in
+a real agentic loop (not the single-shot ladder above), this number can move again;
+until then it stays where the data ends.
+
+The 8-bit model used by `@thinker` keeps a 65 536 window on purpose: its prefill is
+much slower, and it is called once or twice per session for one question.
+
+### Why auto-compaction is OFF
+
+`compaction.auto` is set to **`false`**, which is not the default. The reason is
+measured, not theoretical.
+
+The first real session ran cards JP-01 through JP-04 in one window: 236 messages,
+four compactions. Its tool-call rate per segment:
+
+| segment | assistant turns | with a real tool call |
+| --- | --- | --- |
+| before compaction #1 | 49 | 49 — 100 % |
+| before #2 | 65 | 60 — 92 % |
+| before #3 | 58 | 57 — 98 % |
+| before #4 | 45 | 44 — 98 % |
+| **after #4** | 4 | 0 — **0 %** |
+
+Not a gradual decline — a cliff. After the fourth compaction the model stopped
+emitting tool calls entirely and started *describing* them instead:
+
+```
+"**LOADING skill: mansart-jpa**  Let me load the architecture skill, then read
+ TASKS.md JP-04 details and start:"
+```
+
+Then EOS. OpenCode sees no tool call, logs `exiting loop` at step 1, and the turn
+ends. Pressing enter again appends another paragraph of prose, which reinforces the
+pattern. The session is dead and looks merely idle.
+
+The mechanism: the turn immediately following a compaction is, by construction, a
+long text-only summary — 2 774 output tokens of prose here, not one tool call. If
+the next few user messages are conversational rather than commands, the recent tail
+is now entirely prose, and a 3B-active model imitates its recent tail harder than it
+follows its system prompt.
+
+Auto-compaction therefore let a session **degrade silently into chat mode**. With
+`auto: false`, hitting the wall raises a context-overflow error instead: loud, obvious,
+and impossible to mistake for the model thinking. It turns "one card per session"
+from advice into a constraint the harness enforces. Work is never lost — files are
+written as the session goes, and `STATUS.md` carries the handover.
+
+The paired fix is in `.opencode/OPERATING.md`: *never announce a tool call in
+prose — make the call*.
+
+Target split of the 61k working window (the first line is measured, not estimated
 — see §5.1):
 
 ```
@@ -179,13 +241,14 @@ headroom for reasoning and edits                                  ~20 k
 The same weights are declared twice in `opencode.json`, using the two ids oMLX
 exposes for them:
 
-- `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` → 65 536, for everything that edits code;
+- `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` → 73 728, for everything that edits code;
 - `Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` → 131 072, for the read-only
   `spec-reader`, whose job is one long single-shot read producing one small answer.
   That is precisely the workload the 84k probe validated.
 
-`Youssofal--…-Balance` (65 536) drives the review agents, and `Qwen3.6-35B-A3B-8bit`
-(65 536) is reserved for `@thinker`, called at most once or twice per session.
+`Youssofal--…-Balance` (73 728) drives the review agents, and `Qwen3.6-35B-A3B-8bit`
+(65 536, deliberately smaller — 8-bit prefill is slow) is reserved for `@thinker`,
+called at most once or twice per session.
 
 ---
 
@@ -198,7 +261,7 @@ durable configuration belongs to the project.
 Beyond the model declarations above:
 
 ```jsonc
-"compaction": { "auto": true, "reserved": 12288, "preserve_recent_tokens": 12000 },
+"compaction": { "auto": false, "reserved": 12288, "preserve_recent_tokens": 12000 },
 "lsp": true,
 "permission": { "external_directory": { "/tmp/**": "allow", "/private/tmp/**": "allow",
                                         "/Users/yblazart/.m2/**": "allow" },
@@ -254,17 +317,18 @@ mechanism, ahead of compaction.
 
 | agent | mode | model window | role |
 | --- | --- | --- | --- |
-| `jpa-dev` | primary | 64k | the developer. Full-auto edits and shell. One card per session. |
+| `jpa-dev` | primary | 72k | the developer. Full-auto edits and shell. One card per session. |
 | `spec-reader` | subagent | **128k** | read-only spec and TCK-source oracle. One question, one cited answer, ≤40 lines. |
-| `tck-runner` | subagent | 64k | runs the TCK, reports real integers, never edits main sources. |
-| `codegen` | subagent | 64k (Balance) | owns APT / Maven-plugin / runtime-fallback generation. |
-| `auditor` | subagent | 64k (Balance) | anti-drift: stubs, reflection, TCK leakage, disabled tests, module violations. |
-| `explore` | subagent | 64k | scout. Returns `file:line` pointers, never file contents. |
-| `tracker` | subagent | 64k | the only writer of `STATUS.md` and `TASKS.md`. |
-| `module-guardian` | subagent | 64k (Balance) | `module-info.java` review. |
-| `dependency-gatekeeper` | subagent | 64k | enforces the zero-dependency rule on every POM change. |
-| `virtual-threads-reviewer` | subagent | 64k (Balance) | pinning, `ThreadLocal`, platform pools, connection lifetime. |
-| `thinker` | subagent | 64k (**8-bit**) | one hard decision, after two failed attempts. Returns a decision, not an essay. |
+| `tck-runner` | subagent | 72k | runs the TCK, reports real integers, never edits main sources. |
+| `sonar-runner` | subagent | 72k | starts the Sonar container, scans, reads the gate from the **API** not the log. Reports issues on new code only. |
+| `codegen` | subagent | 72k (Balance) | owns APT / Maven-plugin / runtime-fallback generation. |
+| `auditor` | subagent | 72k (Balance) | anti-drift: stubs, reflection, TCK leakage, disabled tests, module violations. |
+| `explore` | subagent | 72k | scout. Returns `file:line` pointers, never file contents. |
+| `tracker` | subagent | 72k | the only writer of `STATUS.md` and `TASKS.md`. |
+| `module-guardian` | subagent | 72k (Balance) | `module-info.java` review. |
+| `dependency-gatekeeper` | subagent | 72k | enforces the zero-dependency rule on every POM change. |
+| `virtual-threads-reviewer` | subagent | 72k (Balance) | pinning, `ThreadLocal`, platform pools, connection lifetime. |
+| `thinker` | subagent | 64k (**8-bit**, on purpose) | one hard decision, after two failed attempts. Returns a decision, not an essay. |
 
 `jpa-dev` runs **full-auto** — the equivalent of Claude Code's auto-accept mode:
 `edit: allow`, `bash: "*": allow`. Destructive git operations (`reset`, `clean`,
@@ -316,7 +380,7 @@ Measured composition of `jpa-dev`'s system prompt, in order:
 | operating rules | 220–303 | `.opencode/OPERATING.md` |
 | skills index | 304–356 | discovered `SKILL.md` frontmatter |
 
-**356 lines, 19 429 characters, ≈5 400 tokens** — about 10 % of the 53k window,
+**356 lines, 19 429 characters, ≈5 400 tokens** — under 10 % of the 61k window,
 which is the budget line in §3. Skill *bodies* are not included; they are pulled
 in on demand by the `skill` tool, which is the point of putting them in skills
 rather than in the prompt.
@@ -330,8 +394,9 @@ rather than in the prompt.
 | command | what it does |
 | --- | --- |
 | `/next [JP-xx]` | opens a session: reads `STATUS.md`, picks one `TODO` card, states the failing test and the ≤4 files before writing anything |
-| `/gate` | the validation gate: build, unit tests, `@auditor`, and the card's TCK client. Returns `GATE: PASS` or `FAIL`. Required before any card becomes `DONE` |
+| `/gate` | the validation gate: build, unit tests, `@auditor`, the card's TCK client, and a Sonar scan of the touched module. Returns `GATE: PASS` or `FAIL`. Required before any card becomes `DONE` |
 | `/tck [Client\|all]` | delegates a TCK run to `@tck-runner` |
+| `/sonar [module\|all]` | delegates a SonarQube scan to `@sonar-runner` (§12) |
 | `/tck-fix <Client>` | the fix loop: read the test source → ask `@spec-reader` if needed → reproduce as a local unit test → implement the *spec* → re-run → `/gate` |
 | `/audit [scope]` | anti-drift audit of the branch |
 | `/spec <question>` | one question to the spec oracle |
@@ -408,7 +473,7 @@ unit of work small enough that a large context is never needed.
 - **Milestone** (`PLAN.md`) — the planning unit. M0 to M9, each ending on a
   *measured* TCK number for named client packages. A milestone is never "done
   because it compiles".
-- **Card** (`TASKS.md`, `JP-xx`) — the work unit, sized for one 53k session: one
+- **Card** (`TASKS.md`, `JP-xx`) — the work unit, sized for one 61k session: one
   behaviour, **at most 4 files**, exactly one proving test, explicit dependencies.
 - **Session** — one card. Opened with `/next`, closed with `/session-end`.
 
@@ -424,7 +489,7 @@ compaction discards exactly the tool output that is about to be needed and keeps
 the prose that is not.
 
 **Discovered work becomes a new card**, appended by `@tracker`, never merged into
-the card in flight. Scope creep inside a session is how a 53k window becomes a
+the card in flight. Scope creep inside a session is how a 61k window becomes a
 compacted one.
 
 The TCK gives the decomposition a natural grain: 269 client classes, ~1 745 test
@@ -482,7 +547,92 @@ Two rules that decide whether the number means anything:
 
 ---
 
-## 12. Running a session
+## 12. Quality: SonarQube on local Docker
+
+The TCK says whether the implementation is *correct*. It says nothing about whether
+it is maintainable. SonarQube covers the second half, and it has to run **often** —
+a quality gate wired in after twenty thousand lines is a project; wired in on an
+empty reactor it is five minutes. Hence card **JP-01b**, scheduled before JP-02.
+
+### The instance
+
+Container **`mansart-sonar`**, `sonarqube:community` 26.5.0, published on host port
+**9001** (container 9000). Project key `vidocq-mansart-persistence`.
+
+> **It has no volume mounted.** Its data lives in the container's writable layer.
+> `docker stop` and `docker start` are safe. `docker rm mansart-sonar` destroys the
+> project history and any token that was minted for it. The `sonar-runner` agent has
+> `docker rm` and `docker volume` on `ask` for exactly this reason.
+
+### Maven wiring
+
+In `mansart-jakarta-persistence/pom.xml`, mirroring `vauban/pom.xml`:
+`sonar.projectKey`, `sonar.java.source=25`, `sonar.host.url`,
+`sonar.coverage.jacoco.xmlReportPaths`, and `sonar-maven-plugin 5.1.0.4751` in
+`pluginManagement`. Scoped to the persistence sub-reactor — the delivered modules
+are untouched.
+
+JaCoCo needs nothing new: `vidocq-parent` already manages it behind a **`quality`**
+profile, with `prepare-agent` and a `report` execution bound to `verify`. Two
+consequences that cost an afternoon if you miss them:
+
+```bash
+./mvnw -ntp -Pquality -pl mansart-jakarta-persistence/<module> -am verify \
+  org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+```
+
+- **`-Pquality`** or JaCoCo never runs at all;
+- **`verify`**, not `test` — the XML report is produced at `verify`. Without both,
+  Sonar reports 0 % coverage and you go hunting for a bug that is not there.
+
+The exclusions matter more here than anywhere else in the workspace:
+`**/generated/**,**/generated-sources/**,**/target/**`. APT emits the `_Entity`
+metamodel and the descriptors, and the Maven plugin emits `.class` files for
+external entities. Analysing generated code would drown the report in issues nobody
+wrote by hand — and, worse, would make the model try to "fix" its own generator
+output.
+
+### Authentication
+
+**SonarQube 26.5 does not allow anonymous analysis.** `sonar.forceAuthentication`
+was removed in the 10.x line; a token is required. The runner tries without one and,
+on 401/403, stops immediately with the exact instruction rather than retrying:
+
+```bash
+# http://localhost:9001 → My Account → Security → generate a token
+export SONAR_TOKEN=<token>          # before launching opencode
+```
+
+### Where it hooks into the loop
+
+| when | what | scope |
+| --- | --- | --- |
+| every card, inside `/gate` | `@sonar-runner` on the **module the card touched** | one module |
+| on demand | `/sonar [module\|all]` | your choice |
+| at milestone close | `/sonar all`, gate status recorded in `STATUS.md` beside the TCK number | whole sub-reactor |
+
+A `BLOCKER` or `CRITICAL` **on new code** fails the gate. Pre-existing debt does
+not: a card is accountable for the code it wrote, not for the backlog. That
+distinction is what keeps the gate from becoming noise the model learns to ignore.
+
+### The context rule, again
+
+A scanner log is thousands of lines. `@sonar-runner` never reads it. It runs the
+scan through the `ctx` tools and then queries the API, which answers in a few
+hundred bytes:
+
+```
+/api/qualitygates/project_status?projectKey=vidocq-mansart-persistence
+/api/issues/search?componentKeys=…&inNewCodePeriod=true&statuses=OPEN
+/api/measures/component?component=…&metricKeys=new_coverage,new_violations
+```
+
+Same discipline as reading surefire XML instead of the Maven console. It is the
+single reason a quality gate can run on every card without eating the window.
+
+---
+
+## 13. Running a session
 
 ```bash
 cd ~/projects/perso/vidocq/mansart
@@ -503,11 +653,17 @@ Then, inside OpenCode:
 indicator passes ~70 %, stop, `/session-end`, restart.
 
 Useful mid-session: `/spec <question>` rather than reading the spec yourself;
-`/tck-fix <Client>` for the TCK loop; `/audit` before you believe a card is done.
+`/tck-fix <Client>` for the TCK loop; `/audit` before you believe a card is done;
+`/sonar` when you want the quality gate outside of `/gate`.
+
+`/gate` starts the `mansart-sonar` container by itself if it is stopped, so there is
+nothing to launch beforehand — but SonarQube takes 40–90 s to boot on the first gate
+of the day, and it competes for RAM with the pinned model. If the machine feels
+tight, `docker stop mansart-sonar` between sessions rather than removing it (§12).
 
 ---
 
-## 13. Known traps
+## 14. Known traps
 
 | symptom | cause | fix |
 | --- | --- | --- |
@@ -519,13 +675,21 @@ Useful mid-session: `/spec <question>` rather than reading the spec yourself;
 | a red squiggle on a generated class | jdtls uses ECJ and does not run our APT | run `./mvnw install` once; trust Maven, not jdtls |
 | Maven log floods the window | not routed through `ctx` | `ctx_execute` / `ctx_batch_execute`, and read surefire XML |
 | a `write` fails twice with a schema error | tool-call formatting | write the file with a bash heredoc and move on |
+| the agent answers, announces what it will do, and stops — every time | it is describing tool calls instead of emitting them, usually after a compaction (§3) | do not prod it; quit, restart, `/next`. State is in `STATUS.md` |
+| the session dies with a context-overflow error | intended: `compaction.auto: false` (§3) | that is the signal to `/session-end` and start a fresh session |
 | an agent ignores a frontmatter setting | unknown fields are silently routed into `options` instead of erroring — `topP` vs `top_p` | check the allowed field list, then confirm with a request capture (§4.1) |
 | a custom agent behaves less carefully than `build` | its prompt replaced the built-in one (§5.1) | the shared scaffolding is in `.opencode/OPERATING.md`; check it is still listed in `instructions` |
 | config edits appear to do nothing | OpenCode loads config once at startup and does not hot-reload | quit and restart OpenCode |
+| Sonar reports 0 % coverage | JaCoCo never ran — missing `-Pquality`, or the build stopped at `test` instead of `verify` | `./mvnw -Pquality … verify sonar:sonar` |
+| Sonar analysis refused with 401 | SonarQube 26.5 dropped anonymous analysis | mint a token in the UI, `export SONAR_TOKEN=…` before launching opencode |
+| Sonar full of issues on `_Entity` classes | generated code is being analysed | check `sonar.exclusions` still covers `**/generated-sources/**` |
+| the Sonar project history vanished | `docker rm mansart-sonar` — the container has no volume | it is not recoverable; `stop`/`start` only, never `rm` |
+| ECJ rejects `Map<String, ?>` overriding `Map<?, ?>` | ECJ strictness on generic erasure — `String` vs `?` is not erasure-compatible | use `Map<?, ?>` in every `PersistenceProvider` method signature |
+| JPMS `provides` invisible on the classpath | ServiceLoader on the classpath ignores JPMS service declarations | ship a `META-INF/services/jakarta.persistence.spi.PersistenceProvider` file for classpath discoverability |
 
 ---
 
-## 14. What would make the demonstration succeed
+## 15. What would make the demonstration succeed
 
 The claim under test is not "a local model can write Java". It is that a
 **35B-active-3B model running on one machine** can implement a real Jakarta

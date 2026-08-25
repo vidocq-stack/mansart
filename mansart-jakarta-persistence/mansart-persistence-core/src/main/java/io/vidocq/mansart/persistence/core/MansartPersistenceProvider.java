@@ -39,7 +39,7 @@ import java.util.Map;
 public class MansartPersistenceProvider implements PersistenceProvider {
 
     @Override
-    public EntityManagerFactory createEntityManagerFactory(String persistenceUnitName, Map<String, ?> hints) {
+    public EntityManagerFactory createEntityManagerFactory(String persistenceUnitName, Map<?, ?> hints) {
         throw new UnsupportedOperationException("not implemented: createEntityManagerFactory");
     }
 
@@ -50,17 +50,17 @@ public class MansartPersistenceProvider implements PersistenceProvider {
 
     @Override
     public EntityManagerFactory createContainerEntityManagerFactory(
-            PersistenceUnitInfo info, Map<String, ?> hints) {
+            PersistenceUnitInfo info, Map<?, ?> hints) {
         throw new UnsupportedOperationException("not implemented: createContainerEntityManagerFactory");
     }
 
     @Override
-    public void generateSchema(PersistenceUnitInfo info, Map<String, ?> hints) {
+    public void generateSchema(PersistenceUnitInfo info, Map<?, ?> hints) {
         throw new UnsupportedOperationException("not implemented: generateSchema");
     }
 
     @Override
-    public boolean generateSchema(String persistenceUnitName, Map<String, ?> hints) {
+    public boolean generateSchema(String persistenceUnitName, Map<?, ?> hints) {
         throw new UnsupportedOperationException("not implemented: generateSchema");
     }
 

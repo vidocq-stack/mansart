@@ -88,9 +88,10 @@ building, but **only `./mvnw` decides**. In particular jdtls does not run our
 annotation processors the way javac does — a red squiggle on a generated
 `_Entity` class is expected until the Maven build has run once.
 
-## Context hygiene (local 64k model)
+## Context hygiene (local model, 72k window)
 
-Your window compacts at ~53k tokens. Treat it as a budget you spend:
+Your session hits a hard wall at ~61k tokens — auto-compaction is OFF, so it
+raises an error rather than silently degrading. Treat the window as a budget:
 
 - Route every build/test/TCK invocation through the `ctx` tools
   (`ctx_execute`, `ctx_batch_execute`). Never `cat` a surefire report — grep it.

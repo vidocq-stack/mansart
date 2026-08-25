@@ -59,6 +59,12 @@ silently widening the current one.
 
 ## Tool usage
 
+- **Never announce a tool call in prose. Make the call.** If the next step is to
+  read a file, load a skill or run a command, emit the tool call — do not write
+  "Let me load the skill and then…:" and stop. A turn that ends by describing an
+  action it did not take is a dead turn: the loop exits, nothing happens, and the
+  user has to prod you. This is the single most common way a session dies. The
+  same applies to writing "**LOADING skill: x**" instead of calling `skill`.
 - **`lsp` before `grep` for anything Java.** `goToDefinition`, `findReferences`,
   `hover`, `documentSymbol`, `workspaceSymbol`. ~100 tokens instead of ~3 000.
 - **Batch independent calls in one message.** Several `bash` calls that do not

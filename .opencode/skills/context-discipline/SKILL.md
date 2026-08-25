@@ -1,9 +1,9 @@
 ---
 name: context-discipline
-description: How to work inside a 53k-token window on a local model — the measured limits of Qwen3.6-35B-A3B-MTPLX, the token budget, LSP-first navigation, and the write-size rule. Load when a session starts feeling heavy or when a tool call gets truncated.
+description: How to work inside a 61k-token window on a local model — the measured limits of Qwen3.6-35B-A3B-MTPLX, the token budget, LSP-first navigation, and the write-size rule. Load when a session starts feeling heavy or when a tool call gets truncated.
 ---
 
-# Working inside 53k tokens
+# Working inside 61k tokens
 
 The model is **Qwen3.6-35B-A3B-MTPLX-Optimized-Speed**: 35B mixture-of-experts,
 3B active, 4-bit affine body (group 64), with a native MTP sidecar. 40 layers,
@@ -49,7 +49,7 @@ Configured, and why:
 | oMLX `max_tokens` | 16 384 | must exceed thinking budget + largest tool call |
 | oMLX `thinking_budget_tokens` | 4 096 | leaves ≥12 288 for the tool call itself |
 | oMLX sampling | 0.6 / 0.95 / top-k 20 | exactly what `mtplx_runtime.json` recommends; never near-greedy with thinking on |
-| OpenCode `limit.context` | 65 536 | compaction fires at 65 536 − 12 288 ≈ **53 k** |
+| OpenCode `limit.context` | 73 728 | hard wall at 73 728 − 12 288 ≈ **61 k** (auto-compaction OFF) |
 | OpenCode `limit.output` | 12 288 | matches what oMLX guarantees after thinking |
 
 That last line is the fix for the old "EOS in the middle of a tool call" bug:
@@ -57,16 +57,22 @@ That last line is the fix for the old "EOS in the middle of a tool call" bug:
 for a large `write`. The write was cut mid-JSON, the call never closed, and the
 turn was lost. Keep `max_tokens > thinking_budget + biggest_write`.
 
-Target split of the 53k working window:
+Target split of the 61k working window:
 
 ```
-system prompt + AGENTS.md + one skill      ~6 k
-tool schemas + LSP diagnostics             ~3 k
-the task card                              ~1 k
-working set: at most 4 Java files         ~12 k
-tool output (grepped, never raw)          ~10 k
-headroom for reasoning and edits          ~20 k
+system prompt (agent + AGENTS.md + OPERATING.md + skills index)  ~5.4 k
+tool schemas + LSP diagnostics                                     ~3 k
+the task card                                                      ~1 k
+working set: at most 4 Java files                                 ~12 k
+tool output (grepped, never raw)                                  ~12 k
+headroom for reasoning and edits                                  ~27 k
 ```
+
+61k rather than 53k because the wall was raised deliberately: the only measured
+degradation point is **62 256 tokens**, where the model burned 1 093 output tokens
+on a task that cost 289 elsewhere. 61k sits just under it. Going further is not a
+capacity problem — the model still emits valid tool calls at 84k — it is a
+decisiveness problem.
 
 ## The five rules
 
@@ -80,7 +86,11 @@ headroom for reasoning and edits          ~20 k
    invocation through the `ctx` tools and read surefire XML, not console output.
 3. **One task card per session.** Cards live in `TASKS.md`, name at most 4 files,
    and carry the test that proves them. Two cards in one window is how a session
-   ends in compaction.
+   hits the wall — and the first real session proved what that costs: four cards
+   in one window, four compactions, and after the fourth the model stopped
+   emitting tool calls entirely and started describing them in prose instead
+   (0 % tool calls over the last four turns, against 97 % before). That is why
+   auto-compaction is now off: the session errors instead of degrading quietly.
 4. **150 lines per `write`, hard.** Bigger class? Write the skeleton — package,
    imports, type declaration, empty methods — then fill it with several `edit`
    calls of one or two methods each. This is also better for review.
@@ -91,10 +101,18 @@ headroom for reasoning and edits          ~20 k
 
 ## When to stop
 
-Past ~70 % of the window: finish the current step, run `/session-end`, start a
-fresh session. A compacted session is strictly worse than a new one seeded from
-`STATUS.md` — compaction throws away exactly the tool output you are about to
-need and keeps the prose you do not.
+Past ~70 % of the window — roughly 43k — finish the current step, run
+`/session-end`, and tell the user to start a fresh session. A fresh session seeded
+from `STATUS.md` costs ~5.4k tokens and behaves like turn one. Riding the window to
+the wall costs an error and an interrupted card.
+
+If you reach the wall anyway, do not try to continue: the state that matters is
+already on disk. Say so, and stop.
+
+**A symptom to recognise in yourself**: if you catch yourself writing "Let me load
+the skill and then…:" or "**LOADING skill: x**" instead of calling the tool, you
+have drifted into narrating. Emit the call. That drift is what a dead session looks
+like from the inside.
 
 If a `write` or `edit` fails twice with a schema error, write the file with a
 bash heredoc and move on. Do not spend three turns fighting a tool.
