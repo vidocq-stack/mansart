@@ -10,6 +10,8 @@ module io.vidocq.mansart.persistence.core {
 
     requires transitive jakarta.persistence;
 
+    requires java.xml;
+
     requires io.vidocq.mansart.persistence.spi;
     requires io.vidocq.mansart.data.dialect.spi;
 

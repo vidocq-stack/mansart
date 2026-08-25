@@ -5,7 +5,9 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next card: **JP-04** — `Persistence.createEntityManagerFactory` with `Map` → `PersistenceUnitInfo` → `EntityManager`
+- Next card: **JP-05** — the out-of-reactor TCK runner starts and reports zero
+- JP-04 done: `PersistenceUnitReader` parses `persistence.xml` using StAX;
+  `PersistenceUnitInfoImpl` stores all fields. 22 unit tests pass.
 - JP-03 done: `MansartPersistenceProvider` stub (all 6 methods throw `UnsupportedOperationException`), wired via JPMS `provides` + `META-INF/services`, ServiceLoader-discoverable. 2 unit tests pass.
 - JP-01 done: reactor builds and installs, empty.
 
@@ -14,7 +16,7 @@ Maintained by `@tracker` only.
 | metric | value | measured |
 | --- | --- | --- |
 | TCK PASS / total | not measured | — |
-| unit tests | 2 (ProviderDiscoveryTest) | 2026-08-25 |
+| unit tests | 24 (ProviderDiscoveryTest + PersistenceUnitReaderTest) | 2026-08-25 |
 | build | 34/34 (install -DskipTests) | 2026-08-25 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -22,7 +24,7 @@ TCK universe: 269 client classes, ~1 745 methods
 
 ## Milestone
 
-M0 (skeleton and harness) — 3 / 8 cards done.
+M0 (skeleton and harness) — 4 / 8 cards done.
 
 ## Session log
 
@@ -38,3 +40,12 @@ file. ECJ required `Map<?, ?>` signatures (not `Map<String, ?>`). 2 unit tests
 pass — `ProviderDiscoveryTest` resolves provider via ServiceLoader and verifies
 both `hasSize(1)` and `UnsupportedOperationException("not implemented:
 createEntityManagerFactory")`. 34/34 modules build.
+
+2026-08-25 23:30 — JP-04: `PersistenceUnitReader` reads `persistence.xml` via StAX
+(`XMLInputFactory`/`XMLEventReader`), stores results in `PersistenceUnitInfoImpl`.
+22 assertions cover: unit name, provider class, transaction-type (JTA/RESOURCE_LOCAL
+default), managed class names, jta-data-source, non-jta-data-source, mapping-file,
+jar-file (URL resolution), persistence-unit root URL, shared-cache-mode,
+validation-mode, persistenceXMLSchemaVersion, properties (value attr and text body),
+exclude-unlisted-classes, scope/qualifier annotations. 24/24 tests green.
+34/34 modules build.

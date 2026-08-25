@@ -55,7 +55,7 @@ proof:  `mansart-persistence-tests` — a test that resolves the provider and ge
 notes:  `provides jakarta.persistence.spi.PersistenceProvider with ...`. The
         failing-by-design exception is the correct placeholder here.
 
-### JP-04 — `persistence.xml` is parsed without an XML dependency        [TODO]
+### JP-04 — `persistence.xml` is parsed without an XML dependency        [DONE]
 deps:   JP-03
 files:  `core/.../PersistenceUnitReader.java`, `core/.../PersistenceUnitInfoImpl.java`,
         `tests/.../PersistenceUnitReaderTest.java`
