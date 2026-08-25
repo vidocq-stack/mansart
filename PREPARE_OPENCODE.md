@@ -137,32 +137,41 @@ looked like a context-length problem. It was a budget-split problem.
 The invariant:
 
 ```
-max_tokens  >  thinking_budget  +  largest_tool_call
-16384       >  4096             +  12288
+generation cap  >  thinking_budget  +  largest_tool_call
 ```
 
-Which then fixes everything downstream:
+**Which cap applies was verified by capturing the actual HTTP request** (§4.1).
+OpenCode sends `max_tokens` equal to its own `limit.output`, and that overrides
+the model's server-side `max_tokens`. So oMLX's 16 384 is only a ceiling; the
+binding number is OpenCode's:
 
-| knob | value |
-| --- | --- |
-| oMLX `max_tokens` | 16 384 |
-| oMLX `thinking_budget_tokens` | 4 096 |
-| OpenCode `limit.output` | 12 288 — exactly what oMLX guarantees after thinking |
-| OpenCode `limit.context` | 65 536 |
+| knob | value | who wins |
+| --- | --- | --- |
+| oMLX `max_tokens` | 16 384 | ceiling only — never reached |
+| OpenCode `limit.output` | 12 288 | **sent as `max_tokens` on every request** |
+| oMLX `thinking_budget_tokens` | 4 096 | subtracted from the above |
+| room left for the tool call | **8 192** | ≈ 600 lines of Java |
+| OpenCode `limit.context` | 65 536 | |
+
+8 192 tokens for a tool call is twice what the broken configuration left, and far
+above the ~150-line write ceiling the agents are told to respect. Raising
+`limit.output` to 16 384 would buy more room per turn but would also raise the
+compaction reserve and shrink the window to ~49k; 12 288 is the better trade.
 
 OpenCode reserves `min(20000, output)` for compaction, so auto-compaction fires at
 `65 536 − 12 288 ≈ **53 000 tokens**`. That sits inside the fully-clean measured
 zone, with per-turn cache-miss prefill capped around 15 s.
 
-Target split of the 53k working window:
+Target split of the 53k working window (the first line is measured, not estimated
+— see §5.1):
 
 ```
-system prompt + AGENTS.md + one skill      ~6 k
-tool schemas + LSP diagnostics             ~3 k
-the task card                              ~1 k
-working set: at most 4 Java files         ~12 k
-tool output (grepped, never raw)          ~10 k
-headroom for reasoning and edits          ~20 k
+system prompt (agent + AGENTS.md + OPERATING.md + skills index)  ~5.4 k
+tool schemas + LSP diagnostics                                     ~3 k
+the task card                                                      ~1 k
+working set: at most 4 Java files                                 ~12 k
+tool output (grepped, never raw)                                  ~10 k
+headroom for reasoning and edits                                  ~20 k
 ```
 
 ### Two windows, one model
@@ -194,7 +203,8 @@ Beyond the model declarations above:
 "permission": { "external_directory": { "/tmp/**": "allow", "/private/tmp/**": "allow",
                                         "/Users/yblazart/.m2/**": "allow" },
                 "doom_loop": "deny" },
-"instructions": ["AGENTS.md"]
+"default_agent": "jpa-dev",
+"instructions": ["AGENTS.md", ".opencode/OPERATING.md"]
 ```
 
 `doom_loop: deny` matters with a local model: it stops a repetition loop from
@@ -203,6 +213,36 @@ burning an hour of GPU.
 The `ctx` MCP server (context-mode) is declared globally and is used by every
 agent to route build and test output. It is the difference between a Maven log
 costing 4 000 tokens and costing 40.
+
+### 4.1 Verifying what is actually sent
+
+Configuration that is never inspected is configuration that is assumed. A small
+logging proxy in front of oMLX — OpenCode's `provider.omlx.options.baseURL`
+pointed at it for one run — captures the exact request body:
+
+```bash
+# proxy on 127.0.0.1:8099 forwarding to 127.0.0.1:8000, dumping the first
+# /chat/completions body to disk; then:
+opencode run --agent jpa-dev "Say OK."
+```
+
+That is how the two corrections in this document were found:
+
+- **`max_tokens` is OpenCode's, not oMLX's** — see §3. The arithmetic was wrong
+  until the request was read.
+- **`topP` is not a valid frontmatter field; the key is `top_p`.** OpenCode
+  silently routes unknown frontmatter fields into `options`, so `topP: 0.95` was
+  being forwarded to the server as a meaningless `topP` parameter while the real
+  `top_p` stayed at its default of 1. Fixed in `jpa-dev`, `spec-reader` and
+  `thinker`; the capture now shows `top_p: 0.95`.
+
+Also worth knowing: **`temperature` is not sent at all** by this provider path.
+That is harmless here only because oMLX runs with `force_sampling: true`, which
+pins 0.6 / 0.95 / 20 server-side regardless of what the client asks for. On a
+server without that switch, the agents' `temperature:` would be silently ignored.
+
+Re-run the capture after any change to sampling, model limits or agent
+frontmatter. It costs one trivial turn.
 
 ---
 
@@ -239,6 +279,48 @@ restricted to `grep`, `sed -n`, `ls`, `find` and read-only `git`. They cannot
 `module-guardian` is the workspace's `jpms-guardian` under a name that respects the
 terminology rule — the abbreviation is banned in prose and identifiers.
 
+### 5.1 What the system prompt actually contains
+
+An agent's markdown body becomes its `prompt`, and — verified by capture (§4.1) —
+**it replaces OpenCode's built-in system prompt entirely.** It does not append to
+it. The built-in `build` agent ships 96 lines covering tone and conciseness,
+proactiveness, following existing conventions, code style, task procedure, tool
+usage policy and the `file:line` reference convention. A custom agent gets none of
+that.
+
+For a frontier model that matters little. For a 3B-active local model it matters a
+great deal: those are exactly the rules that keep it terse, stop it re-reading
+files it already has, and make it batch independent tool calls.
+
+Two of the built-in rules are also actively wrong here — "DO NOT ADD ***ANY***
+COMMENTS unless asked" contradicts a project whose Javadoc is part of the
+deliverable, and its npm-flavoured lint/typecheck advice does not apply to a Maven
+reactor. So inheriting it wholesale would not have been right either.
+
+The resolution: `.opencode/OPERATING.md`, injected into **every** agent through
+`instructions`. It carries the operational scaffolding — conciseness, `file:line`,
+"never assume a library is available" (which reinforces the zero-dependency rule),
+Javadoc policy, `todowrite` as the in-session decomposition tool, batching
+independent calls, `lsp` before `grep`, routing logs through `ctx`, and the
+obligation never to claim an unobserved result — written for this repository
+rather than for a generic assistant.
+
+Measured composition of `jpa-dev`'s system prompt, in order:
+
+| part | lines | source |
+| --- | --- | --- |
+| agent prompt | 0–86 | `.opencode/agents/jpa-dev.md` body |
+| environment block | 87–95 | OpenCode (model id, cwd, git status) |
+| global instructions | 96–98 | `~/.claude/CLAUDE.md` |
+| engineering contract | 99–219 | `AGENTS.md` |
+| operating rules | 220–303 | `.opencode/OPERATING.md` |
+| skills index | 304–356 | discovered `SKILL.md` frontmatter |
+
+**356 lines, 19 429 characters, ≈5 400 tokens** — about 10 % of the 53k window,
+which is the budget line in §3. Skill *bodies* are not included; they are pulled
+in on demand by the `skill` tool, which is the point of putting them in skills
+rather than in the prompt.
+
 ---
 
 ## 6. Commands
@@ -271,6 +353,11 @@ terminology rule — the abbreviation is banned in prose and identifiers.
 - **`vidocq-codegen`** — the three-tier doctrine, in full.
 - **`context-discipline`** — the measurements above plus the five working rules.
   Load it when a session starts feeling heavy.
+
+Only the frontmatter (name + description) of each skill sits in the system prompt;
+the body is fetched by the `skill` tool when an agent decides it is relevant. That
+is why long reference material belongs in a skill and short always-true rules
+belong in `.opencode/OPERATING.md`.
 
 ---
 
@@ -432,6 +519,9 @@ Useful mid-session: `/spec <question>` rather than reading the spec yourself;
 | a red squiggle on a generated class | jdtls uses ECJ and does not run our APT | run `./mvnw install` once; trust Maven, not jdtls |
 | Maven log floods the window | not routed through `ctx` | `ctx_execute` / `ctx_batch_execute`, and read surefire XML |
 | a `write` fails twice with a schema error | tool-call formatting | write the file with a bash heredoc and move on |
+| an agent ignores a frontmatter setting | unknown fields are silently routed into `options` instead of erroring — `topP` vs `top_p` | check the allowed field list, then confirm with a request capture (§4.1) |
+| a custom agent behaves less carefully than `build` | its prompt replaced the built-in one (§5.1) | the shared scaffolding is in `.opencode/OPERATING.md`; check it is still listed in `instructions` |
+| config edits appear to do nothing | OpenCode loads config once at startup and does not hot-reload | quit and restart OpenCode |
 
 ---
 

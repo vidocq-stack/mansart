@@ -3,7 +3,7 @@ description: Slow, high-quality reasoning on ONE hard question — a design trad
 mode: subagent
 model: omlx/Qwen3.6-35B-A3B-8bit
 temperature: 0.6
-topP: 0.95
+top_p: 0.95
 steps: 12
 tools:
   write: false

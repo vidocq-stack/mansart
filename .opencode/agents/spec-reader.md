@@ -3,7 +3,7 @@ description: Read-only Jakarta Persistence 3.2 spec and TCK-source oracle. Answe
 mode: subagent
 model: omlx/Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.3
-topP: 0.95
+top_p: 0.95
 steps: 20
 tools:
   write: false

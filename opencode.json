@@ -68,10 +68,6 @@
             "output": 16384
           }
         }
-      },
-      "options": {
-        "baseURL": "http://127.0.0.1:8099/v1",
-        "apiKey": "sk-omlx-UvGztq7V1ZU1TuRVbuDk75ep"
       }
     }
   },
@@ -93,6 +89,7 @@
     "doom_loop": "deny"
   },
   "instructions": [
-    "AGENTS.md"
+    "AGENTS.md",
+    ".opencode/OPERATING.md"
   ]
 }

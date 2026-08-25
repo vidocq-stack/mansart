@@ -3,7 +3,7 @@ description: Primary agent for Jakarta Persistence 3.2 in mansart-jakarta-persis
 mode: primary
 model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.6
-topP: 0.95
+top_p: 0.95
 permission:
   edit: allow
   webfetch: allow
