@@ -39,7 +39,7 @@ notes:  Sonar properties and `sonar-maven-plugin` are already in the sub-reactor
         export `SONAR_TOKEN`. Do this NOW, on an empty reactor: wiring quality on
         20 000 lines is a project, on 0 lines it is five minutes.
 
-### JP-02 — the five reactor modules exist with module declarations     [TODO]
+### JP-02 — the five reactor modules exist with module declarations     [DONE]
 deps:   JP-01
 files:  the five `pom.xml` + the five `module-info.java`
 proof:  `./mvnw -ntp install -DskipTests` green; `@module-guardian` clean
