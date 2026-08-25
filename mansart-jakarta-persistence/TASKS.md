@@ -46,7 +46,7 @@ proof:  `./mvnw -ntp install -DskipTests` green; `@module-guardian` clean
 notes:  `spi`, `processor`, `core`, `maven-plugin`, `cdi`. Empty `exports`,
         no `opens`. Drivers `provided`, test libs `test`.
 
-### JP-03 — `Persistence.createEntityManagerFactory` finds our provider [TODO]
+### JP-03 — `Persistence.createEntityManagerFactory` finds our provider [DONE]
 deps:   JP-02
 files:  `core/.../MansartPersistenceProvider.java`, `core/module-info.java`,
         `tests/.../ProviderDiscoveryTest.java`

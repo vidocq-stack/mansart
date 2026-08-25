@@ -16,4 +16,7 @@ module io.vidocq.mansart.persistence.core {
     requires jakarta.inject;
     requires static jakarta.transaction;
 
+    provides jakarta.persistence.spi.PersistenceProvider
+        with io.vidocq.mansart.persistence.core.MansartPersistenceProvider;
+
 }

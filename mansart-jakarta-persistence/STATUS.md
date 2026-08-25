@@ -5,8 +5,8 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next card: **JP-03** — `Persistence.createEntityManagerFactory` finds our provider
-- JP-02 done: five reactor modules have JPMS module declarations (core needs CDI API dependency fix; maven-plugin is classpath-based)
+- Next card: **JP-04** — `Persistence.createEntityManagerFactory` with `Map` → `PersistenceUnitInfo` → `EntityManager`
+- JP-03 done: `MansartPersistenceProvider` stub (all 6 methods throw `UnsupportedOperationException`), wired via JPMS `provides` + `META-INF/services`, ServiceLoader-discoverable. 2 unit tests pass.
 - JP-01 done: reactor builds and installs, empty.
 
 ## Numbers
@@ -14,7 +14,7 @@ Maintained by `@tracker` only.
 | metric | value | measured |
 | --- | --- | --- |
 | TCK PASS / total | not measured | — |
-| unit tests | not measured | — |
+| unit tests | 2 (ProviderDiscoveryTest) | 2026-08-25 |
 | build | 34/34 (install -DskipTests) | 2026-08-25 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -22,7 +22,7 @@ TCK universe: 269 client classes, ~1 745 methods
 
 ## Milestone
 
-M0 (skeleton and harness) — 2 / 8 cards done.
+M0 (skeleton and harness) — 3 / 8 cards done.
 
 ## Session log
 
@@ -31,9 +31,10 @@ Created 8 sub-module `pom.xml` (spi, processor, core, maven-plugin, cdi, tests,
 external-lib, external-it), updated root `pom.xml` with module registration and
 `dependencyManagement` entries. 34/34 modules build — `./mvnw -ntp install -DskipTests`.
 
-2026-08-25 21:03 — JP-02: five reactor modules with JPMS module declarations.
-Created `module-info.java` for spi, processor, core, cdi. Deleted maven-plugin's
-module-info.java (Maven JARs lack module-info.class; classpath-based). Fixed
-core's `pom.xml`: added `jakarta.enterprise.cdi-api` dependency so Jakarta
-Transaction API's transitive `jakarta.cdi` resolves. Fixed cdi module:
-`requires jakarta.cdi;` (not `jakarta.enterprise.cdi`). 34/34 build.
+2026-08-25 21:15 — JP-03: `MansartPersistenceProvider` stub. Implemented all 6
+`PersistenceProvider` methods (each throws `UnsupportedOperationException`), wired
+via JPMS `provides` + `META-INF/services/jakarta.persistence.spi.PersistenceProvider`
+file. ECJ required `Map<?, ?>` signatures (not `Map<String, ?>`). 2 unit tests
+pass — `ProviderDiscoveryTest` resolves provider via ServiceLoader and verifies
+both `hasSize(1)` and `UnsupportedOperationException("not implemented:
+createEntityManagerFactory")`. 34/34 modules build.
