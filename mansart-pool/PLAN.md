@@ -13,12 +13,12 @@ Mansart Pool is designed **post-Loom** from the first line: no `synchronized` ar
 
 ## Positioning in the workspace
 
-**Peer** sub-project of `mansart-jakarta-data` and `mansart-persistence` — not a sub-module. Independent Maven reactor, separate deployment.
+**Peer** sub-project of `mansart-jakarta-data` and `mansart-jakarta-persistence` — not a sub-module. Independent Maven reactor, separate deployment.
 
 ```
 mansart/
 ├── mansart-jakarta-data/     ← consumes a standard DataSource (doesn't matter which)
-├── mansart-persistence/      ← same
+├── mansart-jakarta-persistence/      ← same
 └── mansart-pool/             ← PROVIDES a DataSource (usable outside Mansart)
 ```
 

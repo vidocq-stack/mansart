@@ -12,7 +12,7 @@ zero dependencies beyond Jakarta specs. Three independent runtime sub-projects.
 | `mansart-jakarta-data` | Jakarta Data 1.0 (repositories) | ✅ M3-M4 delivered, integrated into the Vidocq runtime |
 | `mansart-pool` | — (post-Loom JDBC pool) | ✅ M2 delivered (H2), M5 PostgreSQL delivered |
 | `mansart-dialect-spi` | — (shared SPI) | ✅ M1 delivered (H2 + PostgreSQL) |
-| `mansart-persistence` | Jakarta Persistence 3.2 (JPA) | ⏸️ **M7 suspended** — mansart-data does the job for current runtime needs |
+| `mansart-jakarta-persistence` | Jakarta Persistence 3.2 (JPA) | ⏸️ **M7 suspended** — mansart-data does the job for current runtime needs |
 | `mansart-transactions` | Minimal JTA | ✅ extension delivered in the runtime |
 
 ## Delivered phases
@@ -21,7 +21,7 @@ zero dependencies beyond Jakarta specs. Three independent runtime sub-projects.
 - `Dialect` + `DialectFactory` interface loaded via `ServiceLoader`
 - H2 and PostgreSQL implementations (SQL generation, types, paginated select,
   upsert/merge, identity)
-- Shared SPI for `mansart-jakarta-data` and `mansart-persistence` (interop format
+- Shared SPI for `mansart-jakarta-data` and `mansart-jakarta-persistence` (interop format
   close to the JPA static metamodel)
 
 ### M2 — Mansart Pool MVP (H2) ✅

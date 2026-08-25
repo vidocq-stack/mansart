@@ -1,0 +1,98 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "omlx": {
+      "models": {
+        "Qwen3.6-35B-A3B-MTPLX-Optimized-Speed": {
+          "name": "Qwen3.6 35B-A3B MTPLX Speed (coding, 64k window)",
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false,
+          "limit": {
+            "context": 65536,
+            "output": 12288
+          }
+        },
+        "Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Speed": {
+          "name": "Qwen3.6 35B-A3B MTPLX Speed (long read-only, 128k window)",
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false,
+          "limit": {
+            "context": 131072,
+            "output": 12288
+          }
+        },
+        "Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Balance": {
+          "name": "Qwen3.6 35B-A3B MTPLX Balance (review / audit)",
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": false,
+          "limit": {
+            "context": 65536,
+            "output": 12288
+          }
+        },
+        "Qwen3.6-35B-A3B-8bit": {
+          "name": "Qwen3.6 35B-A3B 8bit (hard reasoning, slow)",
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 65536,
+            "output": 16384
+          }
+        }
+      },
+      "options": {
+        "baseURL": "http://127.0.0.1:8099/v1",
+        "apiKey": "sk-omlx-UvGztq7V1ZU1TuRVbuDk75ep"
+      }
+    }
+  },
+  "model": "omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed",
+  "small_model": "omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed",
+  "default_agent": "jpa-dev",
+  "compaction": {
+    "auto": true,
+    "reserved": 12288,
+    "preserve_recent_tokens": 12000
+  },
+  "lsp": true,
+  "permission": {
+    "external_directory": {
+      "/tmp/**": "allow",
+      "/private/tmp/**": "allow",
+      "/Users/yblazart/.m2/**": "allow"
+    },
+    "doom_loop": "deny"
+  },
+  "instructions": [
+    "AGENTS.md"
+  ]
+}

@@ -62,9 +62,9 @@ Mansart breaks down into four runtime-independent sub-projects, organized as lay
 | Jakarta Data 1.0 implementation — repositories, query methods, JDQL, JDBC dialects (H2, PostgreSQL).
 | xref:modules/mansart-jakarta-data.adoc[mansart-jakarta-data]
 
-| `mansart-persistence` *(M7 pending)*
+| `mansart-jakarta-persistence` *(M7 pending)*
 | Jakarta Persistence 3.2 (classic JPA) implementation. Under design — `mansart-jakarta-data` already covers everyday needs in Vidocq.
-| xref:modules/mansart-persistence.adoc[mansart-persistence]
+| xref:modules/mansart-jakarta-persistence.adoc[mansart-jakarta-persistence]
 |===
 
 == Layered architecture
@@ -73,7 +73,7 @@ Mansart breaks down into four runtime-independent sub-projects, organized as lay
 ....
 flowchart TB
     APP[Vidocq application] --> DATA[mansart-jakarta-data<br/>Repositories]
-    APP --> JPA[mansart-persistence<br/>EntityManager M7]
+    APP --> JPA[mansart-jakarta-persistence<br/>EntityManager M7]
     DATA --> TX[mansart-transactions<br/>TransactionManager]
     JPA --> TX
     TX --> POOL[mansart-pool<br/>MansartDataSource]

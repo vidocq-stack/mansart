@@ -50,7 +50,7 @@ Statuses: `OPEN` → `INVESTIGATING` → `FIXED` (commit hash) → `CLOSED`.
          impls; not viable (the jar is immutable on Mansart side).
   - **Decision**: approach 1 is the right one. Scheduled for M7, after delivery
     of the 3 sub-projects (`mansart-jakarta-data`, `mansart-pool`,
-    `mansart-persistence`) in "compile-time only" mode.
+    `mansart-jakarta-persistence`) in "compile-time only" mode.
 - **Investigation 2026-05-05 (M7-4)**:
   - M7-4 delivers BCE auto-discovery `@Enhancement` → the 5 TCK interfaces
     (`Boxes`, `NaturalNumbers`, `PositiveIntegers`, `CustomRepository`,

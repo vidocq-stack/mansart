@@ -52,7 +52,7 @@ import java.util.concurrent.ConcurrentMap;
  * </ol>
  *
  * <p>{@link XADataSource} beans matching the requested name produce a clear error: full XA wiring
- * lands with the JTA bridge in {@code mansart-persistence}; until then, Mansart only consumes plain
+ * lands with the JTA bridge in {@code mansart-jakarta-persistence}; until then, Mansart only consumes plain
  * {@link DataSource}.
  *
  * <p>Each resolved {@link DataSource} is wrapped in a fresh {@link RepositoryRuntime}, then cached by
@@ -92,7 +92,7 @@ final class DataStoreResolver {
             if (obj instanceof DataSource ds) return ds;
             throw new MansartDataException(
                     "JNDI lookup of dataStore '" + name + "' yielded " + obj.getClass().getName()
-                            + " — expected javax.sql.DataSource (XA bridge lands with mansart-persistence)");
+                            + " — expected javax.sql.DataSource (XA bridge lands with mansart-jakarta-persistence)");
         } catch (NamingException e) {
             throw new MansartDataException("JNDI lookup failed for dataStore '" + name + "'", e);
         }

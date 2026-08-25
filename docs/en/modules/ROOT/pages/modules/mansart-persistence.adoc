@@ -1,12 +1,12 @@
-= mansart-persistence
+= mansart-jakarta-persistence
 :description: Jakarta Persistence 3.2 (JPA) implementation — M7 pending; mansart-jakarta-data covers everyday needs.
 
 [.lead]
-`mansart-persistence` is Mansart's target {spec-jpa-3-2}[Jakarta Persistence 3.2] implementation: `EntityManager`, JPQL, Criteria API, listeners, JPA standard metamodel. **Status: M7 pending.** Detailed design deferred until the end of `mansart-jakarta-data` milestone M4 (stabilization of the dialect SPI and the metamodel).
+`mansart-jakarta-persistence` is Mansart's target {spec-jpa-3-2}[Jakarta Persistence 3.2] implementation: `EntityManager`, JPQL, Criteria API, listeners, JPA standard metamodel. **Status: M7 pending.** Detailed design deferred until the end of `mansart-jakarta-data` milestone M4 (stabilization of the dialect SPI and the metamodel).
 
 [NOTE]
 ====
-For everyday needs in Vidocq (CRUD, typed queries, pagination, `@Transactional`), `mansart-jakarta-data` (delivered) is largely enough. The `vidocq-runtime-mansart-h2-example` example shows a full integration without `mansart-persistence`.
+For everyday needs in Vidocq (CRUD, typed queries, pagination, `@Transactional`), `mansart-jakarta-data` (delivered) is largely enough. The `vidocq-runtime-mansart-h2-example` example shows a full integration without `mansart-jakarta-persistence`.
 ====
 
 == Why a separate module
@@ -20,7 +20,7 @@ Both modules will share the same dialect SPI (`mansart-data-dialect-spi`) and th
 
 == Status
 
-⏳ **M7 pending** — see link:{repo-mansart}/src/branch/main/mansart-persistence/PLAN.md[mansart-persistence/PLAN.md] (sketch) and link:{repo-mansart}/src/branch/main/mansart-jakarta-data/PLAN.md[mansart-jakarta-data/PLAN.md] (M7 milestone "mansart-persistence bridge").
+⏳ **M7 pending** — see link:{repo-mansart}/src/branch/main/mansart-jakarta-persistence/PLAN.md[mansart-jakarta-persistence/PLAN.md] (sketch) and link:{repo-mansart}/src/branch/main/mansart-jakarta-data/PLAN.md[mansart-jakarta-data/PLAN.md] (M7 milestone "mansart-jakarta-persistence bridge").
 
 Target scope (to be refined):
 
@@ -46,7 +46,7 @@ Target scope (to be refined):
 * Persistence context handling across transaction `suspend/resume`.
 * Cascade `PERSIST` / `MERGE` / `REMOVE` on entity graphs.
 * Lazy loading without bytecode enhancement.
-* `mansart-jakarta-data` ↔ `mansart-persistence` co-existence in the same application (same `Book` consumed by both).
+* `mansart-jakarta-data` ↔ `mansart-jakarta-persistence` co-existence in the same application (same `Book` consumed by both).
 
 == Meanwhile
 

@@ -9,9 +9,9 @@ Provide the Vidocq ecosystem with three persistence building blocks, independent
 - `mansart-jakarta-data` — Jakarta Data 1.0 (declarative repositories). **Delivered — TCK 74/74 PASS.**
 - `mansart-transactions` — Jakarta Transactions 2.0 (virtual-thread-native TM, `@Transactional`, `@TransactionScoped`). **Delivered — TCK smoke 5/5 PASS.**
 - `mansart-pool` — virtual-thread-native JDBC pool, zero-dep, optional. **Delivered.**
-- `mansart-persistence` — Jakarta Persistence 3.2 (classic JPA). **Suspended** — mansart-jakarta-data covers current Vidocq runtime needs; revisit if requirements change.
+- `mansart-jakarta-persistence` — Jakarta Persistence 3.2 (classic JPA). **Suspended** — mansart-jakarta-data covers current Vidocq runtime needs; revisit if requirements change.
 
-`mansart-jakarta-data` and `mansart-persistence` share the same SQL dialect SPI and the same static metamodel. `mansart-pool` is completely decoupled: it only provides a `javax.sql.DataSource` usable by any JDBC client.
+`mansart-jakarta-data` and `mansart-jakarta-persistence` share the same SQL dialect SPI and the same static metamodel. `mansart-pool` is completely decoupled: it only provides a `javax.sql.DataSource` usable by any JDBC client.
 
 ## Prerequisites
 
@@ -70,7 +70,7 @@ Note: `mansart-data-api` was removed in M7-29 (redundant with `jakarta.persisten
 ### mansart-transactions
 - **T1–T7** ✅ — Full Jakarta Transactions 2.0: local TM (ScopedValue, no ThreadLocal pinning), synchronizations, suspend/resume, 2PC + recovery log, CDI `@Transactional` (6 propagation variants), `@TransactionScoped`; TCK smoke **5/5 PASS**.
 
-### mansart-persistence
+### mansart-jakarta-persistence
 - ⏸️ **Suspended** — mansart-jakarta-data covers current Vidocq runtime needs. Design decisions are locked (shared dialect SPI, APT-based entity enhancement, no runtime bytecode). Revisit if runtime requirements change.
 
 ## Documentation (Antora) conventions
