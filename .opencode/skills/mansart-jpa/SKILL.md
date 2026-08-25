@@ -64,6 +64,31 @@ thousand tokens and tells you nothing a grep would not.
 Generated sources land in `target/generated-sources/annotations/`. Generated
 classes are prefixed `_` and annotated `@Generated`.
 
+## Quality: SonarQube on the local Docker instance
+
+Container `mansart-sonar` (`sonarqube:community` 26.5), host port **9001**, project
+key `vidocq-mansart-persistence`. It has **no volume mounted** — `docker stop`/`start`
+are safe, `docker rm` destroys the history. Never remove it.
+
+```bash
+docker start mansart-sonar                       # then wait for /api/system/status = UP
+./mvnw -ntp -Pquality -pl mansart-jakarta-persistence/<module> -am verify \
+  org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+```
+
+`verify`, not `test`: JaCoCo's report is bound to `verify`, and `-Pquality` is what
+activates JaCoCo at all (it lives in a profile in `vidocq-parent`). Without both,
+Sonar reports 0 % coverage and you will chase a phantom.
+
+Never read the scanner log — query the API
+(`/api/qualitygates/project_status`, `/api/issues/search?inNewCodePeriod=true`),
+which returns a few hundred bytes. Delegate the whole thing to `@sonar-runner` via
+`/sonar`; `/gate` already does this for the module a card touched.
+
+**Only issues on new code block a card.** Existing debt is a separate backlog. At
+milestone close, run `/sonar all` and record the gate status in `STATUS.md` next to
+the TCK number.
+
 ## Non-negotiables (short form; the full list is in AGENTS.md)
 
 Java 25 · strict Java modules, minimal `exports`, no unjustified `opens` ·

@@ -20,12 +20,24 @@ notes:  <traps, one or two lines>
 
 ## M0 — skeleton and harness
 
-### JP-01 — the reactor builds and installs, empty                      [TODO]
+### JP-01 — the reactor builds and installs, empty                      [DONE]
 deps:   —
 files:  `mansart-jakarta-persistence/pom.xml`, `mansart/pom.xml`
 proof:  `./mvnw -ntp install -DskipTests` green from the mansart root
 notes:  Copy the POM shape of `mansart-jakarta-data/pom.xml`. Add the new module
         to the root `<modules>`. No Java yet. Version `0.3.0-SNAPSHOT`.
+
+### JP-01b — the quality loop runs end to end on an empty reactor       [TODO]
+deps:   JP-01
+files:  `mansart-jakarta-persistence/pom.xml` (already wired), `STATUS.md`
+proof:  `/sonar` returns a real `SONAR:` block with a gate status read from the API
+notes:  Sonar properties and `sonar-maven-plugin` are already in the sub-reactor
+        POM. This card only proves the loop works: `docker start mansart-sonar`,
+        wait for `/api/system/status` = UP, run `-Pquality ... verify sonar:sonar`,
+        read the gate from the API. Expect a token to be required (SonarQube 26.5
+        dropped anonymous analysis) — if 401, stop and tell the maintainer to
+        export `SONAR_TOKEN`. Do this NOW, on an empty reactor: wiring quality on
+        20 000 lines is a project, on 0 lines it is five minutes.
 
 ### JP-02 — the five reactor modules exist with module declarations     [TODO]
 deps:   JP-01

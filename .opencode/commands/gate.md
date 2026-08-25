@@ -14,12 +14,17 @@ Run the validation gate. Report only what you observe in tool output.
    `mansart-jakarta-persistence/`. Any `blocker` finding fails the gate.
 4. If the card names a TCK client, delegate the run to `@tck-runner` and report
    its numbers.
+5. Delegate a SonarQube scan of the **module this card touched** to
+   `@sonar-runner` — one module, not the whole reactor. A `BLOCKER` or `CRITICAL`
+   on new code fails the gate. Pre-existing debt does not: you are accountable for
+   the code this card wrote, not for the backlog.
 
 Verdict, and nothing else:
 
 ```
 GATE: PASS | FAIL
-build: <...>   unit: <n>/<n>   audit: CLEAN|DRIFT(<n> blockers)   tck: <n>/<n> or n/a
+build: <...>   unit: <n>/<n>   audit: CLEAN|DRIFT(<n> blockers)
+tck: <n>/<n> or n/a   sonar: PASS|FAIL|NOT RUN (<blocker>B/<critical>C on new code)
 <if FAIL: the single next thing to fix>
 ```
 

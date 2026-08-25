@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.vidocq.mansart</groupId>
+        <artifactId>mansart-root</artifactId>
+        <version>0.3.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-jakarta-persistence</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Mansart :: Jakarta Persistence 3.2</name>
+    <description>Jakarta Persistence 3.2 implementation for the Vidocq ecosystem.</description>
+    <url>https://codefloe.com/Vidocq/mansart</url>
+
+    <scm>
+        <connection>scm:git:https://codefloe.com/Vidocq/mansart.git</connection>
+        <developerConnection>scm:git:ssh://git@codefloe.com/Vidocq/mansart.git</developerConnection>
+        <url>https://codefloe.com/Vidocq/mansart</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>Yann Blazart</name>
+            <email>yann.blazart@gmail.com</email>
+        </developer>
+        <developer>
+            <name>Antoine Sabot-Durand</name>
+            <email>antoine@sabot-durand.net</email>
+        </developer>
+    </developers>
+
+    <!--
+        Disjunctive triple license: a recipient may use this software under
+        ANY ONE of the three licences below, at their option. EPL-2.0 is the
+        anchor (see the LICENSE file); per EPL-2.0 section 1, GPL-2.0-or-later
+        is offered as a Secondary License.
+        SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
+    -->
+    <licenses>
+        <license>
+            <name>EPL-2.0</name>
+            <url>https://www.eclipse.org/legal/epl-2.0/</url>
+            <distribution>repo</distribution>
+        </license>
+        <license>
+            <name>EUPL-1.2</name>
+            <url>https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12</url>
+            <distribution>repo</distribution>
+        </license>
+        <license>
+            <name>GPL-2.0-or-later</name>
+            <url>https://www.gnu.org/licenses/old-licenses/gpl-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <properties>
+        <maven.deploy.skip>false</maven.deploy.skip>
+        <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
+        <jakarta.cdi.version>4.1.0</jakarta.cdi.version>
+        <jakarta.inject.version>2.0.1</jakarta.inject.version>
+        <jakarta.transaction.version>2.0.1</jakarta.transaction.version>
+
+        <assertj.version>3.27.0</assertj.version>
+        <h2.version>2.3.232</h2.version>
+        <postgresql.version>42.7.4</postgresql.version>
+        <testcontainers.version>1.20.4</testcontainers.version>
+
+        <!--
+            Quality. Same shape as vauban/pom.xml and chappe/pom.xml.
+            JaCoCo itself is managed by vidocq-parent behind the `quality`
+            profile (prepare-agent + report bound to `verify`), so the analysis
+            command is `./mvnw -Pquality ... verify sonar:sonar` — `test` is not
+            enough, the report is produced at `verify`.
+
+            The exclusions matter more here than anywhere else in the workspace:
+            APT emits the `_Entity` metamodel and the entity descriptors, and the
+            Maven plugin emits `.class` files for entities coming from external
+            jars. Analysing generated code would drown the report in issues
+            nobody wrote by hand.
+        -->
+        <sonar.projectKey>vidocq-mansart-persistence</sonar.projectKey>
+        <sonar.projectName>Mansart :: Jakarta Persistence 3.2</sonar.projectName>
+        <sonar.java.source>25</sonar.java.source>
+        <sonar.host.url>http://localhost:9001</sonar.host.url>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.exclusions>**/generated/**,**/generated-sources/**,**/target/**</sonar.exclusions>
+        <sonar.scanner.version>5.1.0.4751</sonar.scanner.version>
+    </properties>
+
+    <modules>
+        <module>mansart-persistence-spi</module>
+        <module>mansart-persistence-processor</module>
+        <module>mansart-persistence-core</module>
+        <module>mansart-persistence-maven-plugin</module>
+        <module>mansart-persistence-cdi</module>
+        <module>mansart-persistence-tests</module>
+        <module>mansart-persistence-external-lib</module>
+        <module>mansart-persistence-external-it</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>jakarta.persistence</groupId>
+                <artifactId>jakarta.persistence-api</artifactId>
+                <version>${jakarta.persistence.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.enterprise</groupId>
+                <artifactId>jakarta.enterprise.cdi-api</artifactId>
+                <version>${jakarta.cdi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.inject</groupId>
+                <artifactId>jakarta.inject-api</artifactId>
+                <version>${jakarta.inject.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.transaction</groupId>
+                <artifactId>jakarta.transaction-api</artifactId>
+                <version>${jakarta.transaction.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-data-dialect-spi</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-persistence-spi</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-persistence-processor</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-persistence-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-persistence-maven-plugin</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-persistence-cdi</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.assertj</groupId>
+                <artifactId>assertj-core</artifactId>
+                <version>${assertj.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>${postgresql.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <configuration>
+                        <release>25</release>
+                        <!-- Keep parameter names in the .class files so APT and the runtime
+                             proxy (M7-3 @Query :name resolution) can read them. -->
+                        <parameters>true</parameters>
+                        <compilerArgs>
+                            <arg>-parameters</arg>
+                        </compilerArgs>
+                    </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonarsource.scanner.maven</groupId>
+                    <artifactId>sonar-maven-plugin</artifactId>
+                    <version>${sonar.scanner.version}</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+</project>

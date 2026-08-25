@@ -5,10 +5,8 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next card: **JP-01** — make the reactor build and install, empty.
-- Nothing in flight. The sub-project has no code yet: table rase from `main`.
-- Trap: the abandoned `feature/jakarteee-mansart-persistence-*` branches are
-  out of scope. Mirror `mansart-jakarta-data` instead.
+- Next card: **JP-02** — the five reactor modules exist with module declarations.
+- JP-01 done: reactor builds and installs, empty.
 
 ## Numbers
 
@@ -16,15 +14,18 @@ Maintained by `@tracker` only.
 | --- | --- | --- |
 | TCK PASS / total | not measured | — |
 | unit tests | not measured | — |
-| build | not measured | — |
+| build | 34/34 (install -DskipTests) | 2026-08-25 |
 
 TCK universe: 269 client classes, ~1 745 methods
 (`jakarta.tck:persistence-tck-spec-tests:3.2.1`).
 
 ## Milestone
 
-M0 (skeleton and harness) — 0 / 8 cards done.
+M0 (skeleton and harness) — 1 / 8 cards done.
 
 ## Session log
 
-_(no sessions yet)_
+2026-08-25 20:45 — JP-01: reactor builds and installs, empty.
+Created 8 sub-module `pom.xml` (spi, processor, core, maven-plugin, cdi, tests,
+external-lib, external-it), updated root `pom.xml` with module registration and
+`dependencyManagement` entries. 34/34 modules build — `./mvnw -ntp install -DskipTests`.
