@@ -63,7 +63,7 @@ proof:  `PersistenceUnitReaderTest` — unit, transaction-type, provider, classe
         properties, `jta-data-source`
 notes:  `java.xml` is in the JDK; no external parser. Zero-dependency rule stands.
 
-### JP-05 — the out-of-reactor TCK runner starts and reports zero        [TODO]
+### JP-05 — the out-of-reactor TCK runner starts and reports zero        [DONE]
 deps:   JP-03
 files:  `mansart-persistence-tck/pom.xml`,
         `mansart-persistence-tck/run-official-tck-persistence-3.2.sh`,

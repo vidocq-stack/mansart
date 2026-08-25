@@ -5,7 +5,8 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next card: **JP-05** — the out-of-reactor TCK runner starts and reports zero
+- Next card: **JP-06** — the TCK schema comes from the official DDL
+- JP-05 done: standalone POM (model 4.0.0, no parent), runner script, README. Full TCK run: **991 tests, 989 errors, 0 failures, 2 skipped** (all failing — expected for a stub provider).
 - JP-04 done: `PersistenceUnitReader` parses `persistence.xml` using StAX;
   `PersistenceUnitInfoImpl` stores all fields. 22 unit tests pass.
 - JP-03 done: `MansartPersistenceProvider` stub (all 6 methods throw `UnsupportedOperationException`), wired via JPMS `provides` + `META-INF/services`, ServiceLoader-discoverable. 2 unit tests pass.
@@ -24,7 +25,7 @@ TCK universe: 269 client classes, ~1 745 methods
 
 ## Milestone
 
-M0 (skeleton and harness) — 4 / 8 cards done.
+M0 (skeleton and harness) — 5 / 8 cards done.
 
 ## Session log
 
@@ -49,3 +50,9 @@ jar-file (URL resolution), persistence-unit root URL, shared-cache-mode,
 validation-mode, persistenceXMLSchemaVersion, properties (value attr and text body),
 exclude-unlisted-classes, scope/qualifier annotations. 24/24 tests green.
 34/34 modules build.
+
+2026-08-26 00:30 — JP-05: out-of-reactor TCK runner skeleton. Created standalone
+`mansart-persistence-tck/` module: `pom.xml` (model 4.0.0, no parent, profiles
+`tck-run`/`tck-pg`/`tck-sig`), `run-official-tck-persistence-3.2.sh` (mirrors Data TCK
+runner), `README.md`. Full TCK run resolves 991 test methods: **989 errors, 0 failures,
+2 skipped** (all failing — expected for a stub provider). 34/34 modules build.
