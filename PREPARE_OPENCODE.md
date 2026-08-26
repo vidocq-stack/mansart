@@ -29,10 +29,22 @@ served by oMLX at `http://127.0.0.1:8000/v1`.
 | weights on disk | ~19.5 GB + 555 MB MTP sidecar |
 | speculative decoding | native MTP sidecar, `mtp_depth_max = 3` |
 
-The MTP sidecar is the point of this build. Its own manifest
-(`mtplx_runtime.json`) reports acceptance 0.886 at depth 1, giving **1.465×** over
-plain autoregressive decoding — 138 tok/s versus 94 — and diminishing returns at
-depth 2 and 3. Depth 1 is what the runtime picks; leave it alone.
+**The MTP sidecar does not work here — leave `mtp_enabled` at `false`.** The build
+ships one, and its manifest claims 0.886 acceptance at depth 1 for ×1.465, but oMLX
+cannot load it: `mtp_enabled: true` routes to the VLM engine and the load fails with
+`Received 2321 parameters not in model`. The reason is the next row of this table —
+the model is multimodal on paper but oMLX serves it text-only, so the MTP path tries
+to build a VLM from a text checkpoint. Measured with the sidecar off: **138.1 tok/s**,
+which is exactly the figure the manifest attributes to MTP being *on*. Nothing is
+being lost.
+
+`Qwen3.6-35B-A3B` is a vision-language model — 333 `vision_tower` tensors, a full
+`vision_config`, image and video preprocessors. **You cannot use any of it**: oMLX's
+discovery logs `no vision_config … found — treating as LLM (text-only)` for this
+build, and an `image_url` request comes back with "I don't see any screenshot
+attached". Hence `modalities: text-only` and `attachment: false` in `opencode.json`.
+Worth revisiting when oMLX's detection improves — pasting a screenshot into a
+session would be genuinely useful.
 
 Why this model rather than the 6-bit or 8-bit Qwen3.6 already installed: the
 sidecar. A 4-bit body that decodes at 105 tok/s measured, on a specification task
@@ -63,7 +75,7 @@ Applied to `~/.omlx/model_settings.json` under the key
 | `thinking_budget_tokens` | `4096` (`thinking_budget_enabled: true`) | leaves ≥12 288 tokens for the tool call itself |
 | `enable_thinking` | `true` | spec work needs reasoning; the budget keeps it from eating the turn |
 | `force_sampling` | `true` | pins 0.6 / 0.95 / 20 regardless of what the client sends |
-| `mtp_enabled` | `true` | activates the sidecar — without it the build is just a 4-bit quant |
+| `mtp_enabled` | **`false`** | oMLX cannot load this build's sidecar; `true` makes the model fail to load entirely (see §1) |
 | `max_tool_result_tokens` | `8000` | server-side backstop against a Maven log flooding the window |
 | `turboquant_kv_enabled` | `false` | KV at 128k is ~2.6 GB in fp16; long-context quality is the weak point, do not quantise it away |
 
@@ -108,7 +120,7 @@ arguments. Recorded 2026-08-25 on this machine.
 | 62 256 | 23.8 s | 2 616 tok/s | yes | **1 093** |
 | 83 750 | 21.2 s | 3 941 tok/s | yes | 304 |
 
-Decode measured at ~105 tok/s with MTP enabled.
+Decode re-measured later at **138.1 tok/s** with prefill isolated; the earlier ~105 figure included prefill in the decode window. MTP was never active (§1).
 
 Two conclusions, both of which changed the configuration:
 

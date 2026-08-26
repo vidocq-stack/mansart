@@ -25,23 +25,32 @@ described below).
 
 ### Candidates
 
-| tag | model | on disk | MTP sidecar |
-| --- | --- | --- | --- |
-| 4bit | `Youssofal/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` | 20.0 GB | **active** |
-| 6bit-SABER | `samuelfaj/Qwen3.6-35B-A3B-NSC-ACE-SABER-6bit-MTPLX-Optimized-Speed` | 28.5 GB | rejected by oMLX |
-| 8bit | `samuelfaj/Qwen3.6-35B-A3B-8bit-MTPLX-Optimized-Speed` | 37.6 GB | rejected by oMLX |
+| tag | model | on disk |
+| --- | --- | --- |
+| 4bit | `Youssofal/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` | 20.0 GB |
+| 6bit-SABER | `samuelfaj/Qwen3.6-35B-A3B-NSC-ACE-SABER-6bit-MTPLX-Optimized-Speed` | 28.5 GB |
+| 8bit | `samuelfaj/Qwen3.6-35B-A3B-8bit-MTPLX-Optimized-Speed` | 37.6 GB |
 
-Enabling `mtp_enabled` on the latter two prevents them from loading at all:
+**No MTP sidecar loads on this oMLX version — not on any of the three.** Setting
+`mtp_enabled: true` makes the model fail to load outright:
 
 ```
 6bit : ValueError: Lightning MTP is enabled for this model but the converted
        weights are missing the mtp.* tensors.
 8bit : ValueError: Received 20 parameters not in model → VLM load failed
+4bit : ValueError: Received 2321 parameters not in model → VLM load failed
 ```
 
-Both were therefore benchmarked autoregressive. **Only the Youssofal 4-bit build's
-MTP sidecar works on this oMLX version**, which is itself a decisive result: the
-"MTPLX" label on the other two buys nothing here.
+The 4-bit was believed to be the exception for most of the day; it is not. It only
+appeared to work because its `mtp_enabled: true` sat on the *other* id of the
+duplicated install (see the follow-up section), so the copy actually serving
+requests had MTP off. Verified afterwards: with `mtp_enabled: false` explicitly on
+the served id, the same model decodes at **138.1 tok/s** — slightly *faster* than
+the 129.4 tok/s recorded below.
+
+**This does not weaken the comparison.** All three candidates ran autoregressive,
+which makes the run apples-to-apples. It removes one *argument* for the 4-bit, not
+the result. The "MTPLX" label buys nothing on any of these builds here.
 
 ### A. Decode throughput (prefill isolated with a `max_tokens=1` call)
 
@@ -98,8 +107,8 @@ No quantisation level separates them on knowledge — only on speed.
 
 **Keep the 4-bit.** It matches both candidates on every quality metric that
 discriminates — 8/8 fidelity, 8/8 exact arguments, 8/8 API correctness, chain
-correct — while being **2.3× faster end to end** than the 8-bit, using **half the
-memory** (20.0 GB vs 37.6 GB), and being the only one whose MTP sidecar loads.
+correct — while being **2.3× faster end to end** than the 8-bit and using **half the
+memory** (20.0 GB vs 37.6 GB).
 
 The 8-bit is also the only model that failed anything, and it failed the same probe
 twice. The hypothesis that a higher-precision quant would be more decisive is not
@@ -130,6 +139,21 @@ justifies the switch.
   several thousand tokens on a trivial instruction.
 - `NSC-ACE-SABER` is a merge/finetune lineage, not a plain quantisation of Qwen3.6.
   Its results say nothing about 6-bit quantisation as such.
+- **Every figure here is autoregressive decode.** `mtp_enabled` must stay `false`
+  for this model on this oMLX version, or it will not load. If a future oMLX build
+  accepts these sidecars, the whole campaign should be re-run — the published
+  acceptance for the 4-bit (0.886 at depth 1, ×1.465) would change the ranking.
+- **The model is multimodal but is served text-only**, which is the root of the MTP
+  failure. The checkpoint carries 333 `vision_tower` tensors and a full
+  `vision_config` (27 layers, patch 16), architecture
+  `Qwen3_5MoeForConditionalGeneration`. oMLX's discovery does not see it:
+  `Model type 'qwen3_5_moe' is in VLM_MODEL_TYPES but no vision_config … found —
+  treating as LLM (text-only)`. It therefore loads the text `BatchedEngine`, and
+  `mtp_enabled: true` — which routes to `VLMBatchedEngine` — then fails on a model
+  that was never built as a VLM. Sending an `image_url` gets "I don't see any
+  screenshot attached". `opencode.json` correctly declares text-only modalities and
+  `attachment: false`; revisit if oMLX's detection is fixed, since screenshot input
+  would be genuinely useful for this workflow.
 
 ### Follow-up, same day — disk cleanup and an id/settings mismatch
 
