@@ -16,7 +16,7 @@ Module in standalone `modelVersion 4.0.0` (without `<parent>`). Reason documente
 | `persistence.xml` parsing (`PersistenceUnitReader`) | ✅ JP-04 |
 | TCK harness resolves 269 client classes (~1 745 methods) | ✅ JP-05 |
 | Schema from official DDL (PostgreSQL + H2) | ⏳ JP-06 |
-| SignatureTests | ⏳ JP-07 |
+| SignatureTests | ✅ JP-07 |
 | Baseline full-suite run | ⏳ JP-08 |
 
 ## TCK artifact installation
@@ -116,5 +116,5 @@ The `jakarta.tck:persistence-tck-spec-tests:3.2.1` TCK contains **269 `*Client` 
 
 - **JP-05** ✅ delivered — standalone POM + runner script + TCK resolution.
 - **JP-06** ⏳ — TCK schema from official DDL (PostgreSQL first, then H2 translation).
-- **JP-07** ⏳ — SignatureTests suite (Maven profile `tck-sig`).
+- **JP-07** ✅ delivered — SignatureTests suite (`tck-sig` profile).
 - **JP-08** ⏳ — Record the M0 baseline (full-suite run, numbers written down).

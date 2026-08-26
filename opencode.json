@@ -4,23 +4,7 @@
     "omlx": {
       "models": {
         "Qwen3.6-35B-A3B-MTPLX-Optimized-Speed": {
-          "name": "Qwen3.6 35B-A3B MTPLX Speed (coding, 72k window)",
-          "modalities": {
-            "input": [
-              "text"
-            ],
-            "output": [
-              "text"
-            ]
-          },
-          "attachment": false,
-          "limit": {
-            "context": 73728,
-            "output": 12288
-          }
-        },
-        "Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Speed": {
-          "name": "Qwen3.6 35B-A3B MTPLX Speed (long read-only, 128k window)",
+          "name": "Qwen3.6 35B-A3B MTPLX Speed (default, 128k)",
           "modalities": {
             "input": [
               "text"
@@ -36,7 +20,7 @@
           }
         },
         "Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Balance": {
-          "name": "Qwen3.6 35B-A3B MTPLX Balance (review / audit, 72k)",
+          "name": "Qwen3.6 35B-A3B MTPLX Balance (review / audit, 128k)",
           "modalities": {
             "input": [
               "text"
@@ -47,7 +31,7 @@
           },
           "attachment": false,
           "limit": {
-            "context": 73728,
+            "context": 131072,
             "output": 12288
           }
         },

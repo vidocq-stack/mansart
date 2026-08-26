@@ -223,22 +223,17 @@
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
-                            <!-- The TCK Common ships `persistence-import.xml`;
-                                 override so surefire picks up the TCK Client classes
-                                 from the TCK jars via dependenciesToScan. -->
-                            <suiteXmlFiles combine.self="override"/>
-                            <dependenciesToScan>
-                                <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
-                                <dependency>jakarta.tck:persistence-tck-common</dependency>
-                            </dependenciesToScan>
-                            <!-- Exclude signature tests that require CTS framework (available only via tck-sig profile). -->
-                            <excludes>
-                                <exclude>**/signaturetest/**</exclude>
-                                <exclude>**/SigTest*.class</exclude>
-                            </excludes>
-                            <includes>
-                                <include>**/Client.class</include>
-                            </includes>
+                             <!-- The TCK Common ships `persistence-import.xml`;
+                                  override so surefire picks up the TCK Client classes
+                                  from the TCK jars via dependenciesToScan. -->
+                             <suiteXmlFiles combine.self="override"/>
+                             <dependenciesToScan>
+                                 <dependency>jakarta.tck:persistence-tck-spec-tests</dependency>
+                                 <dependency>jakarta.tck:persistence-tck-common</dependency>
+                             </dependenciesToScan>
+                             <includes>
+                                 <include>**/Client.class</include>
+                             </includes>
                             <systemPropertyVariables>
                                 <h2driverscript.classname>org.h2.Driver</h2driverscript.classname>
                             </systemPropertyVariables>
@@ -272,15 +267,29 @@
         <!--
           Activate the Jakarta Persistence 3.2 SignatureTests subset.
           Cumulative with `tck-run` (use `mvn -Ptck-run,tck-sig test`).
+          Includes the JPASigTest class on top of the entity tests.
         -->
         <profile>
             <id>tck-sig</id>
+            <dependencies>
+                <!-- CTS framework base class for JPASigTest (from the TCK). -->
+                <dependency>
+                    <groupId>jakarta.tck</groupId>
+                    <artifactId>signaturetest</artifactId>
+                    <version>11.0.0-RC5</version>
+                    <scope>test</scope>
+                </dependency>
+            </dependencies>
             <build>
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <configuration>
+                            <!-- Include JPASigTest on top of the entity tests. -->
+                            <includes combine.children="append">
+                                <include>**/signaturetest/JPASigTest.class</include>
+                            </includes>
                             <systemPropertyVariables>
                                 <jimage.dir>${project.build.directory}/jimage-cache</jimage.dir>
                                 <!-- The sigtest runner builds the signature resource name from
@@ -288,12 +297,17 @@
                                      Jakarta Persistence 3.2. -->
                                 <java.specification.version>25</java.specification.version>
                             </systemPropertyVariables>
+                            <!-- The sigtest framework reads JDK-internal annotations
+                                 (e.g. jdk.internal.vm.annotation.Stable) via setAccessible(true)
+                                 on JDK 17+. Java 25 strongly enforces module boundaries and
+                                 refuses without these flags. -->
                             <argLine>--add-exports java.base/jdk.internal.vm.annotation=ALL-UNNAMED --add-opens java.base/jdk.internal.vm.annotation=ALL-UNNAMED</argLine>
                         </configuration>
                     </plugin>
                 </plugins>
             </build>
         </profile>
+
     </profiles>
 
     <build>

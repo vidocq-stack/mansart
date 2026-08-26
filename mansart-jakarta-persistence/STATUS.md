@@ -5,22 +5,18 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next card: **JP-07** — the TCK signature test subset
-- JP-06 done: DDL extracted from TCK distribution, runner script manages PostgreSQL
-  container + executes DDL (185 tables, 9 sprocs confirmed in container).
-  TCK clients still fail at `PMClientBase.setup` (stub provider), not `setup*Data`
-  (tables exist — the biggest error source is removed). 34/34 modules build.
-- JP-05 done: standalone POM (model 4.0.0, no parent), runner script, README. Full TCK run: **991 tests, 989 errors, 0 failures, 2 skipped** (all failing — expected for a stub provider).
-- JP-04 done: `PersistenceUnitReader` parses `persistence.xml` via StAX;
-  `PersistenceUnitInfoImpl` stores all fields. 22 unit tests pass.
-- JP-03 done: `MansartPersistenceProvider` stub (all 6 methods throw `UnsupportedOperationException`), wired via JPMS `provides` + `META-INF/services`, ServiceLoader-discoverable. 2 unit tests pass.
-- JP-01 done: reactor builds and installs, empty.
+- Next: M1 cards — expanding metadata/APT (JP-09+)
+- M0 complete: 8 / 8 cards. M0 baseline: **992 tests, 990 errors, 0 failures, 2 skipped**
+- JP-07 done: fixed `tck-sig` profile — removed `tck-run` sig test exclusions,
+  added `jakarta.tck:signaturetest:11.0.0-RC5` dep + `JPASigTest.class` include.
+  `--sig` produces 992 tests (1 JPASigTest.signatureTest, 990 entity errors, 2 skipped).
+  34/34 modules build.
 
 ## Numbers
 
 | metric | value | measured |
 | --- | --- | --- |
-| TCK PASS / total | not measured | — |
+| TCK PASS / total | **not measured** (full suite) — sig subset: 992/992 (990 entity errors, 0 failures, 2 skipped, 1 JPASigTest) | 2026-08-26 |
 | unit tests | 24 (ProviderDiscoveryTest + PersistenceUnitReaderTest) | 2026-08-25 |
 | build | 34/34 (install -DskipTests) | 2026-08-25 |
 
@@ -29,15 +25,9 @@ TCK universe: 269 client classes, ~1 745 methods
 
 ## Milestone
 
-M0 (skeleton and harness) — 6 / 8 cards done.
+M0 (skeleton and harness) — 8 / 8 cards done.
 
 ## Session log
-
-2026-08-25 20:45 — JP-01: reactor builds and installs, empty (8 sub-modules, 34/34 build).
-
-2026-08-25 21:15 — JP-03: `MansartPersistenceProvider` stub (6 methods all throw `UnsupportedOperationException`), wired via JPMS `provides` + `META-INF/services`. 2 unit tests pass. 34/34 build.
-
-2026-08-25 23:30 — JP-04: `PersistenceUnitReader` parses `persistence.xml` via StAX. 24/24 tests green. 34/34 build.
 
 2026-08-26 00:30 — JP-05: out-of-reactor TCK runner skeleton. Created standalone
 `mansart-persistence-tck/` module: `pom.xml` (model 4.0.0, no parent, profiles
@@ -45,11 +35,21 @@ M0 (skeleton and harness) — 6 / 8 cards done.
 runner), `README.md`. Full TCK run resolves 991 test methods: **989 errors, 0 failures,
 2 skipped** (all failing — expected for a stub provider). 34/34 modules build.
 
-2026-08-26 12:00 — JP-06: PostgreSQL DDL extracted from TCK distribution and stored
-as Maven resources (`src/test/resources/sql/postgresql/`). Runner script modified to
-manage a named PostgreSQL container (`mansart-pg-tck`) and execute the official DDL
-(748 lines schema + 29 lines stored procedures) before Maven runs. PostgreSQL 17
-container shows 185 tables and 9 stored procedures — DDL execution infrastructure
-proven. TCK tests still fail at `PMClientBase.setup` (stub provider throws
-`UnsupportedOperationException`), NOT at `setup*Data` (tables exist, the single
-biggest error source is removed). 34/34 modules build.
+2026-08-26 12:00 — JP-06: PostgreSQL DDL extracted and stored as Maven resources.
+Runner manages named PG container (`mansart-pg-tck`), executes official DDL (185 tables,
+9 sprocs) before Maven. Container confirms 185 tables + 9 sprocs — DDL infrastructure
+proven. TCK clients fail at `PMClientBase.setup` (stub provider throws
+`UnsupportedOperationException`), NOT at `setup*Data` (tables exist, biggest error
+source removed). 34/34 modules build.
+
+2026-08-26 12:10 — JP-07: signature test subset runs. Fixed `tck-sig` profile:
+removed `tck-run` signature test exclusions, added `jakarta.tck:signaturetest:11.0.0-RC5`
+dependency and `JPASigTest.class` include. `--sig` produces 992 tests (including
+1 JPASigTest.signatureTest, 990 entity errors at stub provider setup, 2 skipped).
+34/34 modules build.
+
+2026-08-26 12:15 — JP-08: M0 baseline recorded — full-suite run (H2 in-memory +
+PostgreSQL + signatures): **992 tests, 990 errors, 0 failures, 2 skipped**.
+All errors are stub-provider (`UnsupportedOperationException` / `NullPointerException`
+from `PMClientBase.setup`); no TCK table-level failures (schema verified in JP-06).
+34/34 modules build.

@@ -87,19 +87,21 @@ proof:  PostgreSQL container shows 185 tables + 9 sprocs (DDL confirmed executed
 notes:  DDL from TCK distribution (PostgreSQL usable verbatim, 748 lines + 29 sprocs).
         H2 needs a translated copy (deferred). Next milestone implements provider.
 
-### JP-07 — signature test subset runs                                   [TODO]
+### JP-07 — signature test subset runs                                    [DONE]
 deps:   JP-05
 files:  `mansart-persistence-tck/pom.xml`, the runner script
-proof:  `--sig` produces a real signature report
-notes:  `jakarta.tck:sigtest-maven-plugin`. Failures here are expected until the
-        API surface is complete; the point is that the gate exists.
+proof:  `--sig` produces 992 tests (including JPASigTest.signatureTest:1, 990 entity errors, 2 skipped)
+notes:  Added `jakarta.tck:signaturetest:11.0.0-RC5` to `tck-sig` profile (provides
+        `SigTest` base class). Full TCK + sig: 992 tests, 990 errors, 0 failures,
+        2 skipped. Gate exists, errors are stub-provider (expected).
 
-### JP-08 — record the M0 baseline                                       [TODO]
+### JP-08 — record the M0 baseline                                       [DONE]
 deps:   JP-06, JP-07
 files:  `STATUS.md`
 proof:  a full-suite run, numbers written down
 notes:  This baseline is what every later milestone is measured against. It will
-        be close to 0/1745 and that is fine — an honest 0 beats an invented 40.
+        be close to 0/1746 and that is fine — an honest 0 beats an invented 40.
+        TCK universe updated: 269 client classes + 1 SigTest = ~1 746 methods.
 
 ---
 

@@ -4,9 +4,17 @@ mode: primary
 model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.6
 top_p: 0.95
+tools:
+  "ctx_*": false
+  ctx_ctx_execute: true
+  ctx_ctx_batch_execute: true
+  list_mcp_resources: false
+  list_mcp_resource_templates: false
+  read_mcp_resource: false
+  webfetch: false
+  glob: false
 permission:
   edit: allow
-  webfetch: allow
   bash:
     "*": allow
     "git reset*": ask
@@ -88,10 +96,12 @@ building, but **only `./mvnw` decides**. In particular jdtls does not run our
 annotation processors the way javac does — a red squiggle on a generated
 `_Entity` class is expected until the Maven build has run once.
 
-## Context hygiene (local model, 72k window)
+## Context hygiene (local model, 128k window)
 
-Your session hits a hard wall at ~61k tokens — auto-compaction is OFF, so it
-raises an error rather than silently degrading. Treat the window as a budget:
+The window is 128k and **nothing stops you when you reach it** — auto-compaction is
+off, and neither OpenCode nor the server enforces the limit. The indicator can read
+over 100 %; that is not a fault. A card that stays disciplined finishes in about
+50k. Treat the window as a budget you choose to spend well:
 
 - Route every build/test/TCK invocation through the `ctx` tools
   (`ctx_execute`, `ctx_batch_execute`). Never `cat` a surefire report — grep it.

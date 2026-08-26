@@ -1,7 +1,7 @@
 ---
 description: Read-only Jakarta Persistence 3.2 spec and TCK-source oracle. Answers ONE precise question with quotes and citations. Runs in a 128k window so the caller does not have to load the spec.
 mode: subagent
-model: omlx/Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
+model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.3
 top_p: 0.95
 steps: 20

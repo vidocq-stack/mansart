@@ -1,9 +1,9 @@
 ---
 name: context-discipline
-description: How to work inside a 61k-token window on a local model — the measured limits of Qwen3.6-35B-A3B-MTPLX, the token budget, LSP-first navigation, and the write-size rule. Load when a session starts feeling heavy or when a tool call gets truncated.
+description: How to spend a 128k window well on a local model — the measured long-context behaviour of Qwen3.6-35B-A3B-MTPLX, the output budget, LSP-first navigation, and the write-size rule. Load when a session starts feeling heavy or when a tool call gets truncated.
 ---
 
-# Working inside 61k tokens
+# Spending a 128k window well
 
 The model is **Qwen3.6-35B-A3B-MTPLX-Optimized-Speed**: 35B mixture-of-experts,
 3B active, 4-bit affine body (group 64), with a native MTP sidecar. 40 layers,
@@ -26,18 +26,30 @@ requiring a well-formed tool call.
 Decode is ~105 tok/s with MTP on (measured; the model card claims 138 at depth 1
 with 0.886 acceptance, against 94 for plain autoregressive).
 
-Two things to read out of that table:
+Two further probes, and one real session:
 
-1. **Tool calls do not break at 84k.** The earlier 6-bit Qwen3.6 build truncated
-   past ~60k; this one does not. The cliff is not where it used to be.
-2. **Degradation shows up as reasoning inflation before it shows up as
-   breakage.** At 62k the model burned 1 093 output tokens on a task that cost
-   289 elsewhere. That is the real signal: long context does not make the model
-   wrong, it makes it hesitant, and hesitant costs time and invites drift.
+- a canary word placed at **position 0** of a **165 033**-token prompt was recalled
+  correctly — no head truncation, no loss of the beginning;
+- a real agentic session peaked at **106 941 tokens with zero compactions** and
+  still emitted a tool call in **104 of 107** assistant turns (97 %), all the way
+  through to the commit.
 
-The binding constraint is therefore **latency and quality, not capacity**. A 42k
-prompt costs ~12 s of prefill on a cache miss; an 84k prompt costs ~21 s. Over a
-40-turn session that is the difference between eight minutes and fourteen.
+What to read out of all that:
+
+1. **Capacity is not your problem.** The ~60k cliff belonged to the earlier 6-bit
+   build. This one holds structurally past 100k in a real loop.
+2. **The one negative signal is hesitation, not breakage.** At 62k in the ladder
+   the model burned 1 093 output tokens on a task costing 289 elsewhere. It did not
+   reproduce in the 107k session — treat it as a reason to stay tidy, not a wall.
+3. **Nothing stops you.** `limit.context` is a display denominator; neither
+   OpenCode nor the server enforces it. The indicator can read over 100 %. Judge a
+   session by whether it is still calling tools, never by the percentage.
+
+So the binding constraint is **latency and decisiveness, not capacity**. A 42k
+prompt costs ~12 s of prefill on a cache miss, 165k costs ~68 s. Prefix caching
+amortises successive turns, but any cache break is paid in full. A disciplined card
+finishes around 50k; a wandering one reaches 107k and takes three times longer for
+the same result.
 
 ## The budget
 
@@ -49,15 +61,17 @@ Configured, and why:
 | oMLX `max_tokens` | 16 384 | must exceed thinking budget + largest tool call |
 | oMLX `thinking_budget_tokens` | 4 096 | leaves ≥12 288 for the tool call itself |
 | oMLX sampling | 0.6 / 0.95 / top-k 20 | exactly what `mtplx_runtime.json` recommends; never near-greedy with thinking on |
-| OpenCode `limit.context` | 73 728 | hard wall at 73 728 − 12 288 ≈ **61 k** (auto-compaction OFF) |
-| OpenCode `limit.output` | 12 288 | matches what oMLX guarantees after thinking |
+| OpenCode `limit.context` | 131 072 | matches oMLX; drives the % indicator only — **enforces nothing** |
+| OpenCode `limit.output` | 12 288 | sent as `max_tokens` on every request; overrides oMLX's 16 384 |
+| auto-compaction | **off** | compaction is what kills sessions here — see the third rule below |
 
-That last line is the fix for the old "EOS in the middle of a tool call" bug:
+The output line is the fix for the old "EOS in the middle of a tool call" bug:
 `max_tokens` was 12 288 while the thinking budget was 8 192, leaving only 4 096
 for a large `write`. The write was cut mid-JSON, the call never closed, and the
-turn was lost. Keep `max_tokens > thinking_budget + biggest_write`.
+turn was lost. Keep the generation cap above `thinking_budget + biggest_write`;
+today that leaves **8 192 tokens** for a tool call, roughly 600 lines of Java.
 
-Target split of the 61k working window:
+The shape of a healthy session — a target, not a limit:
 
 ```
 system prompt (agent + AGENTS.md + OPERATING.md + skills index)  ~5.4 k
@@ -65,14 +79,12 @@ tool schemas + LSP diagnostics                                     ~3 k
 the task card                                                      ~1 k
 working set: at most 4 Java files                                 ~12 k
 tool output (grepped, never raw)                                  ~12 k
-headroom for reasoning and edits                                  ~27 k
+headroom for reasoning and edits                                  ~17 k
 ```
 
-61k rather than 53k because the wall was raised deliberately: the only measured
-degradation point is **62 256 tokens**, where the model burned 1 093 output tokens
-on a task that cost 289 elsewhere. 61k sits just under it. Going further is not a
-capacity problem — the model still emits valid tool calls at 84k — it is a
-decisiveness problem.
+That lands a finished card around **50k**. The window holds far more, and the
+measurements say it still works up there — but every token you did not need is
+prefill you pay for on every subsequent cache break.
 
 ## The five rules
 
@@ -101,13 +113,13 @@ decisiveness problem.
 
 ## When to stop
 
-Past ~70 % of the window — roughly 43k — finish the current step, run
-`/session-end`, and tell the user to start a fresh session. A fresh session seeded
-from `STATUS.md` costs ~5.4k tokens and behaves like turn one. Riding the window to
-the wall costs an error and an interrupted card.
+When the card is done, not when the window fills. Run `/gate`, then `/session-end`,
+then tell the user to start a fresh session for the next card. A fresh session
+seeded from `STATUS.md` costs ~5.4k tokens and behaves like turn one.
 
-If you reach the wall anyway, do not try to continue: the state that matters is
-already on disk. Say so, and stop.
+There is no wall to hit — nothing will stop you, and the indicator can go past
+100 %. That is exactly why the stopping decision is yours: a second card in the
+same window is not blocked, it is just slower and worse than a restart.
 
 **A symptom to recognise in yourself**: if you catch yourself writing "Let me load
 the skill and then…:" or "**LOADING skill: x**" instead of calling the tool, you

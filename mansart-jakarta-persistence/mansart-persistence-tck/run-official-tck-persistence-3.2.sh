@@ -90,7 +90,9 @@ case "${1:-}" in
             test -DfailIfNoTests=false "$@"
         ;;
     --sig|--signature)
-        # Activate the SignatureTests subset on top of the entity TCK (H2 by default).
+        # M0-7 — Run the signature test subset on top of the entity TCK (H2 by default).
+        # The CTS framework (SignatureTestDriver + SigTest base class) is provided by
+        # `jakarta.tck:signaturetest:11.0.0-RC5`.
         shift || true
         mvn -ntp -Ptck-run,tck-sig test -DfailIfNoTests=false "$@"
         ;;

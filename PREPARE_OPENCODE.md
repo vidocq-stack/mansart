@@ -126,7 +126,7 @@ prompt costs ~12 s of prefill on a cache miss; an 84k prompt costs ~21 s. Across
 40-turn session that is eight minutes against fourteen — and the fourteen-minute
 version makes worse decisions.
 
-### The budget, and why 61k
+### The output budget
 
 The old truncation bug is worth understanding, because the fix is the whole
 arithmetic. Previously `max_tokens` was 12 288 with a thinking budget of 8 192,
@@ -151,35 +151,70 @@ binding number is OpenCode's:
 | OpenCode `limit.output` | 12 288 | **sent as `max_tokens` on every request** |
 | oMLX `thinking_budget_tokens` | 4 096 | subtracted from the above |
 | room left for the tool call | **8 192** | ≈ 600 lines of Java |
-| OpenCode `limit.context` | 73 728 | wall at 61 440 — see below |
+| OpenCode `limit.context` | 131 072 | display only — see below |
 
 8 192 tokens for a tool call is twice what the broken configuration left, and far
 above the ~150-line write ceiling the agents are told to respect. Raising
 `limit.output` to 16 384 would buy more room per turn but would also raise the
 reserve and shrink the window by the same amount; 12 288 is the better trade.
 
-OpenCode reserves `min(20000, output)`, so the wall sits at
-`73 728 − 12 288 ≈ **61 440 tokens**`.
+### There is no wall — `limit.context` is an indicator, not a limit
 
-Why 61k and not more. The wall was originally set at 53k (`limit.context` 65 536),
-and the first long session peaked at **53 792** — exactly where the arithmetic said
-it would, which is the useful confirmation that this model of the budget is right.
-It was then raised deliberately, because 53k was more conservative than the
-evidence required:
+This section previously claimed a "hard wall" at 61 440 tokens, enforced by
+`compaction.auto: false`. **That was wrong**, and the way it was found is worth
+recording because the same mistake is easy to repeat.
 
-- the only measured degradation point is **62 256 tokens**, where the model burned
-  1 093 output tokens on a task costing 289 elsewhere;
-- tool calls were still structurally valid at 83 750, so this is not a capacity
-  limit;
-- 61 440 sits just under the one point where behaviour is known to change.
+A session was observed sitting at **144 %** on the context indicator — and working
+fine. The arithmetic checks out immediately: that session peaked at **106 941**
+tokens against a declared `limit.context` of 73 728, i.e. 145 %. The indicator is
+simply `total / limit.context`; nothing clamps it.
 
-Going to 80k would put the wall at ~69 632 — roughly 7k *past* the only evidence we
-have. That is a guess dressed as a setting. If the 53k–70k band is ever measured in
-a real agentic loop (not the single-shot ladder above), this number can move again;
-until then it stays where the data ends.
+Both layers were then checked directly:
+
+- **OpenCode never computes overflow itself.** Its `isContextOverflowError()`
+  requires an **HTTP 400** whose message contains "prompt is too long" or
+  "tokens … maximum". With `compaction.auto: false` and no provider error, nothing
+  stops the loop. `limit.context` drives the percentage display and — when auto is
+  on — the compaction trigger. That is all it does.
+- **oMLX does not return that error.** Sent 139 417 and then **165 033** prompt
+  tokens against a model declaring `max_context_window: 131072`: `HTTP 200` both
+  times. A canary word placed at **position 0** of the message came back correct at
+  165k, so there is no silent head-truncation either. The real ceiling is the
+  model's `max_position_embeddings`: 262 144.
+
+So no layer in this stack enforces a context limit. Any claim of a wall has to come
+with the component that raises the error, and there isn't one.
+
+### What the evidence actually says about long context
+
+The small-window doctrine was inherited from the previous 6-bit build, which
+truncated tool calls past ~60k. On this build that cliff does not exist:
+
+| measurement | result |
+| --- | --- |
+| single-shot ladder, 83 750 tokens | tool call structurally valid |
+| canary at position 0, 165 033 tokens | recalled correctly |
+| **real agentic session, peak 106 941 tokens, 0 compactions** | **104 / 107 assistant turns emitted a tool call — 97 %** |
+
+That last row is the one that matters: it is the agentic-loop measurement the
+single-shot ladder could not provide, and it independently confirms the diagnosis
+below — the session that collapsed to 0 % tool calls was killed by *compaction*,
+not by length.
+
+`limit.context` is therefore set to **131 072**, matching what oMLX declares, so the
+percentage means something again. The two-window trick that used to declare the same
+weights twice under both of oMLX's ids was removed with it: redundant now.
+
+The one negative signal that stands is the reasoning inflation measured at 62 256
+tokens in the ladder (1 093 output tokens for a task costing 289 elsewhere). It did
+**not** reproduce in the 107k session. Treat it as a reason to keep sessions short
+by discipline, not as a number to encode in config.
+
+The remaining real cost of a long window is prefill: 68 s at 165k from cold. Prefix
+caching amortises successive turns, but any cache break is paid in full.
 
 The 8-bit model used by `@thinker` keeps a 65 536 window on purpose: its prefill is
-much slower, and it is called once or twice per session for one question.
+much slower, and it answers one question per session.
 
 ### Why auto-compaction is OFF
 
@@ -215,17 +250,22 @@ the next few user messages are conversational rather than commands, the recent t
 is now entirely prose, and a 3B-active model imitates its recent tail harder than it
 follows its system prompt.
 
-Auto-compaction therefore let a session **degrade silently into chat mode**. With
-`auto: false`, hitting the wall raises a context-overflow error instead: loud, obvious,
-and impossible to mistake for the model thinking. It turns "one card per session"
-from advice into a constraint the harness enforces. Work is never lost — files are
-written as the session goes, and `STATUS.md` carries the handover.
+Auto-compaction therefore let a session **degrade silently into chat mode** — the
+worst possible failure, because it looks like the model merely being idle. With
+`auto: false` the compaction never happens, and the measured 107k session shows what
+that buys: 97 % tool calls, no collapse, right through to the commit.
+
+It does **not** create a stopping point (see above — nothing does). Keeping sessions
+short is a discipline the agent prompts enforce by asking, not a limit the harness
+imposes. Work is never lost either way: files are written as the session goes, and
+`STATUS.md` carries the handover.
 
 The paired fix is in `.opencode/OPERATING.md`: *never announce a tool call in
-prose — make the call*.
+prose — make the call*. That is the exact failure signature to watch for.
 
-Target split of the 61k working window (the first line is measured, not estimated
-— see §5.1):
+### The shape of a healthy session
+
+Not a limit — a shape to aim for. The first line is measured, not estimated (§5.1):
 
 ```
 system prompt (agent + AGENTS.md + OPERATING.md + skills index)  ~5.4 k
@@ -236,19 +276,22 @@ tool output (grepped, never raw)                                  ~10 k
 headroom for reasoning and edits                                  ~20 k
 ```
 
-### Two windows, one model
+A session that stays near that shape finishes its card in about 50k tokens and
+never touches the interesting part of the window. A session that wanders — reading
+whole files instead of using `lsp`, letting Maven logs in, taking a second card —
+gets to 107k. Both work on this build. The first is three times faster.
 
-The same weights are declared twice in `opencode.json`, using the two ids oMLX
-exposes for them:
+### Model assignments
 
-- `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` → 73 728, for everything that edits code;
-- `Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` → 131 072, for the read-only
-  `spec-reader`, whose job is one long single-shot read producing one small answer.
-  That is precisely the workload the 84k probe validated.
+| model | window | used by |
+| --- | --- | --- |
+| `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` | 131 072 | everything that edits code, plus `spec-reader`'s long reads |
+| `Youssofal--…-Optimized-Balance` | 131 072 | the review agents — `auditor`, `codegen`, `module-guardian`, `virtual-threads-reviewer` |
+| `Qwen3.6-35B-A3B-8bit` | 65 536 | `@thinker` only. Deliberately smaller: 8-bit prefill is slow and it answers one question per session |
 
-`Youssofal--…-Balance` (73 728) drives the review agents, and `Qwen3.6-35B-A3B-8bit`
-(65 536, deliberately smaller — 8-bit prefill is slow) is reserved for `@thinker`,
-called at most once or twice per session.
+An earlier revision declared the Speed weights twice, under both ids oMLX exposes
+for them, to give `spec-reader` a larger window than the coding agents. With every
+window at 128k that trick is redundant, and the duplicate declaration was removed.
 
 ---
 
@@ -317,17 +360,17 @@ mechanism, ahead of compaction.
 
 | agent | mode | model window | role |
 | --- | --- | --- | --- |
-| `jpa-dev` | primary | 72k | the developer. Full-auto edits and shell. One card per session. |
+| `jpa-dev` | primary | 128k | the developer. Full-auto edits and shell. One card per session. |
 | `spec-reader` | subagent | **128k** | read-only spec and TCK-source oracle. One question, one cited answer, ≤40 lines. |
-| `tck-runner` | subagent | 72k | runs the TCK, reports real integers, never edits main sources. |
-| `sonar-runner` | subagent | 72k | starts the Sonar container, scans, reads the gate from the **API** not the log. Reports issues on new code only. |
-| `codegen` | subagent | 72k (Balance) | owns APT / Maven-plugin / runtime-fallback generation. |
-| `auditor` | subagent | 72k (Balance) | anti-drift: stubs, reflection, TCK leakage, disabled tests, module violations. |
-| `explore` | subagent | 72k | scout. Returns `file:line` pointers, never file contents. |
-| `tracker` | subagent | 72k | the only writer of `STATUS.md` and `TASKS.md`. |
-| `module-guardian` | subagent | 72k (Balance) | `module-info.java` review. |
-| `dependency-gatekeeper` | subagent | 72k | enforces the zero-dependency rule on every POM change. |
-| `virtual-threads-reviewer` | subagent | 72k (Balance) | pinning, `ThreadLocal`, platform pools, connection lifetime. |
+| `tck-runner` | subagent | 128k | runs the TCK, reports real integers, never edits main sources. |
+| `sonar-runner` | subagent | 128k | starts the Sonar container, scans, reads the gate from the **API** not the log. Reports issues on new code only. |
+| `codegen` | subagent | 128k (Balance) | owns APT / Maven-plugin / runtime-fallback generation. |
+| `auditor` | subagent | 128k (Balance) | anti-drift: stubs, reflection, TCK leakage, disabled tests, module violations. |
+| `explore` | subagent | 128k | scout. Returns `file:line` pointers, never file contents. |
+| `tracker` | subagent | 128k | the only writer of `STATUS.md` and `TASKS.md`. |
+| `module-guardian` | subagent | 128k (Balance) | `module-info.java` review. |
+| `dependency-gatekeeper` | subagent | 128k | enforces the zero-dependency rule on every POM change. |
+| `virtual-threads-reviewer` | subagent | 128k (Balance) | pinning, `ThreadLocal`, platform pools, connection lifetime. |
 | `thinker` | subagent | 64k (**8-bit**, on purpose) | one hard decision, after two failed attempts. Returns a decision, not an essay. |
 
 `jpa-dev` runs **full-auto** — the equivalent of Claude Code's auto-accept mode:
@@ -380,7 +423,7 @@ Measured composition of `jpa-dev`'s system prompt, in order:
 | operating rules | 220–303 | `.opencode/OPERATING.md` |
 | skills index | 304–356 | discovered `SKILL.md` frontmatter |
 
-**356 lines, 19 429 characters, ≈5 400 tokens** — under 10 % of the 61k window,
+**356 lines, 19 429 characters, ≈5 400 tokens** — 4 % of the 128k window,
 which is the budget line in §3. Skill *bodies* are not included; they are pulled
 in on demand by the `skill` tool, which is the point of putting them in skills
 rather than in the prompt.
@@ -473,7 +516,7 @@ unit of work small enough that a large context is never needed.
 - **Milestone** (`PLAN.md`) — the planning unit. M0 to M9, each ending on a
   *measured* TCK number for named client packages. A milestone is never "done
   because it compiles".
-- **Card** (`TASKS.md`, `JP-xx`) — the work unit, sized for one 61k session: one
+- **Card** (`TASKS.md`, `JP-xx`) — the work unit, sized for one focused session: one
   behaviour, **at most 4 files**, exactly one proving test, explicit dependencies.
 - **Session** — one card. Opened with `/next`, closed with `/session-end`.
 
@@ -489,7 +532,7 @@ compaction discards exactly the tool output that is about to be needed and keeps
 the prose that is not.
 
 **Discovered work becomes a new card**, appended by `@tracker`, never merged into
-the card in flight. Scope creep inside a session is how a 61k window becomes a
+the card in flight. Scope creep inside a session is how a healthy window becomes a
 compacted one.
 
 The TCK gives the decomposition a natural grain: 269 client classes, ~1 745 test
@@ -676,7 +719,7 @@ tight, `docker stop mansart-sonar` between sessions rather than removing it (§1
 | Maven log floods the window | not routed through `ctx` | `ctx_execute` / `ctx_batch_execute`, and read surefire XML |
 | a `write` fails twice with a schema error | tool-call formatting | write the file with a bash heredoc and move on |
 | the agent answers, announces what it will do, and stops — every time | it is describing tool calls instead of emitting them, usually after a compaction (§3) | do not prod it; quit, restart, `/next`. State is in `STATUS.md` |
-| the session dies with a context-overflow error | intended: `compaction.auto: false` (§3) | that is the signal to `/session-end` and start a fresh session |
+| the context indicator reads over 100 % | expected: `limit.context` is a display denominator, nothing enforces it (§3) | not a fault. Judge the session by whether it still calls tools, not by the percentage |
 | an agent ignores a frontmatter setting | unknown fields are silently routed into `options` instead of erroring — `topP` vs `top_p` | check the allowed field list, then confirm with a request capture (§4.1) |
 | a custom agent behaves less carefully than `build` | its prompt replaced the built-in one (§5.1) | the shared scaffolding is in `.opencode/OPERATING.md`; check it is still listed in `instructions` |
 | config edits appear to do nothing | OpenCode loads config once at startup and does not hot-reload | quit and restart OpenCode |
