@@ -4,6 +4,22 @@ agent: jpa-dev
 ---
 Start a new work session on mansart-jakarta-persistence.
 
+**Session warm-up (do this first, once, before anything else):**
+
+- **Wake jdtls.** Call the `lsp` tool with `workspaceSymbol` for `EntityManager`.
+  If it errors or returns nothing, jdtls is still indexing the 30-module reactor —
+  wait ~15 s and call it once more. Do not proceed to code until it answers; a warm
+  jdtls is what keeps the session off `read` and `grep`. If it still fails after two
+  tries, say so and continue — but expect to rely on `read`.
+- **Index the TCK for search.** Call `ctx_ctx_index` with
+  `path: ".tck-ref/tck-index.md"`, `source: "JPA32-TCK"`. Nothing enters context.
+  This makes `@spec-reader` able to `ctx_search` the TCK + spec instead of
+  unzipping jars. If `.tck-ref/tck-index.md` is missing, run
+  `python3 .opencode/build-tck-index.py` first (it needs the extracted sources; the
+  TCK skill documents the one-time extraction).
+
+Then:
+
 1. Read `mansart-jakarta-persistence/STATUS.md` — the `## Current focus` block and
    the last 3 lines of `## Session log` only. Do not read the whole file if it has
    grown.

@@ -12,3 +12,6 @@ mansart-transactions/.tck-cache/
 
 # Claude Code / tooling local
 .claude/
+
+# Pre-extracted Jakarta Persistence 3.2 TCK + spec sources for ctx indexing (not tracked)
+.tck-ref/

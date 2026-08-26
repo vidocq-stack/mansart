@@ -69,24 +69,40 @@ Then aggregate. Report `PASS / FAIL / ERROR / SKIPPED` out of total as integers
 you actually read. A test that ERRORs is not closer to passing than one that
 FAILs — do not present a shift from ERROR to FAIL as progress.
 
-## Reading the test source
+## Reading the test source — search, do not unzip
 
-The TCK test is the executable specification. Read the failing **method**:
+The TCK test is the executable specification. But the jars are big (833 test
+classes, 6.2 MB) and unzipping them into a coding session is what hit the context
+wall once. So the sources are **pre-extracted and indexed** for search.
+
+**One-time extraction** (per checkout; redo if the TCK version changes):
 
 ```bash
-unzip -p ~/.m2/repository/jakarta/tck/persistence-tck-spec-tests/3.2.1/\
-persistence-tck-spec-tests-3.2.1-sources.jar \
-  'ee/jakarta/tck/persistence/core/entitytest/persist/basic/Client.java' | sed -n '1,120p'
+mkdir -p .tck-ref
+unzip -oq ~/.m2/.../persistence-tck-spec-tests-3.2.1-sources.jar -d .tck-ref/tck-tests
+unzip -oq ~/.m2/.../jakarta.persistence-api-3.2.0-sources.jar   -d .tck-ref/spec-api
+unzip -oq ~/.m2/.../persistence-tck-common-3.2.1-sources.jar    -d .tck-ref/tck-common
+python3 .opencode/build-tck-index.py          # -> .tck-ref/tck-index.md, 1110 sections
 ```
 
-**`unzip` and `jar` are denied to `jpa-dev`** — not by convention, by permission.
-This rule was written before and ignored: one card ran 34 `unzip` calls for
-26 000 tokens and hit the context wall. So the path is now: `task` to
-`spec-reader`, one precise question, and it returns the method plus its citation
-in forty lines. It pays the extraction cost in its own context, which then dies.
+`.tck-ref/` is gitignored. `build-tck-index.py` turns the tree into one
+heading-sectioned markdown so `ctx_index` chunks it one section per file.
 
-If you *are* `spec-reader`: locate first with `unzip -l | grep`, extract the one
-file, then `sed -n` the one method. Never the whole jar, never the whole class.
+**Per session**: `/next` runs `ctx_index(path: ".tck-ref/tck-index.md",
+source: "JPA32-TCK")` — nothing enters context.
+
+**To read a test or a spec type**, in order:
+
+1. `ctx_search(queries: ["cascade persist OneToMany propagate", ...],
+   source: "JPA32-TCK", limit: 2)` — returns the relevant files. Measured
+   selective at full scale: a behavioural query lands the test, an API query lands
+   the annotation/enum.
+2. only if the search is empty: `grep -rn` / `sed -n` over `.tck-ref/`.
+3. only if `.tck-ref/` is absent: `unzip -p <jar> '<one path>' | sed -n '<method>'`
+   — never the whole jar.
+
+`unzip` and `jar` are **denied to `jpa-dev`**; this reading is `@spec-reader`'s job,
+which is why the coding agent delegates spec questions to it.
 
 ## The schema trap
 

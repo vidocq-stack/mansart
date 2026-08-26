@@ -8,6 +8,8 @@ tools:
   "ctx_*": false
   ctx_ctx_execute: true
   ctx_ctx_batch_execute: true
+  ctx_ctx_index: true
+  ctx_ctx_search: true
   list_mcp_resources: false
   list_mcp_resource_templates: false
   read_mcp_resource: false

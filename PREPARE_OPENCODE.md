@@ -541,7 +541,7 @@ rather than in the prompt.
 
 | command | what it does |
 | --- | --- |
-| `/next [JP-xx]` | opens a session: reads `STATUS.md`, picks one `TODO` card, states the failing test and the ≤4 files before writing anything |
+| `/next [JP-xx]` | opens a session: **warms jdtls and indexes the TCK**, reads `STATUS.md`, picks one `TODO` card, states the failing test and the ≤4 files before writing anything |
 | `/gate` | the validation gate: build, unit tests, `@auditor`, the card's TCK client, and a Sonar scan of the touched module. Returns `GATE: PASS` or `FAIL`. Required before any card becomes `DONE` |
 | `/tck [Client\|all]` | delegates a TCK run to `@tck-runner` |
 | `/sonar [module\|all]` | delegates a SonarQube scan to `@sonar-runner` (§12) |
@@ -651,6 +651,24 @@ methods. `/tck-fix <Client>` is one card's worth of work almost by construction.
 OpenCode ships **jdtls** (already in `~/.cache/opencode/bin/jdtls`) and resolves the
 project root by walking up to the aggregator `pom.xml`, so the multi-module reactor
 is handled natively. `"lsp": true`.
+
+**Why it was useless until now — and the fix.** A dead session's export showed
+*one* `lsp` call (`documentSymbol`), returning `status: error`, followed by 147
+`read`/`unzip`/`grep` calls. The model tried the LSP once, it failed, and it gave up
+for the rest of the session — rational, and fatal. Two causes:
+
+- **No `.sdkmanrc` in mansart** (the `CLAUDE.md` said one was "coming"). OpenCode
+  inherited whatever Java was in the shell — Java 26 — for a project that builds at
+  `release 25`. Fixed: `mansart/.sdkmanrc` now pins `java=25-tem` / `maven=3.9.16`,
+  the same as vauban. Launch with `sdk env` before `opencode`.
+- **jdtls starts lazily and indexes 30 modules** (1–2 min). The first `lsp` call
+  lands before it is ready. Two mitigations, both now in place: `/next` **wakes
+  jdtls first** (a `workspaceSymbol` call, retried once after ~15 s), and every
+  agent prompt says a failed `lsp` means *not ready*, retry once — never fall back
+  to `read` on a single error.
+
+Trust but verify: `pgrep -f 'org.eclipse.jdt.ls.core'` during a session tells you
+whether OpenCode's jdtls is actually up (distinct from Claude Code's own).
 
 The rule in every agent prompt: **`lsp` before `grep`, always.**
 

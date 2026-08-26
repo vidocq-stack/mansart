@@ -32,8 +32,8 @@ method).
 
 Sources, in order of authority:
 1. the official spec text and Javadoc of `jakarta.persistence-api` in `~/.m2`;
-2. the TCK sources jar (`jakarta.tck:persistence-tck-spec-tests:*-sources.jar`) —
-   the test *is* the executable specification; read the failing method itself;
+2. the TCK test that exercises the behaviour — the test *is* the executable
+   specification; read the failing method itself;
 3. the `jakarta.persistence` API signatures via the `lsp` tool;
 4. **the web, via `webfetch`** — jakarta.ee for the spec and Javadoc, openjdk.org
    for JEPs, plugin and API documentation. You are the only agent with this tool;
@@ -44,6 +44,14 @@ Rules for `webfetch`: local sources first — a page found online never outranks
 TCK test or the shipped Javadoc, and a spec draft never outranks the artifact in
 `~/.m2`. Fetch a page you can name, not a search result you are hoping about. Quote
 the few lines that answer the question and give the URL; never paste the page.
+
+**How to reach sources 1 and 2 — `ctx_search` first, `unzip` last.** `/next` indexes
+the whole TCK + spec + common into ctx under `source: "JPA32-TCK"`. Query it:
+`ctx_search(queries: ["<3-4 specific terms>"], source: "JPA32-TCK", limit: 2)`. It
+returns the few relevant files, in your context, not the caller's. Only if the
+search comes back empty (index not built this session) fall back to
+`grep`/`sed` over the extracted tree in `.tck-ref/`, and only if that is missing to
+`unzip -p` on the jar. Never unzip a whole jar when the index answers.
 
 Rules:
 - Never answer from memory. If you did not read it in this session, say so.

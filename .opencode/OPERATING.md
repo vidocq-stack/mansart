@@ -66,7 +66,9 @@ silently widening the current one.
   user has to prod you. This is the single most common way a session dies. The
   same applies to writing "**LOADING skill: x**" instead of calling `skill`.
 - **`lsp` before `grep` for anything Java.** `goToDefinition`, `findReferences`,
-  `hover`, `documentSymbol`, `workspaceSymbol`. ~100 tokens instead of ~3 000.
+  `hover`, `documentSymbol`, `workspaceSymbol`. ~100 tokens instead of ~3 000. A
+  first `lsp` call that errors means jdtls is still indexing, not that `lsp` is
+  unusable — wait and retry once before falling back to `read`.
 - **`webfetch` is available, and it is the easiest way to ruin a window.** Local
   sources outrank it: the TCK test, the Javadoc in `~/.m2`, the shipped spec
   artifact. Use it for what genuinely lives online — jakarta.ee, openjdk.org JEPs,
