@@ -1,7 +1,7 @@
 ---
 description: Reviews concurrency for virtual-thread correctness — pinning, ThreadLocal vs ScopedValue, connection handling across blocking calls, executor choice.
 mode: subagent
-model: omlx/Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Balance
+model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.3
 steps: 25
 tools:

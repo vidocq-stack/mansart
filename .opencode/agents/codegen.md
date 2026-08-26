@@ -1,7 +1,7 @@
 ---
 description: Code-generation authority — decides and implements APT vs Maven-plugin (Class-File API) vs runtime-fallback generation. Consult before writing any generator or whenever you are tempted to use reflection.
 mode: subagent
-model: omlx/Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Balance
+model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.5
 steps: 40
 permission:

@@ -1,7 +1,7 @@
 ---
 description: Slow, high-quality reasoning on ONE hard question — a design trade-off or a bug that survived two fix attempts. Runs the 8-bit model. Returns a decision, not an essay.
 mode: subagent
-model: omlx/Qwen3.6-35B-A3B-8bit
+model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.6
 top_p: 0.95
 steps: 12

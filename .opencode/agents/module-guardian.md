@@ -1,7 +1,7 @@
 ---
 description: Audits module-info.java across mansart-jakarta-persistence — minimal exports, no unjustified opens, correct provides/uses, no split packages. (Java Platform Module System; the workspace forbids the JPMS abbreviation in prose.)
 mode: subagent
-model: omlx/Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Balance
+model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.3
 steps: 20
 tools:

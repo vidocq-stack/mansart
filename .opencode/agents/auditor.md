@@ -1,7 +1,7 @@
 ---
 description: Anti-drift auditor. Hunts stubs, fake returns, runtime reflection, TCK knowledge leaking into main sources, and silently skipped tests. Run before every /gate and at the end of every milestone.
 mode: subagent
-model: omlx/Youssofal--Qwen3.6-35B-A3B-MTPLX-Optimized-Balance
+model: omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed
 temperature: 0.3
 steps: 30
 tools:

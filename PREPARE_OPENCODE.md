@@ -213,8 +213,8 @@ by discipline, not as a number to encode in config.
 The remaining real cost of a long window is prefill: 68 s at 165k from cold. Prefix
 caching amortises successive turns, but any cache break is paid in full.
 
-The 8-bit model used by `@thinker` keeps a 65 536 window on purpose: its prefill is
-much slower, and it answers one question per session.
+All agents share one model and one window; see the benchmark in `BENCH.md` for why
+the higher-precision candidates were rejected.
 
 ### Why auto-compaction is OFF
 
@@ -283,15 +283,25 @@ gets to 107k. Both work on this build. The first is three times faster.
 
 ### Model assignments
 
-| model | window | used by |
-| --- | --- | --- |
-| `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` | 131 072 | everything that edits code, plus `spec-reader`'s long reads |
-| `Youssofal--…-Optimized-Balance` | 131 072 | the review agents — `auditor`, `codegen`, `module-guardian`, `virtual-threads-reviewer` |
-| `Qwen3.6-35B-A3B-8bit` | 65 536 | `@thinker` only. Deliberately smaller: 8-bit prefill is slow and it answers one question per session |
+**One model, every agent**: `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed`, 131 072
+window, for all twelve. Earlier revisions split the roster across an
+`…-Optimized-Balance` build for the review agents and an 8-bit for `@thinker`; the
+2026-08-26 benchmark (`BENCH.md`) found no quality difference and a 2.3× speed
+penalty, so both were dropped and their weights deleted.
 
-An earlier revision declared the Speed weights twice, under both ids oMLX exposes
-for them, to give `spec-reader` a larger window than the coding agents. With every
-window at 128k that trick is redundant, and the duplicate declaration was removed.
+> **The trap that cost the most time here.** oMLX exposes a model under *two* ids
+> when it exists in both stores — the repo-qualified `Youssofal--Qwen3.6-…` for the
+> HuggingFace cache copy, and the bare `Qwen3.6-…` for the `~/omlx-models` copy.
+> They are different physical files. Per-model settings in
+> `~/.omlx/model_settings.json` are keyed by id, so tuning one id leaves the other
+> on server defaults — temperature 1.0, `top_k` 0, no thinking budget, no MTP. That
+> is exactly what happened here for several days: `opencode.json` used the bare id
+> while every setting sat on the qualified one. Check which path the server actually
+> loads before believing any tuning is live:
+>
+> ```bash
+> grep -a 'BatchedEngine loaded' ~/.omlx/logs/server.log | tail -3
+> ```
 
 ---
 
@@ -364,14 +374,14 @@ mechanism, ahead of compaction.
 | `spec-reader` | subagent | **128k** | read-only spec and TCK-source oracle. One question, one cited answer, ≤40 lines. |
 | `tck-runner` | subagent | 128k | runs the TCK, reports real integers, never edits main sources. |
 | `sonar-runner` | subagent | 128k | starts the Sonar container, scans, reads the gate from the **API** not the log. Reports issues on new code only. |
-| `codegen` | subagent | 128k (Balance) | owns APT / Maven-plugin / runtime-fallback generation. |
-| `auditor` | subagent | 128k (Balance) | anti-drift: stubs, reflection, TCK leakage, disabled tests, module violations. |
+| `codegen` | subagent | 128k | owns APT / Maven-plugin / runtime-fallback generation. |
+| `auditor` | subagent | 128k | anti-drift: stubs, reflection, TCK leakage, disabled tests, module violations. |
 | `explore` | subagent | 128k | scout. Returns `file:line` pointers, never file contents. |
 | `tracker` | subagent | 128k | the only writer of `STATUS.md` and `TASKS.md`. |
-| `module-guardian` | subagent | 128k (Balance) | `module-info.java` review. |
+| `module-guardian` | subagent | 128k | `module-info.java` review. |
 | `dependency-gatekeeper` | subagent | 128k | enforces the zero-dependency rule on every POM change. |
-| `virtual-threads-reviewer` | subagent | 128k (Balance) | pinning, `ThreadLocal`, platform pools, connection lifetime. |
-| `thinker` | subagent | 64k (**8-bit**, on purpose) | one hard decision, after two failed attempts. Returns a decision, not an essay. |
+| `virtual-threads-reviewer` | subagent | 128k | pinning, `ThreadLocal`, platform pools, connection lifetime. |
+| `thinker` | subagent | 128k | one hard decision, after two failed attempts. Returns a decision, not an essay. |
 
 ### Delegation is what makes the restrictions real — and `@name` does not delegate
 
