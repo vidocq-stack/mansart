@@ -10,13 +10,9 @@
 
     <artifactId>mansart-persistence-processor</artifactId>
     <name>Mansart :: Persistence :: Annotation processor</name>
-    <description>APT generating the static metamodel (_Entity, optional Entity_) and descriptors.</description>
+    <description>APT generating the JPA static metamodel (ClassName_) for @Entity classes.</description>
 
     <dependencies>
-        <dependency>
-            <groupId>io.vidocq.mansart</groupId>
-            <artifactId>mansart-persistence-spi</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.vidocq.mansart</groupId>
             <artifactId>mansart-data-dialect-spi</artifactId>

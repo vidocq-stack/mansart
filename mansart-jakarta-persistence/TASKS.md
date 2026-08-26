@@ -105,13 +105,93 @@ notes:  This baseline is what every later milestone is measured against. It will
 
 ---
 
-## M1 — metadata (expand after M0 closes)
+## M1 — metadata (APT reads @Entity, emits JPA static metamodel)
 
-Placeholder. `@tracker` expands this into cards when the M0 baseline is recorded.
-Scope: APT reads `@Entity`, `@Id`, `@GeneratedValue`, `@Column`, `@Table`,
-`@Embeddable`, `@MappedSuperclass`, `@Transient`, `@Basic`, `@Enumerated`,
-`@Temporal`; emits `_Entity`, `EntityDescriptor`, accessors. Gate:
-`core/metamodelapi` (16 clients).
+### JP-09 — APT processes `@Entity`, generates JPA static metamodel (`ClassName_`)  [DONE]
+deps:   JP-03
+files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceProcessor.java`,
+        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java`,
+        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceMetamodelWriter.java`,
+        `mansart-persistence-processor/src/main/resources/META-INF/services/javax.annotation.processing.Processor`
+proof:  `mansart-persistence-tests/src/test/java/io/vidocq/mansart/persistence/processor/MansartPersistenceProcessorTest.java`
+        — compiles a minimal `@Entity`, verifies `_ClassName_` generated with `SingularAttribute` fields
+notes:  Mirror the Data processor's EntityScanner + JpaMetamodelWriter. Only @Entity, @Id, @Column, @Version.
+        No runtime metamodel (that's JP-10+). The TCK's metamodelapi tests use `EntityManager.getMetamodel()`
+        at runtime — the static metamodel generation is the APT prerequisite.
+
+### JP-10 — runtime `Metamodel`, `EntityType`, `SingularAttribute` SPI types  [TODO]
+deps:   JP-09
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/...`
+proof:  TCK `core/metamodelapi/metadata/Client` — `getManagedTypes()`, `entity()`, `embeddable()`
+notes:  Runtime implementation of `jakarta.persistence.metamodel.Metamodel` and subtypes.
+
+### JP-11 — `EntityType`, `IdentifiableType`, `ManagedType` concrete impls  [TODO]
+deps:   JP-10
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/EntityTypeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/IdentifiableTypeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/SingularAttributeImpl.java`
+proof:  TCK `core/metamodelapi/entitytype/Client` — `getName()`, `getId()`, `getVersion()`, `getSupertype()`
+notes:  17 test methods. Needs `@Id` + `@Version` from JP-09 scanning.
+
+### JP-12 — `SingularAttribute`, `PluralAttribute`, `CollectionAttribute` impls  [TODO]
+deps:   JP-11
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/SingularAttributeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/PluralAttributeImpl.java`
+proof:  TCK `core/metamodelapi/singularattribute/Client`, `collectionattribute/Client`
+notes:  18 test methods. CollectionAttribute extends PluralAttribute.
+
+### JP-13 — `BasicType`, `BindableType`, `Type` base impls  [TODO]
+deps:   JP-12
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/BasicTypeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/TypeImpl.java`
+proof:  TCK `core/metamodelapi/basictype/Client`, `type/Client`, `bindable/Client`
+notes:  7 test methods across 3 clients.
+
+### JP-14 — `MapAttribute`, `ListAttribute`, `SetAttribute` impls  [TODO]
+deps:   JP-13
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/MapAttributeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/ListAttributeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/SetAttributeImpl.java`
+proof:  TCK `core/metamodelapi/mapattribute/Client`, `listattribute/Client`, `setattribute/Client`
+notes:  11 test methods.
+
+### JP-15 — `EmbeddableType`, `MappedSuperclassType`, `pluralAttribute` impls  [TODO]
+deps:   JP-14
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/EmbeddableTypeImpl.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/MappedSuperclassTypeImpl.java`
+proof:  TCK `core/metamodelapi/embeddabletype/Client`, `mappedsuperclasstype/Client`, `pluralattribute/Client`
+notes:  67 test methods across 3 clients. Largest single card in M1.
+
+### JP-16 — `ManagedType` concrete impl (getDeclaredSingular/Plural/Collection attributes)  [TODO]
+deps:   JP-15
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/ManagedTypeImpl.java`
+proof:  TCK `core/metamodelapi/managedtype/Client`
+notes:  52 test methods. The most complex runtime type — delegates to SingularAttributeImpl, PluralAttributeImpl.
+
+### JP-17 — APT: `@Embeddable`, `@MappedSuperclass`, `@OneToMany`, `@ManyToMany`  [TODO]
+deps:   JP-09
+files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended),
+        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceMetamodelWriter.java` (extended)
+proof:  TCK `core/metamodelapi/embeddabletype/Client` (51 tests), `identitytype/Client` (64 tests)
+notes:  Extends JP-09 scanner + writer. EmbeddableType, MappedSuperclassType, MapAttribute, SetAttribute.
+
+### JP-18 — APT: `@OneToMany`/`@ManyToMany` → `PluralAttribute` generation  [TODO]
+deps:   JP-17
+files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended)
+proof:  TCK `core/metamodelapi/collectionattribute/Client`, `listattribute/Client`, `setattribute/Client`
+notes:  PluralAttribute generation in static metamodel (collectionType, elementType).
+
+### JP-19 — APT: `@IdClass` composite key support  [TODO]
+deps:   JP-17
+files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended)
+proof:  TCK `core/metamodelapi/entitytype/Client.getIdClassAttributes()`
+notes:  DID2Employee entity with composite key (firstName + lastName).
+
+### JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes  [TODO]
+deps:   JP-10, JP-11, JP-12, JP-13, JP-14, JP-15, JP-16, JP-17, JP-18, JP-19
+files:  STATUS.md (update TCK numbers)
+proof:  TCK `--sig` or entity-only run: `core/metamodelapi` — 257 methods PASS
+notes:  Full-suite run. 16 Client classes, 257 test methods. Gate for M1.
 
 ## M2 … M9
 
