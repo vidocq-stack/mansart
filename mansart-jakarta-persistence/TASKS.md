@@ -75,14 +75,17 @@ notes:  Standalone POM, `modelVersion 4.0.0`, **no `<parent>`**. Pin
         `mansart-data-tck/run-official-tck-data-1.0.sh`, profiles `tck-run`,
         `tck-pg`, `tck-sig`.
 
-### JP-06 — the TCK schema comes from the official DDL                   [TODO]
+### JP-06 — the TCK schema comes from the official DDL                   [DONE]
 deps:   JP-05
-files:  `mansart-persistence-tck/src/test/resources/...`, the runner script
-proof:  `setup*Data` no longer fails for one chosen client on PostgreSQL
-notes:  **The single biggest error source.** Load
-        `persistence-tck/sql/<db>/<db>.ddl.persistence.sql` + `.sprocs.sql` from
-        the TCK distribution. PostgreSQL first (usable verbatim); H2 needs a
-        translated copy. Never teach the provider about TCK entities.
+files:  `mansart-persistence-tck/src/test/resources/sql/postgresql/`, the runner script,
+        `src/test/java/io/vidocq/mansart/persistence/tck/PostgresDataSourceProducer.java`,
+        `src/test/java/io/vidocq/mansart/persistence/tck/H2DataSourceProducer.java`,
+        `src/test/java/io/vidocq/mansart/persistence/tck/PersistenceTckArchiveAppender.java`,
+        `src/test/resources/META-INF/services/org.jboss.arquillian.core.spi.LoadableExtension`
+proof:  PostgreSQL container shows 185 tables + 9 sprocs (DDL confirmed executed).
+        TCK clients fail at `setup` (stub provider), NOT `setup*Data` (tables exist).
+notes:  DDL from TCK distribution (PostgreSQL usable verbatim, 748 lines + 29 sprocs).
+        H2 needs a translated copy (deferred). Next milestone implements provider.
 
 ### JP-07 — signature test subset runs                                   [TODO]
 deps:   JP-05
