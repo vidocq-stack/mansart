@@ -67,10 +67,28 @@ silently widening the current one.
   same applies to writing "**LOADING skill: x**" instead of calling `skill`.
 - **`lsp` before `grep` for anything Java.** `goToDefinition`, `findReferences`,
   `hover`, `documentSymbol`, `workspaceSymbol`. ~100 tokens instead of ~3 000.
+- **`webfetch` is available, and it is the easiest way to ruin a window.** Local
+  sources outrank it: the TCK test, the Javadoc in `~/.m2`, the shipped spec
+  artifact. Use it for what genuinely lives online — jakarta.ee, openjdk.org JEPs,
+  plugin and API docs — fetch a page you can *name* rather than a hopeful search,
+  and quote the handful of lines that answer the question with its URL. Never let a
+  fetched page sit in the window. When the question is really "what does the spec
+  say", delegate to `@spec-reader` instead: it browses in its own context so the
+  page never lands where the code is being written.
 - **Batch independent calls in one message.** Several `bash` calls that do not
   depend on each other go in a single response, not one per turn.
+- **`@name` means "call the `task` tool with that subagent".** It is a naming
+  convention in these instructions, *not* something the harness resolves. Writing
+  "@auditor, check this" in your reply delegates nothing — it produces text, and
+  then you end up doing the work yourself in the wrong context with the wrong
+  permissions. Verified: an `@auditor` mention typed by the user was answered
+  inline by the primary agent. When an instruction says `@x`, emit a `task` call.
 - **Delegate search** to `@explore` via the `task` tool rather than reading files
-  yourself — a subagent burns its own context, not yours.
+  yourself — a subagent burns its own context, not yours. This is also what makes
+  the read-only guarantees real: a delegated subagent genuinely loses `write`,
+  `edit` and its denied `bash` commands (verified — the write tool is absent and
+  a non-allowlisted `bash` is refused). Doing the work inline instead runs it with
+  *your* permissions.
 - **Route build, test and TCK output through the `ctx` tools.** Never let a raw
   Maven log into the window; read surefire XML instead.
 - Keep a single `write` under ~150 lines. Bigger classes get a skeleton first,

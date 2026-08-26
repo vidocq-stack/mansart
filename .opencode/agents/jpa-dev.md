@@ -11,10 +11,10 @@ tools:
   list_mcp_resources: false
   list_mcp_resource_templates: false
   read_mcp_resource: false
-  webfetch: false
   glob: false
 permission:
   edit: allow
+  webfetch: allow
   bash:
     "*": allow
     "git reset*": ask

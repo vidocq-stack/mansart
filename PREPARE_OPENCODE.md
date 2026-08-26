@@ -373,6 +373,34 @@ mechanism, ahead of compaction.
 | `virtual-threads-reviewer` | subagent | 128k (Balance) | pinning, `ThreadLocal`, platform pools, connection lifetime. |
 | `thinker` | subagent | 64k (**8-bit**, on purpose) | one hard decision, after two failed attempts. Returns a decision, not an essay. |
 
+### Delegation is what makes the restrictions real — and `@name` does not delegate
+
+Verified by probe, twice:
+
+- a subagent delegated through the `task` tool genuinely loses what its frontmatter
+  removes. `@auditor` asked to write `/tmp/auditor-probe.txt` produced no file (the
+  `write` tool is simply absent from its set), and asked to run a `bash` command
+  outside its allowlist it answered "refused — the system injected a permission
+  rule denying all bash calls". Both `tools:` and `permission.bash:` are enforced.
+- **but `@name` in a prompt delegates nothing.** Typing `@auditor écris "test" dans
+  /tmp/x.txt` in the TUI was answered *inline by the primary agent*, which ran the
+  `echo` itself and then explained that the auditor is "a quality-review agent, not
+  a general-purpose worker". `@` is a file-reference sigil in OpenCode; an agent
+  name after it is just text.
+
+The consequence matters more than it looks: work that should have run in a
+restricted subagent instead runs in the primary agent's context, with the primary
+agent's permissions, spending the primary agent's window. The `@x` notation used
+throughout these prompts is a *convention meaning "emit a `task` call"*, and
+`.opencode/OPERATING.md` now says so explicitly. To force a subagent reliably from
+the outside, use a command with `agent:` + `subtask: true` — which is what `/audit`,
+`/spec`, `/tck`, `/sonar` and `/status` already do.
+
+An earlier revision of this document claimed the opposite — that a global
+`*: allow` rule neutralised per-agent restrictions. That was wrong, and it came
+from a bad test: forcing a `mode: subagent` agent to run as the top-level agent via
+`opencode run --agent` falls back to the default agent's tool set.
+
 `jpa-dev` runs **full-auto** — the equivalent of Claude Code's auto-accept mode:
 `edit: allow`, `bash: "*": allow`. Destructive git operations (`reset`, `clean`,
 `restore`, `checkout --`, `push`) and `rm -rf` stay on `ask`. Being allowed to run
@@ -722,6 +750,7 @@ tight, `docker stop mansart-sonar` between sessions rather than removing it (§1
 | the context indicator reads over 100 % | expected: `limit.context` is a display denominator, nothing enforces it (§3) | not a fault. Judge the session by whether it still calls tools, not by the percentage |
 | an agent ignores a frontmatter setting | unknown fields are silently routed into `options` instead of erroring — `topP` vs `top_p` | check the allowed field list, then confirm with a request capture (§4.1) |
 | a custom agent behaves less carefully than `build` | its prompt replaced the built-in one (§5.1) | the shared scaffolding is in `.opencode/OPERATING.md`; check it is still listed in `instructions` |
+| a review agent did the work instead of reviewing it | `@name` was written in prose instead of a `task` call — nothing was delegated (§5) | it ran in the primary agent's context with its permissions; re-run through a command with `agent:` + `subtask: true` |
 | config edits appear to do nothing | OpenCode loads config once at startup and does not hot-reload | quit and restart OpenCode |
 | Sonar reports 0 % coverage | JaCoCo never ran — missing `-Pquality`, or the build stopped at `test` instead of `verify` | `./mvnw -Pquality … verify sonar:sonar` |
 | Sonar analysis refused with 401 | SonarQube 26.5 dropped anonymous analysis | mint a token in the UI, `export SONAR_TOKEN=…` before launching opencode |
