@@ -9,8 +9,13 @@ is calibrated rather than left to chance. This document records every setting, t
 measurements that justify it, and how to run a session.
 
 Everything here lives in the repository: `opencode.json`, `.opencode/agents/`,
-`.opencode/commands/`, `.opencode/skills/`, `AGENTS.md`, and the pilot files
-`mansart-jakarta-persistence/{PLAN,TASKS,STATUS}.md`.
+`.opencode/commands/`, `.opencode/skills/`, `.opencode/OPERATING.md`, `AGENTS.md`,
+the pilot files `mansart-jakarta-persistence/{PLAN,TASKS,STATUS}.md`, and the
+measurements in `BENCH.md`.
+
+**If you are here to use the setup rather than to understand it, go to §13** —
+the operating manual. Sections 1 to 12 explain why each setting is what it is, and
+§14 lists every trap that cost time.
 
 ---
 
@@ -299,8 +304,21 @@ gets to 107k. Both work on this build. The first is three times faster.
 
 ### Model assignments
 
-**One model, every agent**: `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed`, 131 072
-window, for all twelve. Earlier revisions split the roster across an
+**One text model, every agent**: `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed`, 131 072
+window, for all twelve. Plus **one vision model**,
+`Qwen3-VL-8B-Instruct-MLX-5bit` (6.3 GB, 5-bit affine g64, 36 text layers, 256k
+positions), used by the `vision` agent alone — because the text model's own vision
+tower is unreachable (§1). It is not pinned: it loads in ~2 s when needed and costs
+nothing the rest of the time. Its sampling comes from its own
+`generation_config.json` — temperature 0.7, top-p 0.8, top-k 20, no thinking.
+
+Verified working on real screenshots: `3%` and `863.0 MB of 27.8 GB` read correctly
+off a download panel, a shell command transcribed character-exact, 1–4 s per image,
+~500–1 100 prompt tokens. One caveat measured at the same time: it misread
+`samuelfaj` as `samuelselfaj`. **Verify identifiers it transcribes** — a one-character
+slip in a package name or a class name is invisible and expensive.
+
+Earlier revisions split the roster across an
 `…-Optimized-Balance` build for the review agents and an 8-bit for `@thinker`; the
 2026-08-26 benchmark (`BENCH.md`) found no quality difference and a 2.3× speed
 penalty, so both were dropped and their weights deleted.
@@ -380,7 +398,7 @@ frontmatter. It costs one trivial turn.
 
 ## 5. Agents
 
-`.opencode/agents/`. One primary, ten subagents. The design principle: **a subagent
+`.opencode/agents/`. One primary, eleven subagents, one dual-mode (`vision`). The design principle: **a subagent
 burns its own context, not the primary's.** Delegation is the main context-control
 mechanism, ahead of compaction.
 
@@ -398,6 +416,7 @@ mechanism, ahead of compaction.
 | `dependency-gatekeeper` | subagent | 128k | enforces the zero-dependency rule on every POM change. |
 | `virtual-threads-reviewer` | subagent | 128k | pinning, `ThreadLocal`, platform pools, connection lifetime. |
 | `thinker` | subagent | 128k | one hard decision, after two failed attempts. Returns a decision, not an essay. |
+| `vision` | **all** | 128k (**Qwen3-VL 8B**) | the only agent that can see. Turns a screenshot into exact text. Select it to paste an image, or delegate so the image never enters the coding window. |
 
 ### Delegation is what makes the restrictions real — and `@name` does not delegate
 
@@ -499,6 +518,7 @@ rather than in the prompt.
 | `/spec <question>` | one question to the spec oracle |
 | `/status` | where the project stands, from `STATUS.md` and `TASKS.md` only |
 | `/session-end` | hands real numbers to `@tracker`, updates state, commits |
+| `/see <question>` | reads an attached image with the vision model and returns its exact text (§5) |
 | `/log-bug`, `/log-bench` | append to `BUG.md` / `BENCH.md` in the workspace format |
 
 ---
@@ -729,36 +749,90 @@ single reason a quality gate can run on every card without eating the window.
 
 ---
 
-## 13. Running a session
+## 13. Operating manual
+
+### 13.1 First time on this machine
+
+Nothing here is optional; each line is something whose absence produced a bug
+documented in §14.
 
 ```bash
-cd ~/projects/perso/vidocq/mansart
-sdk env                    # Java 25 + Maven 3.9.16
-opencode                   # picks up ./opencode.json and AGENTS.md
+sdk env                                    # in mansart/ — Java 25 + Maven 3.9.16
+./mvnw -ntp install -DskipTests            # the reactor must be in the local M2
+open -a oMLX                               # the model server; auto-starts on launch
+export SONAR_TOKEN=<token>                 # http://localhost:9001 → My Account → Security
 ```
 
-Then, inside OpenCode:
+Check the server is serving what you think it is — this is the single most useful
+diagnostic in the whole setup:
 
-```
-/next                      # opens the next card, states the plan
-                           # ... TDD loop ...
-/gate                      # build + unit + audit + TCK
-/session-end               # tracker writes STATUS.md and TASKS.md, then commit
+```bash
+grep -a 'Discovered model' ~/.omlx/logs/server.log | tail -2
 ```
 
-**One card per session. Always a fresh session for a new card.** When the context
-indicator passes ~70 %, stop, `/session-end`, restart.
+You want two lines: `Qwen3.6-35B-A3B-MTPLX-Optimized-Speed` (pinned, the text
+model) and `Qwen3-VL-8B-Instruct-MLX-5bit` (on demand, vision).
 
-Useful mid-session: `/spec <question>` rather than reading the spec yourself;
-`/tck-fix <Client>` for the TCK loop; `/audit` before you believe a card is done;
-`/sonar` when you want the quality gate outside of `/gate`.
+### 13.2 A session
 
-`/gate` starts the `mansart-sonar` container by itself if it is stopped, so there is
-nothing to launch beforehand — but SonarQube takes 40–90 s to boot on the first gate
-of the day, and it competes for RAM with the pinned model. If the machine feels
-tight, `docker stop mansart-sonar` between sessions rather than removing it (§12).
+```bash
+cd ~/projects/perso/vidocq/mansart && sdk env
+opencode --agent jpa-dev
+```
 
----
+`default_agent` is set, but the flag is the form verified to work. Then, inside:
+
+```
+/next                # opens the next card: reads STATUS.md, picks one TODO,
+                     # states the failing test and the ≤4 files BEFORE writing
+                     # ... TDD loop: red, green, refactor ...
+/gate                # build + unit + @auditor + TCK client + Sonar on the module
+/session-end         # @tracker writes STATUS.md and TASKS.md, then commit
+```
+
+**One card per session.** Quit and relaunch for the next one. Nothing enforces
+this — the harness has no wall (§3) — which is exactly why it is a discipline you
+apply rather than a limit you hit.
+
+### 13.3 Mid-session
+
+| you need | do this | not this |
+| --- | --- | --- |
+| what the spec says | `/spec <question>` | reading the spec yourself |
+| to read a screenshot | switch to the `vision` agent, or `/see <question>` | describing it in prose |
+| to make one TCK client pass | `/tck-fix <Client>` | editing until it goes green |
+| to know if a card is really done | `/audit` then `/gate` | believing the build output |
+| the quality gate alone | `/sonar [module]` | reading the scanner log |
+| where something is in Java | the `lsp` tool | `grep -r` |
+
+`/gate` starts the `mansart-sonar` container itself if it is stopped. It takes
+40–90 s to boot on the first gate of the day and competes for RAM with the pinned
+model; `docker stop mansart-sonar` between sessions rather than `docker rm` (§12).
+
+### 13.4 Adding or closing work
+
+`TASKS.md` and `STATUS.md` belong to `@tracker` — do not hand-edit them mid-session,
+`/session-end` will overwrite. To add work discovered along the way, tell
+`/session-end` about it: it appends a **new** card rather than growing the one in
+flight. A card names one behaviour, at most 4 files, exactly one proving test, and
+its dependencies (§9).
+
+### 13.5 When something changes
+
+| you changed | you must |
+| --- | --- |
+| `opencode.json`, an agent, a command, a skill | quit and relaunch OpenCode — config is read once at startup |
+| `~/.omlx/model_settings.json` | **stop oMLX first** (`kill $(pgrep -f 'oMLX.app/Contents/MacOS/oMLX')`), edit, relaunch — a running app rewrites the file from memory |
+| sampling, model limits, agent frontmatter | re-run the request capture (§4.1) — silent no-ops are the norm here, not the exception |
+
+### 13.6 Signs to stop and restart
+
+- the agent answers, announces what it will do, and stops — it is narrating tool
+  calls instead of emitting them (§3). Do not prod it; quit, restart, `/next`.
+- the same edit fails twice with a schema error — write it with a bash heredoc.
+- you are on your second card in one window — you are already paying for it.
+
+State is always on disk. A session that dies loses a turn, never work.
 
 ## 14. Known traps
 
@@ -782,6 +856,9 @@ tight, `docker stop mansart-sonar` between sessions rather than removing it (§1
 | Sonar analysis refused with 401 | SonarQube 26.5 dropped anonymous analysis | mint a token in the UI, `export SONAR_TOKEN=…` before launching opencode |
 | Sonar full of issues on `_Entity` classes | generated code is being analysed | check `sonar.exclusions` still covers `**/generated-sources/**` |
 | the Sonar project history vanished | `docker rm mansart-sonar` — the container has no volume | it is not recoverable; `stop`/`start` only, never `rm` |
+| the model answers "I don't see any screenshot attached" | the text model is blind; its vision tower is unreachable (§1) | use the `vision` agent or `/see` — a different model entirely |
+| an identifier read off a screenshot does not exist | the vision model made an OCR slip (`samuelfaj` → `samuelselfaj`, measured) | never paste a transcribed package or class name without checking it |
+| a model loads but ignores its tuning | its settings are keyed to the *other* id of a duplicated install (§3) | `grep -a 'BatchedEngine loaded' ~/.omlx/logs/server.log \| tail -3` to see which path is live |
 | ECJ rejects `Map<String, ?>` overriding `Map<?, ?>` | ECJ strictness on generic erasure — `String` vs `?` is not erasure-compatible | use `Map<?, ?>` in every `PersistenceProvider` method signature |
 | JPMS `provides` invisible on the classpath | ServiceLoader on the classpath ignores JPMS service declarations | ship a `META-INF/services/jakarta.persistence.spi.PersistenceProvider` file for classpath discoverability |
 

@@ -18,6 +18,23 @@
             "context": 131072,
             "output": 12288
           }
+        },
+        "Qwen3-VL-8B-Instruct-MLX-5bit": {
+          "name": "Qwen3-VL 8B Instruct 5bit (vision)",
+          "modalities": {
+            "input": [
+              "text",
+              "image"
+            ],
+            "output": [
+              "text"
+            ]
+          },
+          "attachment": true,
+          "limit": {
+            "context": 131072,
+            "output": 8192
+          }
         }
       }
     }
