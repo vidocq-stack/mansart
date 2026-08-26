@@ -179,32 +179,64 @@ above the ~150-line write ceiling the agents are told to respect. Raising
 `limit.output` to 16 384 would buy more room per turn but would also raise the
 reserve and shrink the window by the same amount; 12 288 is the better trade.
 
-### There is no wall — `limit.context` is an indicator, not a limit
+### The wall: where it is, and who puts it there
 
-This section previously claimed a "hard wall" at 61 440 tokens, enforced by
-`compaction.auto: false`. **That was wrong**, and the way it was found is worth
-recording because the same mistake is easy to repeat.
+This section has been wrong twice, in opposite directions. What follows is what was
+actually observed, in order.
 
-A session was observed sitting at **144 %** on the context indicator — and working
-fine. The arithmetic checks out immediately: that session peaked at **106 941**
-tokens against a declared `limit.context` of 73 728, i.e. 145 %. The indicator is
-simply `total / limit.context`; nothing clamps it.
+**First claim — a hard wall at 61 440 enforced by `compaction.auto: false`.** Wrong.
+A session was seen sitting at **144 %** and working fine: it peaked at 106 941 tokens
+against a declared `limit.context` of 73 728. Two checks explained it:
 
-Both layers were then checked directly:
+- **OpenCode never computes overflow itself.** `isContextOverflowError()` requires an
+  **HTTP 400** whose message contains "prompt is too long" or "tokens … maximum".
+  `limit.context` drives the percentage display and — when auto is on — the
+  compaction trigger. That is all it does.
+- **oMLX served 139 417 and then 165 033 prompt tokens** against a model declaring
+  `max_context_window: 131072`, `HTTP 200` both times, with a canary at position 0
+  recalled correctly at 165k.
 
-- **OpenCode never computes overflow itself.** Its `isContextOverflowError()`
-  requires an **HTTP 400** whose message contains "prompt is too long" or
-  "tokens … maximum". With `compaction.auto: false` and no provider error, nothing
-  stops the loop. `limit.context` drives the percentage display and — when auto is
-  on — the compaction trigger. That is all it does.
-- **oMLX does not return that error.** Sent 139 417 and then **165 033** prompt
-  tokens against a model declaring `max_context_window: 131072`: `HTTP 200` both
-  times. A canary word placed at **position 0** of the message came back correct at
-  165k, so there is no silent head-truncation either. The real ceiling is the
-  model's `max_position_embeddings`: 262 144.
+**Second claim — therefore no wall exists anywhere.** Also wrong, and the reason is
+the trap from §3's model-assignment note: at the time of that test, the *served* id
+had **no entry** in `model_settings.json`, so no window was enforced. Once
+`max_context_window: 131072` was set explicitly on the served id, oMLX started
+refusing:
 
-So no layer in this stack enforces a context limit. Any claim of a wall has to come
-with the component that raises the error, and there isn't one.
+```
+POST /v1/chat/completions → 400:
+  Prompt too long: 131344 tokens exceeds max context window of 131072 tokens
+```
+
+OpenCode classified it correctly and, with `auto: false`, stopped the session with
+the error visible. **An explicitly configured window is enforced; the server default
+was not.** The wall exists because it was configured, and it is where it was put.
+
+### Why the wall is kept, and auto-compaction is not
+
+Both failure modes have been measured, and they are not equivalent.
+
+| | what it looks like | recoverable |
+| --- | --- | --- |
+| auto-compaction on | tool-call rate falls from 98 % to **0 %** over four turns; the model narrates calls instead of emitting them; the session looks merely idle | only by noticing, which takes a while |
+| wall, auto off | an explicit `Prompt too long` error, session stops | immediately — state is on disk |
+
+A loud failure beats a silent one. That is the whole argument, and the production
+numbers add a second one: **long sessions are expensive regardless of whether
+anything breaks.** Measured over 785 production requests in one day:
+
+| prompt size | median decode | median turn |
+| --- | --- | --- |
+| 0–20k | **88.6 tok/s** | 3.6 s |
+| 40–60k | 79.6 tok/s | 6.2 s |
+| 80–100k | 68.4 tok/s | 7.1 s |
+| 120–140k | **55.1 tok/s** | 19.1 s |
+
+A session at 130k runs at 62 % of the speed of one at 20k. Letting the window grow
+costs time even on the happy path.
+
+**Reaching the wall is a decomposition failure, not a configuration one.** 131k on
+one card means the card was too large, or the session took a second card, or context
+leaked in — whole files instead of `lsp`, raw Maven output instead of `ctx`.
 
 ### What the evidence actually says about long context
 

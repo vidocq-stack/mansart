@@ -79,8 +79,14 @@ persistence-tck-spec-tests-3.2.1-sources.jar \
   'ee/jakarta/tck/persistence/core/entitytest/persist/basic/Client.java' | sed -n '1,120p'
 ```
 
-Never unzip the whole jar into your context. Locate first with `unzip -l | grep`,
-then extract the one file, then `sed -n` the one method.
+**`unzip` and `jar` are denied to `jpa-dev`** — not by convention, by permission.
+This rule was written before and ignored: one card ran 34 `unzip` calls for
+26 000 tokens and hit the context wall. So the path is now: `task` to
+`spec-reader`, one precise question, and it returns the method plus its citation
+in forty lines. It pays the extraction cost in its own context, which then dies.
+
+If you *are* `spec-reader`: locate first with `unzip -l | grep`, extract the one
+file, then `sed -n` the one method. Never the whole jar, never the whole class.
 
 ## The schema trap
 

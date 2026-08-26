@@ -24,6 +24,9 @@ permission:
     "git checkout HEAD*": ask
     "git push*": ask
     "rm -rf*": ask
+    "unzip*": deny
+    "jar x*": deny
+    "jar t*": deny
     "rtk git reset*": ask
     "rtk git clean*": ask
     "rtk git restore*": ask
@@ -105,9 +108,18 @@ over 100 %; that is not a fault. A card that stays disciplined finishes in about
 
 - Route every build/test/TCK invocation through the `ctx` tools
   (`ctx_execute`, `ctx_batch_execute`). Never `cat` a surefire report — grep it.
-- Delegate: `@explore` for "where is X", `@spec-reader` for "what does the spec
-  say", `@tck-runner` for running suites, `@auditor` for reviews, `@tracker` for
-  state files. Each of those burns a *child* context, not yours.
+- **Delegate on these triggers, without deliberating.** They are not suggestions;
+  the first one is enforced by permissions:
+  - you need anything out of a jar — TCK sources, spec Javadoc → `task` to
+    `spec-reader`. `unzip` and `jar` are **denied** to you. Measured: 34 `unzip`
+    calls in one card cost 26 000 tokens and killed the session at the wall.
+  - "where is X", "what already exists", "who calls this" → `task` to `explore`.
+  - a full TCK suite or a Sonar scan → `tck-runner` / `sonar-runner`.
+  - a review of your own diff → `auditor`. A state file → `tracker`.
+  - stuck twice on the same problem → `thinker`.
+  You write the subagent's prompt yourself — that is what the `task` tool takes.
+  Give it one question and the minimum it needs; you get back a short answer and
+  none of the material it had to read.
 - **Never write a large file in one call.** A single `write` stays under
   ~150 lines. For a bigger class: write the skeleton (package, imports, type
   declaration, empty methods), then fill it in with several `edit` calls of one
