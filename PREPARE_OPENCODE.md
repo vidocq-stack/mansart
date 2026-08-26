@@ -39,12 +39,16 @@ which is exactly the figure the manifest attributes to MTP being *on*. Nothing i
 being lost.
 
 `Qwen3.6-35B-A3B` is a vision-language model — 333 `vision_tower` tensors, a full
-`vision_config`, image and video preprocessors. **You cannot use any of it**: oMLX's
-discovery logs `no vision_config … found — treating as LLM (text-only)` for this
-build, and an `image_url` request comes back with "I don't see any screenshot
-attached". Hence `modalities: text-only` and `attachment: false` in `opencode.json`.
-Worth revisiting when oMLX's detection improves — pasting a screenshot into a
-session would be genuinely useful.
+`vision_config`, image and video preprocessors. **You cannot use any of it.** oMLX
+classifies it correctly (`type: vlm, engine: vlm`), but the mlx-vlm loader rejects
+the checkpoint, the VLM engine stops, and oMLX falls back to the text engine — which
+is precisely why the model works at all. An `image_url` request comes back with
+"I don't see any screenshot attached", verified in both content formats. Hence
+`modalities: text-only` and `attachment: false` in `opencode.json`.
+
+The MTPLX conversion is the single cause of both losses. If screenshot input ever
+matters, the answer is a **separate** VLM rather than fixing this one: see
+§5 on wiring a dedicated vision subagent.
 
 Why this model rather than the 6-bit or 8-bit Qwen3.6 already installed: the
 sidecar. A 4-bit body that decodes at 105 tok/s measured, on a specification task

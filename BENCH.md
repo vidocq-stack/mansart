@@ -143,17 +143,19 @@ justifies the switch.
   for this model on this oMLX version, or it will not load. If a future oMLX build
   accepts these sidecars, the whole campaign should be re-run — the published
   acceptance for the 4-bit (0.886 at depth 1, ×1.465) would change the ranking.
-- **The model is multimodal but is served text-only**, which is the root of the MTP
-  failure. The checkpoint carries 333 `vision_tower` tensors and a full
-  `vision_config` (27 layers, patch 16), architecture
-  `Qwen3_5MoeForConditionalGeneration`. oMLX's discovery does not see it:
-  `Model type 'qwen3_5_moe' is in VLM_MODEL_TYPES but no vision_config … found —
-  treating as LLM (text-only)`. It therefore loads the text `BatchedEngine`, and
-  `mtp_enabled: true` — which routes to `VLMBatchedEngine` — then fails on a model
-  that was never built as a VLM. Sending an `image_url` gets "I don't see any
-  screenshot attached". `opencode.json` correctly declares text-only modalities and
-  `attachment: false`; revisit if oMLX's detection is fixed, since screenshot input
-  would be genuinely useful for this workflow.
+- **The model is multimodal but is served text-only, and the same fault kills MTP.**
+  The checkpoint carries 333 `vision_tower` tensors and a full `vision_config`
+  (27 layers, patch 16), architecture `Qwen3_5MoeForConditionalGeneration`. oMLX
+  *does* classify it correctly — `Discovered model: … (type: vlm, engine: vlm,
+  size: 20.52GB, text-only: 19.65GB)` — but the mlx-vlm loader then rejects the
+  checkpoint (`Received 2321 parameters not in model`), `VLMBatchedEngine` stops,
+  and oMLX falls back to the text `BatchedEngine`. That fallback is why everything
+  else works. Verified twice, with both the `image_url` and `image` content forms:
+  the model answers "I don't see any screenshot attached". So `opencode.json` is
+  right to declare text-only modalities and `attachment: false`. The MTPLX
+  conversion is the common cause: it produces a checkpoint mlx-vlm cannot consume,
+  which costs both the vision tower and the MTP sidecar. A plain (non-MTPLX)
+  conversion of the same weights would likely restore both — untested.
 
 ### Follow-up, same day — disk cleanup and an id/settings mismatch
 
