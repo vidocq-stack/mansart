@@ -660,7 +660,17 @@ for the rest of the session — rational, and fatal. Two causes:
 - **No `.sdkmanrc` in mansart** (the `CLAUDE.md` said one was "coming"). OpenCode
   inherited whatever Java was in the shell — Java 26 — for a project that builds at
   `release 25`. Fixed: `mansart/.sdkmanrc` now pins `java=25-tem` / `maven=3.9.16`,
-  the same as vauban. Launch with `sdk env` before `opencode`.
+  the same as vauban — but pinned to the **patch** release `25.0.3-tem`, not
+  `25-tem`, for the reason below. Launch with `sdk env` before `opencode`.
+
+  > **The non-obvious trap.** OpenCode detects the JDK by parsing `java -version`
+  > with the regex `/"(\d+)\.\d+\.\d+"/` — it requires an `"X.Y.Z"` string. Modern
+  > "major" JDKs print the version *without* dots: `25-tem` → `"25"`, `26` → `"26"`,
+  > `21` → `"21"` — none match, so OpenCode concludes there is no Java and disables
+  > jdtls silently ("no Java server configured"). Only a patch release prints the
+  > matchable form: `25.0.3-tem` → `"25.0.3"`. This is an OpenCode bug; the
+  > workaround is to pin a patch version. Verify after launch:
+  > `pgrep -f 'org.eclipse.jdt.ls.core'` should show a process parented by opencode.
 - **jdtls starts lazily and indexes 30 modules** (1–2 min). The first `lsp` call
   lands before it is ready. Two mitigations, both now in place: `/next` **wakes
   jdtls first** (a `workspaceSymbol` call, retried once after ~15 s), and every
@@ -907,6 +917,7 @@ State is always on disk. A session that dies loses a turn, never work.
 | Sonar full of issues on `_Entity` classes | generated code is being analysed | check `sonar.exclusions` still covers `**/generated-sources/**` |
 | the Sonar project history vanished | `docker rm mansart-sonar` — the container has no volume | it is not recoverable; `stop`/`start` only, never `rm` |
 | the model answers "I don't see any screenshot attached" | the text model is blind; its vision tower is unreachable (§1) | use the `vision` agent or `/see` — a different model entirely |
+| "no Java server configured" / jdtls never starts | OpenCode's version regex needs `"X.Y.Z"`; a major-only JDK prints `"25"` and is rejected (§10) | pin a patch release in `.sdkmanrc` (`java=25.0.3-tem`), `sdk env`, relaunch |
 | an identifier read off a screenshot does not exist | the vision model made an OCR slip (`samuelfaj` → `samuelselfaj`, measured) | never paste a transcribed package or class name without checking it |
 | a model loads but ignores its tuning | its settings are keyed to the *other* id of a duplicated install (§3) | `grep -a 'BatchedEngine loaded' ~/.omlx/logs/server.log \| tail -3` to see which path is live |
 | ECJ rejects `Map<String, ?>` overriding `Map<?, ?>` | ECJ strictness on generic erasure — `String` vs `?` is not erasure-compatible | use `Map<?, ?>` in every `PersistenceProvider` method signature |
