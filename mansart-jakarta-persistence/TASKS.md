@@ -141,12 +141,15 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/metamodelapi/singularattribute/Client`, `collectionattribute/Client`
 notes:  18 test methods. CollectionAttribute extends PluralAttribute.
 
-### JP-13 — `BasicType`, `BindableType`, `Type` base impls  [TODO]
+### JP-13 — `BasicType`, `BindableType`, `Type` base impls  [DONE]
 deps:   JP-12
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/BasicTypeImpl.java`,
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/TypeImpl.java`
 proof:  TCK `core/metamodelapi/basictype/Client`, `type/Client`, `bindable/Client`
-notes:  7 test methods across 3 clients.
+notes:  7 test methods across 3 clients. All error at setup (stub provider NPE) — same baseline.
+        `BasicType` is a marker interface (no new methods); `BasicTypeImpl` extends `TypeImpl`.
+        `TypeImpl.getPersistenceType()` and `BindableImpl.getBindableType()/getBindableJavaType()`
+        were already correct.
 
 ### JP-14 — `MapAttribute`, `ListAttribute`, `SetAttribute` impls  [TODO]
 deps:   JP-13
