@@ -16,7 +16,10 @@ import jakarta.persistence.metamodel.Type;
 import jakarta.persistence.metamodel.Bindable;
 import jakarta.persistence.metamodel.Attribute;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Implementation of {@link EntityType} for the Mansart persistence provider.
@@ -36,12 +39,16 @@ public final class EntityTypeImpl<X> extends IdentifiableTypeImpl<X>
         SingularAttribute<? super Object, ?> verAttr = null;
         boolean singleId = false;
         int idCount = 0;
+        Set<SingularAttribute<? super Object, ?>> keyAttrs = new HashSet<>();
 
         for (Attribute<? super Object, ?> attr : declaredAttributes) {
             if (attr instanceof SingularAttribute<?, ?> sa) {
                 if (sa.isId()) {
                     idCount++;
-                    idAttr = (SingularAttribute<? super Object, ?>) sa;
+                    keyAttrs.add((SingularAttribute<? super Object, ?>) sa);
+                    if (idCount == 1) {
+                        idAttr = (SingularAttribute<? super Object, ?>) sa;
+                    }
                 }
                 if (sa.isVersion()) {
                     verAttr = (SingularAttribute<? super Object, ?>) sa;
@@ -49,8 +56,11 @@ public final class EntityTypeImpl<X> extends IdentifiableTypeImpl<X>
             }
         }
         singleId = (idCount == 1);
+        @SuppressWarnings("unchecked")
+        Set<SingularAttribute<? super X, ?>> castKeyAttrs =
+                (Set) (Set<?>) keyAttrs;
         super((Class<X>) javaType, entityName, declaredAttributes,
-              null, idAttr, verAttr, singleId);
+              null, idAttr, verAttr, singleId, castKeyAttrs);
         this.entityName = entityName;
     }
 

@@ -195,7 +195,7 @@ files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persisten
 proof:  `mansart-persistence-tests/src/test/java/io/vidocq/mansart/persistence/processor/MansartPersistenceProcessorTest.java`
 notes:  PluralAttribute generation in static metamodel (collectionType, elementType).
 
-### JP-19 — APT: `@IdClass` composite key support  [TODO]
+### JP-19 — APT: `@IdClass` composite key support  [DONE]
 deps:   JP-17, JP-18
 files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended)
 proof:  TCK `core/metamodelapi/entitytype/Client.getIdClassAttributes()`

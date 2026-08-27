@@ -31,11 +31,12 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
     private final SingularAttribute<? super X, ?> idAttribute;
     private final SingularAttribute<? super X, ?> versionAttribute;
     private final boolean hasSingleIdAttribute;
+    private final Set<SingularAttribute<? super X, ?>> idClassAttributes;
 
     @SuppressWarnings("rawtypes")
     IdentifiableTypeImpl(Class<?> javaType, String entityName,
                          List<Attribute<? super Object, ?>> declaredAttributes) {
-        this(javaType, entityName, declaredAttributes, null, null, null, true);
+        this(javaType, entityName, declaredAttributes, null, null, null, true, Set.of());
     }
 
     @SuppressWarnings("rawtypes")
@@ -45,11 +46,24 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
                          SingularAttribute<? super X, ?> idAttribute,
                          SingularAttribute<? super X, ?> versionAttribute,
                          boolean hasSingleIdAttribute) {
+        this(javaType, entityName, declaredAttributes, supertype,
+                idAttribute, versionAttribute, hasSingleIdAttribute, Set.of());
+    }
+
+    @SuppressWarnings("rawtypes")
+    IdentifiableTypeImpl(Class<?> javaType, String entityName,
+                         List<Attribute<? super Object, ?>> declaredAttributes,
+                         IdentifiableType<? super X> supertype,
+                         SingularAttribute<? super X, ?> idAttribute,
+                         SingularAttribute<? super X, ?> versionAttribute,
+                         boolean hasSingleIdAttribute,
+                         Set<SingularAttribute<? super X, ?>> idClassAttributes) {
         super(javaType, Type.PersistenceType.ENTITY, declaredAttributes);
         this.supertype = supertype;
         this.idAttribute = idAttribute;
         this.versionAttribute = versionAttribute;
         this.hasSingleIdAttribute = hasSingleIdAttribute;
+        this.idClassAttributes = idClassAttributes;
     }
 
     @Override
@@ -107,7 +121,7 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
 
     @Override
     public Set<SingularAttribute<? super X, ?>> getIdClassAttributes() {
-        return Set.of();
+        return idClassAttributes;
     }
 
     @Override

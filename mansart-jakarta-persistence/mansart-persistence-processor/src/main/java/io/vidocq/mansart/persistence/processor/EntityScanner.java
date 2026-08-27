@@ -55,6 +55,10 @@ final class EntityScanner {
     /**
      * Scans an entity type, returning a descriptor with all persistent attributes,
      * or {@code null} if the type is not a valid entity.
+     *
+     * <p>When the entity is annotated with {@code @IdClass}, all fields
+     * annotated {@code @Id} are collected as composite key attributes
+     * instead of rejecting multiple {@code @Id} fields.</p>
      */
     EntityDescriptor scan(TypeElement type) {
         if (!hasAnnotation(type, "jakarta.persistence.Entity")) {
@@ -62,9 +66,10 @@ final class EntityScanner {
         }
 
         String tableName = readEntityTable(type);
+        boolean hasIdClass = hasAnnotation(type, "jakarta.persistence.IdClass");
 
         List<AttributeDescriptor> attributes = new ArrayList<>();
-        AttributeDescriptor       id         = null;
+        List<AttributeDescriptor> keyAttributes = new ArrayList<>();
         AttributeDescriptor       version    = null;
 
         for (Element member : type.getEnclosedElements()) {
@@ -79,23 +84,28 @@ final class EntityScanner {
 
             attributes.add(a);
             if (a.kind == AttributeKind.ID) {
-                if (id != null) {
-                    error(field, "Multiple @Id fields are not supported.");
-                    return null;
+                if (hasIdClass) {
+                    keyAttributes.add(a);
+                } else {
+                    if (keyAttributes.isEmpty()) {
+                        keyAttributes.add(a);
+                    } else {
+                        error(field, "Multiple @Id fields are not supported.");
+                        return null;
+                    }
                 }
-                id = a;
             }
             if (a.kind == AttributeKind.VERSION) {
                 version = a;
             }
         }
 
-        if (id == null) {
+        if (keyAttributes.isEmpty()) {
             error(type, "Entity " + type.getQualifiedName() + " has no @Id field.");
             return null;
         }
 
-        return new EntityDescriptor(type, tableName, id, version, attributes);
+        return new EntityDescriptor(type, tableName, keyAttributes, version, attributes);
     }
 
     /**
@@ -163,7 +173,7 @@ final class EntityScanner {
             }
         }
 
-        return new EntityDescriptor(type, tableName, id, version, attributes);
+        return new EntityDescriptor(type, tableName, id != null ? List.of(id) : List.<AttributeDescriptor>of(), version, attributes);
     }
 
     private AttributeDescriptor describe(VariableElement field) {
@@ -341,7 +351,7 @@ final class EntityScanner {
     record EntityDescriptor(
             TypeElement type,
             String tableName,
-            AttributeDescriptor id,
+            List<AttributeDescriptor> keyAttributes,
             AttributeDescriptor version,
             List<AttributeDescriptor> attributes
     ) {}

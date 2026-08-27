@@ -296,7 +296,12 @@ class EntityTypeImplTest {
         var entityType = new io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl<>(
             TestEntity.class, ENTITY_NAME, attrs);
 
-        assertThat(entityType.getIdClassAttributes()).isEmpty();
+        // Single-key entity: getIdClassAttributes returns the single @Id attribute
+        var idClassAttrs = entityType.getIdClassAttributes();
+        assertThat(idClassAttrs).hasSize(1);
+        var idAttr = idClassAttrs.iterator().next();
+        assertThat(idAttr.getName()).isEqualTo("id");
+        assertThat(idAttr.isId()).isTrue();
     }
 
     /**

@@ -5,20 +5,17 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-19 — APT: `@IdClass` composite key support
-- M1: 10 / 12 cards (JP-09…JP-18 done).
-- JP-18 done: APT detects `@OneToMany`/`@ManyToMany` on entity fields, classifies
-  as `ONE_TO_MANY`/`MANY_TO_MANY` (→ COLLECTION → `SetAttribute` or LIST → `ListAttribute`).
-  68/68 unit tests (1 new test + 2 new test entities). TCK not measured.
-- Trap: JP-19 touches EntityScanner again — must not regress JP-18 plural attribute
-  classification alongside JP-17 embeddable/mapped-superclass generation.
+- Next: JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes
+- M1: 11 / 12 cards (JP-09…JP-19 done).
+- JP-19 done: APT detects `@IdClass` on entity types, collects all `@Id` fields as composite key attributes instead of rejecting multiple `@Id`. `EntityDescriptor` stores `List<AttributeDescriptor> keyAttributes`. `MansartPersistenceMetamodelWriter` generates `SingularAttribute` fields for key attributes. `EntityTypeImpl` collects all `@Id` fields into `Set<SingularAttribute>` passed to `IdentifiableTypeImpl.getIdClassAttributes()`. 69/69 unit tests (1 new test + 1 new test entity). TCK not measured (stub provider).
+- Trap: JP-20 depends on all M1 cards (JP-10…JP-19) including JP-19's runtime wiring. The TCK `entitytype/Client.getIdClassAttributes()` test will PASS once the provider is fully implemented.
 
 ## Numbers
 
 | metric | value | measured |
 | --- | --- | --- |
 | TCK PASS / total | **not measured** (full suite) — sig subset: 992/992 (990 entity errors, 0 failures, 2 skipped, 1 JPASigTest) | 2026-08-26 |
-| unit tests | 68 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest + EntityTypeImplTest + PluralAttributeImplTest + JP-16 + JP-17 + JP-18 assertions) | 2026-08-27 |
+| unit tests | 69 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest + EntityTypeImplTest + PluralAttributeImplTest + JP-16 + JP-17 + JP-18 + JP-19 assertions) | 2026-08-27 |
 | build | 34/34 (install -DskipTests) | 2026-08-27 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -27,10 +24,11 @@ TCK universe: 269 client classes, ~1 745 methods
 ## Milestone
 
 M0 (skeleton and harness) — 8 / 8 cards done.
-M1 (metadata: APT) — 10 / 12 cards done (JP-09…JP-18).
+M1 (metadata: APT) — 11 / 12 cards (JP-09…JP-19).
 
 ## Session log
 
+2026-08-27 | JP-19 | APT detects `@IdClass` on entity types, collects all `@Id` fields as composite key attributes instead of rejecting multiple `@Id`. `EntityDescriptor` stores `keyAttributes`. `MansartPersistenceMetamodelWriter` generates `SingularAttribute` fields for key attributes. `EntityTypeImpl` collects all `@Id` fields into `Set<SingularAttribute>` passed to `IdentifiableTypeImpl.getIdClassAttributes()`. 69/69 unit tests (1 new test + 1 new test entity). TCK not measured (stub provider).
 2026-08-27 | JP-18 | APT detects `@OneToMany`/`@ManyToMany` on entity fields, classifies as `ONE_TO_MANY`/`MANY_TO_MANY` (→ COLLECTION → `SetAttribute` or LIST → `ListAttribute`). 68/68 unit tests (1 new test + 2 new test entities). TCK not measured.
 2026-08-27 | JP-17 | APT extended to `@Embeddable`, `@MappedSuperclass`, `@ElementCollection`. EntityScanner detects embeddables/mapped-superclasses, classifies `@ElementCollection` as COLLECTION/LIST/MAP. MetamodelWriter generates `EmbeddableName_`, `MappedSuperclassName_`, plural attributes (`SetAttribute_`/`ListAttribute_`/`MapAttribute_`). 3 test entities + 3 tests. 67/67 unit tests. TCK not measured (no PostgreSQL container).
 2026-08-27 15:45 — JP-17: APT extended to `@Embeddable`, `@MappedSuperclass`, `@ElementCollection`. EntityScanner detects `@Embeddable`/`@MappedSuperclass` annotations and `@ElementCollection` fields (→ COLLECTION/LIST/MAP kinds). MetamodelWriter generates `EmbeddableName_`, `MappedSuperclassName_`, and plural attributes (`SetAttribute_`/`ListAttribute_`/`MapAttribute_`). 67/67 unit tests (10 new). TCK not measured (no PostgreSQL container).

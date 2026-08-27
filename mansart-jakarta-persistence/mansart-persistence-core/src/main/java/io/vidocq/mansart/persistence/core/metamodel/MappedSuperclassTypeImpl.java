@@ -49,7 +49,7 @@ public final class MappedSuperclassTypeImpl<X> extends IdentifiableTypeImpl<X>
                                     SingularAttribute<? super X, ?> versionAttribute,
                                     boolean hasSingleIdAttribute) {
         super(javaType, entityName, declaredAttributes, supertype,
-              idAttribute, versionAttribute, hasSingleIdAttribute);
+              idAttribute, versionAttribute, hasSingleIdAttribute, Set.of());
     }
 
     @Override

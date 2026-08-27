@@ -182,4 +182,35 @@ class MansartPersistenceProcessorTest {
         // @ManyToMany(Set) → SetAttribute
         assertThat(content).contains("tags");
     }
+
+    /**
+     * Verifies that the APT processor generates {@code SingularAttribute} fields
+     * for each composite key attribute when an entity uses {@code @IdClass}.
+     *
+     * <p>The entity {@code TestCompositeKeyEmployee} has two {@code @Id} fields
+     * ({@code firstName}, {@code lastName}) and is annotated with
+     * {@code @IdClass(CompositeKeyEmployeeId.class)}. The generated metamodel
+     * must include a {@code SingularAttribute} for each key field.</p>
+     */
+    @Test
+    void processorGeneratesIdClassKeyAttributes() throws IOException {
+        String basedir = System.getProperty("user.dir");
+        Path generatedFile = Path.of(basedir, "target", "generated-sources",
+                "annotations", "io.vidocq.mansart.persistence.tests.TestCompositeKeyEmployee_.java");
+
+        assertThat(generatedFile)
+                .as("JPA static metamodel TestCompositeKeyEmployee_ should be generated")
+                .exists()
+                .isReadable();
+
+        String content = Files.readString(generatedFile);
+
+        assertThat(content).contains("public abstract class TestCompositeKeyEmployee_");
+        assertThat(content).contains("@StaticMetamodel(TestCompositeKeyEmployee.class)");
+        // Both @Id fields must appear as SingularAttribute in the generated metamodel
+        assertThat(content).contains("SingularAttribute<TestCompositeKeyEmployee, java.lang.String> firstName");
+        assertThat(content).contains("SingularAttribute<TestCompositeKeyEmployee, java.lang.String> lastName");
+        // The non-key attribute should also be present
+        assertThat(content).contains("SingularAttribute<TestCompositeKeyEmployee, java.lang.Integer> empNo");
+    }
 }

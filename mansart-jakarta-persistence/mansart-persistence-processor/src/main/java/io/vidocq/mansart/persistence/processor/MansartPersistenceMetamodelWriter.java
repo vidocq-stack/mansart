@@ -68,6 +68,13 @@ final class MansartPersistenceMetamodelWriter {
             w.println("public abstract class " + className + " {");
             w.println();
 
+            // Write key attributes first (from @IdClass composite key)
+            for (EntityScanner.AttributeDescriptor a : e.keyAttributes()) {
+                String boxed = box(a.javaTypeFqn());
+                w.println("    public static volatile SingularAttribute<" + simple + ", " + boxed + "> " + a.name() + ";");
+            }
+
+            // Write non-key, non-collection SingularAttribute fields
             for (EntityScanner.AttributeDescriptor a : e.attributes()) {
                 EntityScanner.AttributeKind kind = a.kind();
                 if (kind == EntityScanner.AttributeKind.COLLECTION
@@ -77,6 +84,8 @@ final class MansartPersistenceMetamodelWriter {
                         || kind == EntityScanner.AttributeKind.MANY_TO_MANY) {
                     continue;
                 }
+                boolean isKey = e.keyAttributes().contains(a);
+                if (isKey) continue;
                 String boxed = box(a.javaTypeFqn());
                 w.println("    public static volatile SingularAttribute<" + simple + ", " + boxed + "> " + a.name() + ";");
             }
@@ -93,6 +102,10 @@ final class MansartPersistenceMetamodelWriter {
                         || kind == EntityScanner.AttributeKind.MANY_TO_MANY) {
                     continue;
                 }
+                w.println("    public static final String " + screamingSnake(a.name()) + " = \"" + a.name() + "\";");
+            }
+            // String constants for key attributes
+            for (EntityScanner.AttributeDescriptor a : e.keyAttributes()) {
                 w.println("    public static final String " + screamingSnake(a.name()) + " = \"" + a.name() + "\";");
             }
 
