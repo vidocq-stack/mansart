@@ -66,12 +66,14 @@ classes are prefixed `_` and annotated `@Generated`.
 
 ## Quality: SonarQube on the local Docker instance
 
-Container `mansart-sonar` (`sonarqube:community` 26.5), host port **9001**, project
-key `vidocq-mansart-persistence`. It has **no volume mounted** — `docker stop`/`start`
-are safe, `docker rm` destroys the history. Never remove it.
+Container `vidocq-sonar` (`sonarqube:community` 26.5), host port **9001**, project
+key `vidocq-mansart-persistence`. One server for the whole Vidocq workspace (one
+`projectKey` per sub-project). **Persistent volumes** — `stop`/`start`/`restart`
+keep account, token and projects; only `docker rm` + volume deletion wipes it. Auth
+via `SONAR_TOKEN` (env var, already set up).
 
 ```bash
-docker start mansart-sonar                       # then wait for /api/system/status = UP
+docker start vidocq-sonar                       # then wait for /api/system/status = UP
 ./mvnw -ntp -Pquality -pl mansart-jakarta-persistence/<module> -am verify \
   org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
 ```

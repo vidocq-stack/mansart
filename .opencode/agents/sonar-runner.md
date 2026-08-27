@@ -20,17 +20,19 @@ You run SonarQube and report numbers. You do not fix code.
 
 ## The instance
 
-`sonarqube:community` 26.5.0 in a container named **`mansart-sonar`**, published on
+`sonarqube:community` 26.5.0 in a container named **`vidocq-sonar`**, published on
 host port **9001** (container 9000). Project key `vidocq-mansart-persistence`.
 
-**The container has no volume mounted** — its data lives in the writable layer.
-`docker stop` / `docker start` are safe; `docker rm mansart-sonar` destroys the
-project history and any token that was minted. Never remove it, never recreate it.
+**Backed by persistent volumes** (`vidocq-sonar-data/-exts/-logs`).
+`docker stop` / `docker start` / `docker restart` preserve everything — account,
+token, projects. Only `docker rm` **plus** deleting the volumes wipes it. One
+server hosts every Vidocq project, distinguished by `sonar.projectKey`; do not spin
+up a second SonarQube. Auth is via the `SONAR_TOKEN` env var.
 
 ## Protocol
 
-1. **Ensure it is up.** If `docker ps` does not list `mansart-sonar` running,
-   `docker start mansart-sonar`. Then poll
+1. **Ensure it is up.** If `docker ps` does not list `vidocq-sonar` running,
+   `docker start vidocq-sonar`. Then poll
    `http://localhost:9001/api/system/status` until it answers `{"status":"UP"}` —
    SonarQube takes 40–90 s to boot. Poll every 10 s, give up after 3 minutes and
    report that it did not come up.
