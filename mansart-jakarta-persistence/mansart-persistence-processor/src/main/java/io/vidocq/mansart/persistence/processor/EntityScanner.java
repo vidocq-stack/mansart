@@ -174,10 +174,14 @@ final class EntityScanner {
         boolean isId     = hasAnnotation(field, "jakarta.persistence.Id");
         boolean isVersion = hasAnnotation(field, "jakarta.persistence.Version");
         boolean isElementCollection = hasAnnotation(field, "jakarta.persistence.ElementCollection");
+        boolean isOneToMany = hasAnnotation(field, "jakarta.persistence.OneToMany");
+        boolean isManyToMany = hasAnnotation(field, "jakarta.persistence.ManyToMany");
 
         AttributeKind kind;
         if (isId)       kind = AttributeKind.ID;
         else if (isVersion) kind = AttributeKind.VERSION;
+        else if (isOneToMany) kind = classifyRelationship(field, "ONE_TO_MANY");
+        else if (isManyToMany) kind = classifyRelationship(field, "MANY_TO_MANY");
         else if (isElementCollection) kind = classifyCollection(field);
         else if (isTextType(javaTypeFqn))  kind = AttributeKind.TEXT;
         else if (isBoolean(javaTypeFqn))   kind = AttributeKind.BOOLEAN;
@@ -215,6 +219,21 @@ final class EntityScanner {
             return AttributeKind.LIST;
         }
         // Collection, Set, HashSet, TreeSet, ArrayList all map to COLLECTION
+        return AttributeKind.COLLECTION;
+    }
+
+    /**
+     * Classifies a relationship field as ONE_TO_MANY or MANY_TO_MANY
+     * based on the collection type (Set → COLLECTION, List → LIST).
+     */
+    private AttributeKind classifyRelationship(VariableElement field, String relationshipType) {
+        TypeMirror typeMirror = field.asType();
+        String fqn = typeMirror.toString();
+
+        if (fqn.startsWith("java.util.List<") || fqn.startsWith("java.util.SortedList<")) {
+            return AttributeKind.LIST;
+        }
+        // Set, HashSet, TreeSet, Collection all map to COLLECTION
         return AttributeKind.COLLECTION;
     }
 
@@ -306,7 +325,8 @@ final class EntityScanner {
 
     enum AttributeKind {
         ID, VERSION, TEXT, NUMERIC, BOOLEAN, TEMPORAL,
-        COLLECTION, LIST, MAP
+        COLLECTION, LIST, MAP,
+        ONE_TO_MANY, MANY_TO_MANY
     }
 
     record AttributeDescriptor(

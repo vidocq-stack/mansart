@@ -69,6 +69,14 @@ final class MansartPersistenceMetamodelWriter {
             w.println();
 
             for (EntityScanner.AttributeDescriptor a : e.attributes()) {
+                EntityScanner.AttributeKind kind = a.kind();
+                if (kind == EntityScanner.AttributeKind.COLLECTION
+                        || kind == EntityScanner.AttributeKind.LIST
+                        || kind == EntityScanner.AttributeKind.MAP
+                        || kind == EntityScanner.AttributeKind.ONE_TO_MANY
+                        || kind == EntityScanner.AttributeKind.MANY_TO_MANY) {
+                    continue;
+                }
                 String boxed = box(a.javaTypeFqn());
                 w.println("    public static volatile SingularAttribute<" + simple + ", " + boxed + "> " + a.name() + ";");
             }
@@ -77,6 +85,14 @@ final class MansartPersistenceMetamodelWriter {
 
             w.println();
             for (EntityScanner.AttributeDescriptor a : e.attributes()) {
+                EntityScanner.AttributeKind kind = a.kind();
+                if (kind == EntityScanner.AttributeKind.COLLECTION
+                        || kind == EntityScanner.AttributeKind.LIST
+                        || kind == EntityScanner.AttributeKind.MAP
+                        || kind == EntityScanner.AttributeKind.ONE_TO_MANY
+                        || kind == EntityScanner.AttributeKind.MANY_TO_MANY) {
+                    continue;
+                }
                 w.println("    public static final String " + screamingSnake(a.name()) + " = \"" + a.name() + "\";");
             }
 
@@ -185,10 +201,10 @@ final class MansartPersistenceMetamodelWriter {
 
     /**
      * Writes plural attribute fields (SetAttribute, ListAttribute, MapAttribute)
-     * for any @ElementCollection fields in the descriptor.
+     * for any @ElementCollection, @OneToMany, or @ManyToMany fields in the descriptor.
      */
     private void writePluralAttributes(PrintWriter w, String simple,
-                                       java.util.List<EntityScanner.AttributeDescriptor> attributes) {
+                                        java.util.List<EntityScanner.AttributeDescriptor> attributes) {
         for (EntityScanner.AttributeDescriptor a : attributes) {
             switch (a.kind()) {
                 case COLLECTION ->
@@ -197,6 +213,8 @@ final class MansartPersistenceMetamodelWriter {
                     w.println("    public static volatile ListAttribute<" + simple + ", " + elementType(a.javaTypeFqn()) + "> " + a.name() + ";");
                 case MAP ->
                     w.println("    public static volatile MapAttribute<" + simple + ", " + mapKeyType(a.javaTypeFqn()) + ", " + mapValueType(a.javaTypeFqn()) + "> " + a.name() + ";");
+                case ONE_TO_MANY, MANY_TO_MANY ->
+                    w.println("    public static volatile SetAttribute<" + simple + ", " + elementType(a.javaTypeFqn()) + "> " + a.name() + ";");
                 default -> { /* SingularAttribute already written */ }
             }
         }

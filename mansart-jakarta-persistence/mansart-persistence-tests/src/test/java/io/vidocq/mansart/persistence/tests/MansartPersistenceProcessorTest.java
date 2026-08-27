@@ -151,4 +151,35 @@ class MansartPersistenceProcessorTest {
         assertThat(content).contains("@StaticMetamodel(TestMappedSuperclass.class)");
         assertThat(content).contains("SingularAttribute<TestMappedSuperclass, java.lang.String> createdAt");
     }
+
+    /**
+     * Verifies that the APT processor generates plural attribute fields for
+     * {@code @OneToMany} and {@code @ManyToMany} relationships.
+     */
+    @Test
+    void processorGeneratesRelationshipPluralAttributes() throws IOException {
+        String basedir = System.getProperty("user.dir");
+        Path generatedFile = Path.of(basedir, "target", "generated-sources",
+                "annotations", "io.vidocq.mansart.persistence.tests.TestRelationshipEntity_.java");
+
+        assertThat(generatedFile)
+                .as("JPA static metamodel TestRelationshipEntity_ should be generated")
+                .exists()
+                .isReadable();
+
+        String content = Files.readString(generatedFile);
+
+        assertThat(content).contains("public abstract class TestRelationshipEntity_");
+        assertThat(content).contains("@StaticMetamodel(TestRelationshipEntity.class)");
+        // Singular attributes
+        assertThat(content).contains("SingularAttribute<TestRelationshipEntity, java.lang.Long> id");
+        assertThat(content).contains("SingularAttribute<TestRelationshipEntity, java.lang.String> name");
+        // Plural attributes: @OneToMany(Set) → SetAttribute, @OneToMany(List) → ListAttribute
+        assertThat(content).contains("SetAttribute<TestRelationshipEntity");
+        assertThat(content).contains("items");
+        assertThat(content).contains("ListAttribute<TestRelationshipEntity");
+        assertThat(content).contains("orderedItems");
+        // @ManyToMany(Set) → SetAttribute
+        assertThat(content).contains("tags");
+    }
 }

@@ -186,14 +186,17 @@ files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persisten
 proof:  `mansart-persistence-tests` — 4 new tests (embeddable, nested embeddable, mapped superclass, entity), 67/67 unit tests
 notes:  Extends JP-09 scanner + writer. Generates `EmbeddableName_`, `MappedSuperclassName_`, plus `SetAttribute_`/`ListAttribute_`/`MapAttribute_` for `@ElementCollection`. TCK embeddabletype/Client tests runtime `EmbeddableType` (already done in JP-15).
 
-### JP-18 — APT: `@OneToMany`/`@ManyToMany` → `PluralAttribute` generation  [TODO]
+### JP-18 — APT: `@OneToMany`/`@ManyToMany` → `PluralAttribute` generation  [DONE]
 deps:   JP-17
-files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended)
-proof:  TCK `core/metamodelapi/collectionattribute/Client`, `listattribute/Client`, `setattribute/Client`
+files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended),
+        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceMetamodelWriter.java` (extended),
+        `mansart-persistence-tests/src/main/java/io/vidocq/mansart/persistence/tests/TestOrderItem.java` (new),
+        `mansart-persistence-tests/src/main/java/io/vidocq/mansart/persistence/tests/TestRelationshipEntity.java` (new),
+proof:  `mansart-persistence-tests/src/test/java/io/vidocq/mansart/persistence/processor/MansartPersistenceProcessorTest.java`
 notes:  PluralAttribute generation in static metamodel (collectionType, elementType).
 
 ### JP-19 — APT: `@IdClass` composite key support  [TODO]
-deps:   JP-17
+deps:   JP-17, JP-18
 files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended)
 proof:  TCK `core/metamodelapi/entitytype/Client.getIdClassAttributes()`
 notes:  DID2Employee entity with composite key (firstName + lastName).
