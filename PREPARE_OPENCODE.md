@@ -737,10 +737,10 @@ empty reactor it is five minutes. Hence card **JP-01b**, scheduled before JP-02.
 
 ### The instance
 
-Container **`mansart-sonar`**, `sonarqube:community` 26.5.0, published on host port
+Container **`vidocq-sonar`**, `sonarqube:community` 26.5.0, published on host port
 **9001** (container 9000). Project key `vidocq-mansart-persistence`.
 
-> **Now backed by persistent volumes** (`mansart-sonar-data`, `-exts`, `-logs`),
+> **Now backed by persistent volumes** (`vidocq-sonar-data`, `-exts`, `-logs`),
 > recreated 2026-08-27. `docker stop`/`start`/`restart` preserve everything —
 > account, token, history. Only `docker rm` **plus** deleting the volumes wipes it.
 > The `sonar-runner` agent keeps `docker rm`/`docker volume` on `ask` anyway.
@@ -880,9 +880,9 @@ apply rather than a limit you hit.
 | the quality gate alone | `/sonar [module]` | reading the scanner log |
 | where something is in Java | the `lsp` tool | `grep -r` |
 
-`/gate` starts the `mansart-sonar` container itself if it is stopped. It takes
+`/gate` starts the `vidocq-sonar` container itself if it is stopped. It takes
 40–90 s to boot on the first gate of the day and competes for RAM with the pinned
-model; `docker stop mansart-sonar` between sessions rather than `docker rm` (§12).
+model; `docker stop vidocq-sonar` between sessions rather than `docker rm` (§12).
 
 ### 13.4 Adding or closing work
 
@@ -931,7 +931,7 @@ State is always on disk. A session that dies loses a turn, never work.
 | Sonar reports 0 % coverage | JaCoCo never ran — missing `-Pquality`, or the build stopped at `test` instead of `verify` | `./mvnw -Pquality … verify sonar:sonar` |
 | Sonar analysis refused with 401 | SonarQube 26.5 dropped anonymous analysis | mint a token in the UI, `export SONAR_TOKEN=…` before launching opencode |
 | Sonar full of issues on `_Entity` classes | generated code is being analysed | check `sonar.exclusions` still covers `**/generated-sources/**` |
-| the Sonar project history vanished | `docker rm mansart-sonar` — the container has no volume | it is not recoverable; `stop`/`start` only, never `rm` |
+| the Sonar project history vanished | `docker rm vidocq-sonar` — the container has no volume | it is not recoverable; `stop`/`start` only, never `rm` |
 | the model answers "I don't see any screenshot attached" | the text model is blind; its vision tower is unreachable (§1) | use the `vision` agent or `/see` — a different model entirely |
 | "no Java server configured" / jdtls never starts | OpenCode's version regex needs `"X.Y.Z"`; a major-only JDK prints `"25"` and is rejected (§10) | pin a patch release in `.sdkmanrc` (`java=25.0.3-tem`), `sdk env`, relaunch |
 | an identifier read off a screenshot does not exist | the vision model made an OCR slip (`samuelfaj` → `samuelselfaj`, measured) | never paste a transcribed package or class name without checking it |
