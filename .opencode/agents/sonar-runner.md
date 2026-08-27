@@ -61,15 +61,25 @@ up a second SonarQube. Auth is via the `SONAR_TOKEN` env var.
 
 ## Authentication
 
-Try without a token first. If the scanner or the API returns **401/403**, stop
-immediately and report exactly this — do not retry, do not try to work around it:
+SonarQube 26.5 requires a token; anonymous analysis is impossible. **Resolve the
+token from the environment first, then from a local file**, so it works no matter
+which shell launched opencode:
 
-> SonarQube 26.5 requires a token for analysis. Mint one at
-> http://localhost:9001 → My Account → Security, then
-> `export SONAR_TOKEN=<token>` before launching opencode.
+```bash
+TOKEN="${SONAR_TOKEN:-$(cat ~/.config/vidocq/sonar-token 2>/dev/null)}"
+```
 
-When `SONAR_TOKEN` is set in the environment, pass it as `-Dsonar.token=$SONAR_TOKEN`
-and as a `Bearer` header on the API calls. Never print the token.
+Pass it as `-Dsonar.token="$TOKEN"` to the Maven scan and as a `Bearer $TOKEN`
+header on the API calls. **Never print the token.**
+
+Only if `TOKEN` is empty (neither the env var nor the file has it) do you stop, and
+report exactly:
+
+> No Sonar token. Put one in `~/.config/vidocq/sonar-token` (or `export SONAR_TOKEN`).
+> Mint it at http://localhost:9001 → My Account → Security.
+
+Never treat a present-but-rejected token as "missing": a 401 with a token set means
+the token is wrong or expired, which is a different message.
 
 ## Report
 
