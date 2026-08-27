@@ -204,3 +204,34 @@ cache being rebuilt; only the second pass (warm cache) is trustworthy.
 
 **Operational takeaway: restart oMLX periodically** (each morning, or when decode
 feels slow). The Restart button is enough.
+
+### 2026-08-27 — KV cache quantization (int8): no speed gain, rejected
+
+A suggestion (via Gemini) to enable KV-cache quantization for speed. Tested, rejected.
+
+Two premises were wrong before testing:
+- **oMLX has no `--kv-bits` flag** — KV quantization is `turboquant_kv_enabled` /
+  `turboquant_kv_bits` in `~/.omlx/model_settings.json`.
+- **The KV is not 12–16 GB at 100k, it is ~1.9 GB.** This is a hybrid model: only
+  10 of 40 layers are full-attention (KV grows), the other 30 are gated-delta-net
+  (constant recurrent state, no growing KV). Estimating it as a dense transformer
+  overstates the KV ~6×.
+
+Measured, at equal server state (fresh, warm cache, 2nd pass), 40k context:
+
+| | decode |
+| --- | --- |
+| fp16 KV (default) | 61.8 tok/s |
+| int8 KV | 61.8 tok/s |
+
+Identical. No gain — expected, since the KV was never the bottleneck at 2 GB.
+
+**Methodology note / mea culpa**: a first, hasty reading showed int8 "18–28% slower",
+but that compared a *rested* server (76 tok/s) against a *fresh* one (62). Server
+freshness, not KV bits, drove the difference (see the 2026-08-27 uptime entry). Never
+compare decode across two server states. The clean same-state comparison is the 40k
+row above: a draw.
+
+**Verdict: keep `turboquant_kv_enabled: false` (fp16 KV).** No speed to gain, and KV
+quantization is exactly what would erode long-context quality — the model's weak
+spot. Reverted after the test.
