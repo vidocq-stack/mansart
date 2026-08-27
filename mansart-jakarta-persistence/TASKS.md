@@ -201,11 +201,11 @@ files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persisten
 proof:  TCK `core/metamodelapi/entitytype/Client.getIdClassAttributes()`
 notes:  DID2Employee entity with composite key (firstName + lastName).
 
-### JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes  [TODO]
+### JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes  [WIP]
 deps:   JP-10, JP-11, JP-12, JP-13, JP-14, JP-15, JP-16, JP-17, JP-18, JP-19
 files:  STATUS.md (update TCK numbers)
 proof:  TCK `--sig` or entity-only run: `core/metamodelapi` — 257 methods PASS
-notes:  Full-suite run. 16 Client classes, 257 test methods. Gate for M1.
+notes:  Full-suite run. 16 Client classes, 257 test methods. Gate for M1. Blocked: Sonar reports 1 BLOCKER on pre-existing `MansartPersistenceProvider.java` reflection (`Class.forName` + `getDeclaredFields`). TCK 0/259 (stub provider, same baseline).
 
 ## M2 … M9
 

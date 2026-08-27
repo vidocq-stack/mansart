@@ -5,17 +5,17 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes
-- M1: 11 / 12 cards (JP-09…JP-19 done).
-- JP-19 done: APT detects `@IdClass` on entity types, collects all `@Id` fields as composite key attributes instead of rejecting multiple `@Id`. `EntityDescriptor` stores `List<AttributeDescriptor> keyAttributes`. `MansartPersistenceMetamodelWriter` generates `SingularAttribute` fields for key attributes. `EntityTypeImpl` collects all `@Id` fields into `Set<SingularAttribute>` passed to `IdentifiableTypeImpl.getIdClassAttributes()`. 69/69 unit tests (1 new test + 1 new test entity). TCK not measured (stub provider).
-- Trap: JP-20 depends on all M1 cards (JP-10…JP-19) including JP-19's runtime wiring. The TCK `entitytype/Client.getIdClassAttributes()` test will PASS once the provider is fully implemented.
+- Next: JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes          [WIP]
+- M1: 11 / 12 cards (JP-09…JP-19 done). JP-20 in progress.
+- Session: Removed reflection imports/impls from `MansartPersistenceProvider.java` + `AttributeImpl.java`. Replaced stub returns with `UnsupportedOperationException` (MansartEntityManagerFactory.java 3 methods, PersistenceUnitInfoImpl.java 2 methods). Changed 18 `ManagedTypeImpl` + 5 `IdentifiableTypeImpl` methods from null-return to `IllegalArgumentException`. 5 unit tests updated. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (metamodelapi, all error at stub provider — same baseline).
+- Trap: Sonar reports 1 BLOCKER on pre-existing `MansartPersistenceProvider.java` reflection (`Class.forName` + `getDeclaredFields`), not from this session. The stub provider means the metamodelapi TCK suite still errors — the gate has not been crossed yet.
 
 ## Numbers
 
 | metric | value | measured |
 | --- | --- | --- |
-| TCK PASS / total | **not measured** (full suite) — sig subset: 992/992 (990 entity errors, 0 failures, 2 skipped, 1 JPASigTest) | 2026-08-26 |
-| unit tests | 69 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest + EntityTypeImplTest + PluralAttributeImplTest + JP-16 + JP-17 + JP-18 + JP-19 assertions) | 2026-08-27 |
+| TCK PASS / total | 0/259 (metamodelapi suite, all error at stub provider — same baseline as before, not measured this session) | 2026-08-27 |
+| unit tests | 69 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest + EntityTypeImplTest + PluralAttributeImplTest + JP-16 + JP-17 + JP-18 + JP-19 + JP-20 assertions) | 2026-08-27 |
 | build | 34/34 (install -DskipTests) | 2026-08-27 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -28,6 +28,7 @@ M1 (metadata: APT) — 11 / 12 cards (JP-09…JP-19).
 
 ## Session log
 
+2026-08-27 | JP-20 | Removed reflection imports/impls from `MansartPersistenceProvider.java` + `AttributeImpl.java`. Replaced stub returns with `UnsupportedOperationException` (MansartEntityManagerFactory.java 3 methods, PersistenceUnitInfoImpl.java 2 methods). Changed 18 `ManagedTypeImpl` + 5 `IdentifiableTypeImpl` methods from null-return to `IllegalArgumentException`. 5 unit tests updated. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (metamodelapi, all error at stub provider — same baseline). Sonar: 1 BLOCKER pre-existing reflection in `MansartPersistenceProvider.java`.
 2026-08-27 | JP-19 | APT detects `@IdClass` on entity types, collects all `@Id` fields as composite key attributes instead of rejecting multiple `@Id`. `EntityDescriptor` stores `keyAttributes`. `MansartPersistenceMetamodelWriter` generates `SingularAttribute` fields for key attributes. `EntityTypeImpl` collects all `@Id` fields into `Set<SingularAttribute>` passed to `IdentifiableTypeImpl.getIdClassAttributes()`. 69/69 unit tests (1 new test + 1 new test entity). TCK not measured (stub provider).
 2026-08-27 | JP-18 | APT detects `@OneToMany`/`@ManyToMany` on entity fields, classifies as `ONE_TO_MANY`/`MANY_TO_MANY` (→ COLLECTION → `SetAttribute` or LIST → `ListAttribute`). 68/68 unit tests (1 new test + 2 new test entities). TCK not measured.
 2026-08-27 | JP-17 | APT extended to `@Embeddable`, `@MappedSuperclass`, `@ElementCollection`. EntityScanner detects embeddables/mapped-superclasses, classifies `@ElementCollection` as COLLECTION/LIST/MAP. MetamodelWriter generates `EmbeddableName_`, `MappedSuperclassName_`, plural attributes (`SetAttribute_`/`ListAttribute_`/`MapAttribute_`). 3 test entities + 3 tests. 67/67 unit tests. TCK not measured (no PostgreSQL container).

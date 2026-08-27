@@ -64,7 +64,7 @@ class EntityTypeImplTest {
     }
 
     /**
-     * Verify that {@code getId(Class)} returns null when no attribute matches the given type.
+     * Verify that {@code getId(Class)} throws IllegalArgumentException when no attribute matches the given type.
      */
     @Test
     void getIdReturnsNullForNonMatchingType() {
@@ -80,10 +80,10 @@ class EntityTypeImplTest {
         var entityType = new io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl<>(
             TestEntity.class, ENTITY_NAME, attrs);
 
-        // String.class is not the id type — should return null (not throw)
-        SingularAttribute<? super TestEntity, ?> result = entityType.getId(String.class);
-
-        assertThat(result).isNull();
+        // String.class is not the id type — should throw IllegalArgumentException
+        assertThatExceptionOfType(IllegalArgumentException.class)
+            .isThrownBy(() -> entityType.getId(String.class))
+            .withMessageContaining("String");
     }
 
     /**
@@ -115,7 +115,7 @@ class EntityTypeImplTest {
     }
 
     /**
-     * Verify that {@code getVersion(Class)} returns null when no attribute matches.
+     * Verify that {@code getVersion(Class)} throws IllegalArgumentException when no attribute matches.
      */
     @Test
     void getVersionReturnsNullForNonMatchingType() {
@@ -131,10 +131,10 @@ class EntityTypeImplTest {
         var entityType = new io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl<>(
             TestEntity.class, ENTITY_NAME, attrs);
 
-        // String.class is not the version type — should return null (not throw)
-        SingularAttribute<? super TestEntity, ?> result = entityType.getVersion(String.class);
-
-        assertThat(result).isNull();
+        // String.class is not the version type — should throw IllegalArgumentException
+        assertThatExceptionOfType(IllegalArgumentException.class)
+            .isThrownBy(() -> entityType.getVersion(String.class))
+            .withMessageContaining("String");
     }
 
     /**
@@ -263,7 +263,7 @@ class EntityTypeImplTest {
     }
 
     /**
-     * Verify that {@code getIdType()} returns null when there is no id attribute.
+     * Verify that {@code getIdType()} throws UnsupportedOperationException when there is no id attribute.
      */
     @Test
     void getIdTypeReturnsNullWhenNoId() {
@@ -276,7 +276,10 @@ class EntityTypeImplTest {
         var entityType = new io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl<>(
             TestEntity.class, ENTITY_NAME, attrs);
 
-        assertThat(entityType.getIdType()).isNull();
+        // No id attribute defined — should throw UnsupportedOperationException
+        assertThatExceptionOfType(UnsupportedOperationException.class)
+            .isThrownBy(entityType::getIdType)
+            .withMessageContaining("no identifier attribute");
     }
 
     /**

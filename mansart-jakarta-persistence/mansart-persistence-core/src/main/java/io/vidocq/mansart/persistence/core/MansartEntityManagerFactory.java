@@ -104,7 +104,7 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public Map<String, Object> getProperties() {
-        return Map.of();
+        throw new UnsupportedOperationException("not implemented: getProperties");
     }
 
     @Override
@@ -144,12 +144,12 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public <R> Map<String, TypedQueryReference<R>> getNamedQueries(Class<R> resultType) {
-        return Map.of();
+        throw new UnsupportedOperationException("not implemented: getNamedQueries");
     }
 
     @Override
     public <E> Map<String, EntityGraph<? extends E>> getNamedEntityGraphs(Class<E> entityType) {
-        return Map.of();
+        throw new UnsupportedOperationException("not implemented: getNamedEntityGraphs");
     }
 
     @Override

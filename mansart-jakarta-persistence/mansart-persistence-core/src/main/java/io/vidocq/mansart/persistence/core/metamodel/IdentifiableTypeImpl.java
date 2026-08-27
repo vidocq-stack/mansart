@@ -71,7 +71,7 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
         if (idAttribute != null && type.isAssignableFrom(idAttribute.getJavaType())) {
             return (SingularAttribute<? super X, Y>) idAttribute;
         }
-        return null;
+        throw new IllegalArgumentException("No identifier attribute matching type: " + type);
     }
 
     @Override
@@ -82,7 +82,7 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
                 return (SingularAttribute<X, Y>) sa;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared identifier attribute matching type: " + type);
     }
 
     @Override
@@ -90,7 +90,7 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
         if (versionAttribute != null && type.isAssignableFrom(versionAttribute.getJavaType())) {
             return (SingularAttribute<? super X, Y>) versionAttribute;
         }
-        return null;
+        throw new IllegalArgumentException("No version attribute matching type: " + type);
     }
 
     @Override
@@ -101,7 +101,7 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
                 return (SingularAttribute<X, Y>) sa;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared version attribute matching type: " + type);
     }
 
     @Override
@@ -129,6 +129,6 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
         if (idAttribute != null) {
             return idAttribute.getType();
         }
-        return null;
+        throw new UnsupportedOperationException("not implemented: getIdType — no identifier attribute defined");
     }
 }

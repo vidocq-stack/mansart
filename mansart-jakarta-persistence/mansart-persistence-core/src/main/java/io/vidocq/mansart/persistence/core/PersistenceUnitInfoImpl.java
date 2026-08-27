@@ -121,9 +121,7 @@ public class PersistenceUnitInfoImpl implements PersistenceUnitInfo {
 
     @Override
     public DataSource getJtaDataSource() {
-        // Not bound yet — the reader stores the resource name only.
-        // A real DataSource is provided by the container at deployment.
-        return null;
+        throw new UnsupportedOperationException("not implemented: getJtaDataSource");
     }
 
     public String getJtaDataSourceName() {
@@ -136,8 +134,7 @@ public class PersistenceUnitInfoImpl implements PersistenceUnitInfo {
 
     @Override
     public DataSource getNonJtaDataSource() {
-        // Not bound yet — the reader stores the resource name only.
-        return null;
+        throw new UnsupportedOperationException("not implemented: getNonJtaDataSource");
     }
 
     public String getNonJtaDataSourceName() {

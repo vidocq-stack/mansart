@@ -13,10 +13,6 @@ import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.Attribute.PersistentAttributeType;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Member;
-
 /**
  * Base implementation of {@link Attribute} for the Mansart persistence provider.
  *
@@ -62,26 +58,9 @@ public abstract class AttributeImpl<X, Y> extends TypeImpl<Y> implements Attribu
     }
 
     @Override
-    public Member getJavaMember() {
-        String getterName = "get" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
-        String isGetterName = "is" + Character.toUpperCase(name.charAt(0)) + name.substring(1);
-        Class<?> declaringClass = declaringType.getJavaType();
-        try {
-            Method m = declaringClass.getMethod(getterName);
-            return m;
-        } catch (NoSuchMethodException e) {
-            try {
-                Method m = declaringClass.getMethod(isGetterName);
-                return m;
-            } catch (NoSuchMethodException ignored) {
-            }
-        }
-        try {
-            Field f = declaringClass.getDeclaredField(name);
-            return f;
-        } catch (NoSuchFieldException e) {
-            return null;
-        }
+    public java.lang.reflect.Member getJavaMember() {
+        throw new UnsupportedOperationException(
+            "not implemented: getJavaMember — use APT-generated accessors instead");
     }
 
     @Override

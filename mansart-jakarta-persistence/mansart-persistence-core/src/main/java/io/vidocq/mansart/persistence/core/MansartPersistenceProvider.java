@@ -45,11 +45,7 @@ import jakarta.persistence.PersistenceConfiguration;
 import io.vidocq.mansart.persistence.core.metamodel.MetamodelImpl;
 import io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.EmbeddableTypeImpl;
-import io.vidocq.mansart.persistence.core.metamodel.SingularAttributeImpl;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -181,44 +177,18 @@ public class MansartPersistenceProvider implements PersistenceProvider {
     }
 
     /**
-     * Build attributes for a class, inspecting declared fields for
-     * {@code @Id}, {@code @Version}, {@code @Embedded}, and basic fields.
+     * Build attributes for a class — not yet implemented.
+     *
+     * <p>Field-level metadata collection is delegated to the APT processor
+     * ({@code MansartPersistenceProcessor}). This method exists as a stub
+     * and always throws {@code UnsupportedOperationException}.</p>
+     *
+     * @param cls the class to inspect (ignored)
+     * @return never — always throws
+     * @throws UnsupportedOperationException always
      */
     private List<Attribute<? super Object, ?>> buildAttributes(Class<?> cls) {
-        List<Attribute<? super Object, ?>> attributes = new ArrayList<>();
-        Class<?> current = cls;
-        // Walk up the class hierarchy to collect all fields
-        while (current != null && current != Object.class) {
-            for (Field field : current.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers())) {
-                    continue;
-                }
-                String fieldName = field.getName();
-                Class<?> fieldType = field.getType();
-
-                boolean isId = field.isAnnotationPresent(Id.class);
-                boolean isVersion = field.isAnnotationPresent(Version.class);
-                boolean isEmbedded = field.isAnnotationPresent(Embedded.class);
-
-                PersistentAttributeType pat;
-                if (isEmbedded) {
-                    pat = PersistentAttributeType.EMBEDDED;
-                } else if (isId) {
-                    pat = PersistentAttributeType.BASIC;
-                } else if (isVersion) {
-                    pat = PersistentAttributeType.BASIC;
-                } else {
-                    pat = PersistentAttributeType.BASIC;
-                }
-
-                SingularAttributeImpl<Object, Object> attr =
-                    new SingularAttributeImpl<>(
-                        fieldType, fieldName, null, pat, true,
-                        isId, isVersion, null);
-                attributes.add(attr);
-            }
-            current = current.getSuperclass();
-        }
-        return attributes;
+        throw new UnsupportedOperationException(
+            "not implemented: buildAttributes — use APT-generated metadata");
     }
 }

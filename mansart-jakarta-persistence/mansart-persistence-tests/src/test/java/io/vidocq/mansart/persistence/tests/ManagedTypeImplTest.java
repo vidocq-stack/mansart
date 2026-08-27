@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Unit tests for {@link io.vidocq.mansart.persistence.core.metamodel.ManagedTypeImpl}
@@ -78,7 +79,7 @@ class ManagedTypeImplTest {
     }
 
     /**
-     * Verify that {@code getCollection(String)} returns null when no matching
+     * Verify that {@code getCollection(String)} throws IllegalArgumentException when no matching
      * collection attribute exists.
      */
     @Test
@@ -93,9 +94,9 @@ class ManagedTypeImplTest {
         var entityType = new io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl<>(
             TestEntity.class, ENTITY_NAME, attrs);
 
-        var result = entityType.getCollection("projects");
-
-        assertThat(result).isNull();
+        assertThatExceptionOfType(IllegalArgumentException.class)
+            .isThrownBy(() -> entityType.getCollection("projects"))
+            .withMessageContaining("projects");
     }
 
     /**
@@ -128,7 +129,7 @@ class ManagedTypeImplTest {
     }
 
     /**
-     * Verify that {@code getCollection(String, Class<E>) returns null when the
+     * Verify that {@code getCollection(String, Class<E>) throws IllegalArgumentException when the
      * element type does not match.
      */
     @Test
@@ -144,11 +145,10 @@ class ManagedTypeImplTest {
         var entityType = new io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl<>(
             TestEntity.class, ENTITY_NAME, attrs);
 
-        // String.class is not the element type of "projects"
-        @SuppressWarnings("unchecked")
-        var result = entityType.getCollection("projects", String.class);
-
-        assertThat(result).isNull();
+        // String.class is not the element type of "projects" — should throw
+        assertThatExceptionOfType(IllegalArgumentException.class)
+            .isThrownBy(() -> entityType.getCollection("projects", String.class))
+            .withMessageContaining("projects");
     }
 
     /**

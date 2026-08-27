@@ -61,7 +61,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No singular attribute named: " + name + " with type: " + type);
     }
 
     @Override
@@ -73,7 +73,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared singular attribute named: " + name + " with type: " + type);
     }
 
     @Override
@@ -113,7 +113,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No collection attribute named: " + name + " with element type: " + elementType);
     }
 
     @Override
@@ -135,7 +135,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared collection attribute named: " + name + " with element type: " + elementType);
     }
 
     @Override
@@ -147,7 +147,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No set attribute named: " + name + " with element type: " + elementType);
     }
 
     @Override
@@ -159,7 +159,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared set attribute named: " + name + " with element type: " + elementType);
     }
 
     @Override
@@ -171,7 +171,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No list attribute named: " + name + " with element type: " + elementType);
     }
 
     @Override
@@ -183,7 +183,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared list attribute named: " + name + " with element type: " + elementType);
     }
 
     @Override
@@ -195,7 +195,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No map attribute named: " + name + " with key type: " + keyType + ", value type: " + valueType);
     }
 
     @Override
@@ -207,7 +207,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared map attribute named: " + name + " with key type: " + keyType + ", value type: " + valueType);
     }
 
     @Override
@@ -283,7 +283,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No collection attribute named: " + name);
     }
 
     @Override
@@ -301,7 +301,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 }
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared collection attribute named: " + name);
     }
 
     @Override
@@ -311,7 +311,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 return (SetAttribute<? super X, ?>) attr;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No set attribute named: " + name);
     }
 
     @Override
@@ -321,7 +321,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 return (SetAttribute<X, ?>) attr;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared set attribute named: " + name);
     }
 
     @Override
@@ -331,7 +331,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 return (ListAttribute<? super X, ?>) attr;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No list attribute named: " + name);
     }
 
     @Override
@@ -341,7 +341,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 return (ListAttribute<X, ?>) attr;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared list attribute named: " + name);
     }
 
     @Override
@@ -351,7 +351,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 return (MapAttribute<? super X, ?, ?>) attr;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No map attribute named: " + name);
     }
 
     @Override
@@ -361,6 +361,6 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
                 return (MapAttribute<X, ?, ?>) attr;
             }
         }
-        return null;
+        throw new IllegalArgumentException("No declared map attribute named: " + name);
     }
 }
