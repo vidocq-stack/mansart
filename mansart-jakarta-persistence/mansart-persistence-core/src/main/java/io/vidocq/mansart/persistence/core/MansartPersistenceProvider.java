@@ -18,23 +18,12 @@
  */
 package io.vidocq.mansart.persistence.core;
 
-import jakarta.persistence.Embedded;
 import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Embeddable;
-import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-import jakarta.persistence.Version;
-import jakarta.persistence.Basic;
 import jakarta.persistence.metamodel.Attribute;
-import jakarta.persistence.metamodel.EmbeddableType;
-import jakarta.persistence.metamodel.EntityType;
 import jakarta.persistence.metamodel.ManagedType;
-import jakarta.persistence.metamodel.Metamodel;
-import jakarta.persistence.metamodel.SingularAttribute;
-import jakarta.persistence.metamodel.Type;
-import jakarta.persistence.metamodel.Type.PersistenceType;
-import jakarta.persistence.metamodel.Attribute.PersistentAttributeType;
 import jakarta.persistence.spi.PersistenceUnitInfo;
 import jakarta.persistence.spi.PersistenceProvider;
 import jakarta.persistence.spi.ProviderUtil;
@@ -58,7 +47,7 @@ import java.util.Set;
  * a {@code PersistenceProvider} implementation via {@code ServiceLoader}.
  * It builds a runtime metamodel from the managed class names in the
  * persistence unit, inspecting annotations (@Entity, @Embeddable,
- * @MappedSuperclass, @Id, @Version, @Embedded) to construct
+ * @MappedSuperclass) to construct
  * {@code Metamodel}, {@code EntityType}, {@code EmbeddableType},
  * and {@code SingularAttribute} instances.</p>
  *
@@ -107,10 +96,6 @@ public class MansartPersistenceProvider implements PersistenceProvider {
      * {@code @MappedSuperclass} → {@code EntityTypeImpl} with
      * {@code PersistenceType.MAPPED_SUPERCLASS}.</p>
      *
-     * <p>For each managed type, inspects fields for {@code @Id},
-     * {@code @Version}, {@code @Embedded}, and plain fields
-     * (treated as basic attributes).</p>
-     *
      * @param classNames the managed class names
      * @return a {@code MetamodelImpl} containing all managed types
      */
@@ -120,10 +105,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
             try {
                 Class<?> cls = Class.forName(className, false,
                         Thread.currentThread().getContextClassLoader());
-                ManagedType<?> mt = buildManagedType(cls, null);
-                if (mt != null) {
-                    managedTypes.add(mt);
-                }
+                managedTypes.add(buildManagedType(cls, null));
             } catch (ClassNotFoundException e) {
                 // Skip classes that cannot be loaded
             }
@@ -144,9 +126,6 @@ public class MansartPersistenceProvider implements PersistenceProvider {
             jakarta.persistence.metamodel.IdentifiableType<?> supertype) {
         if (cls.isAnnotationPresent(Entity.class)) {
             String entityName = cls.getAnnotation(Entity.class).name();
-            if (entityName.isEmpty()) {
-                entityName = cls.getSimpleName();
-            }
             return buildEntityType(cls, entityName, supertype);
         }
         if (cls.isAnnotationPresent(Embeddable.class)) {
@@ -156,7 +135,8 @@ public class MansartPersistenceProvider implements PersistenceProvider {
             String entityName = cls.getSimpleName();
             return buildEntityType(cls, entityName, supertype);
         }
-        return null;
+        throw new IllegalArgumentException(
+            "not a managed type: " + cls.getName());
     }
 
     /**
@@ -164,7 +144,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
      */
     private EntityTypeImpl<?> buildEntityType(Class<?> cls, String entityName,
             jakarta.persistence.metamodel.IdentifiableType<?> supertype) {
-        List<Attribute<? super Object, ?>> attributes = buildAttributes(cls);
+        List<Attribute<? super Object, ?>> attributes = buildAttributes();
         return new EntityTypeImpl<>(cls, entityName, attributes);
     }
 
@@ -172,7 +152,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
      * Build an embeddable type with its attributes.
      */
     private EmbeddableTypeImpl<?> buildEmbeddableType(Class<?> cls) {
-        List<Attribute<? super Object, ?>> attributes = buildAttributes(cls);
+        List<Attribute<? super Object, ?>> attributes = buildAttributes();
         return new EmbeddableTypeImpl<>(cls, attributes);
     }
 
@@ -183,11 +163,10 @@ public class MansartPersistenceProvider implements PersistenceProvider {
      * ({@code MansartPersistenceProcessor}). This method exists as a stub
      * and always throws {@code UnsupportedOperationException}.</p>
      *
-     * @param cls the class to inspect (ignored)
      * @return never — always throws
      * @throws UnsupportedOperationException always
      */
-    private List<Attribute<? super Object, ?>> buildAttributes(Class<?> cls) {
+    private List<Attribute<? super Object, ?>> buildAttributes() {
         throw new UnsupportedOperationException(
             "not implemented: buildAttributes — use APT-generated metadata");
     }

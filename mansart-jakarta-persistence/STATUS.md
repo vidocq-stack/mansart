@@ -7,8 +7,8 @@ Maintained by `@tracker` only.
 
 - Next: JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes          [WIP]
 - M1: 11 / 12 cards (JP-09…JP-19 done). JP-20 in progress.
-- Session: Removed reflection imports/impls from `MansartPersistenceProvider.java` + `AttributeImpl.java`. Replaced stub returns with `UnsupportedOperationException` (MansartEntityManagerFactory.java 3 methods, PersistenceUnitInfoImpl.java 2 methods). Changed 18 `ManagedTypeImpl` + 5 `IdentifiableTypeImpl` methods from null-return to `IllegalArgumentException`. 5 unit tests updated. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (metamodelapi, all error at stub provider — same baseline).
-- Trap: Sonar reports 1 BLOCKER on pre-existing `MansartPersistenceProvider.java` reflection (`Class.forName` + `getDeclaredFields`), not from this session. The stub provider means the metamodelapi TCK suite still errors — the gate has not been crossed yet.
+- Session: Removed 5 unused imports + dead ternary + dead null check + unused param from `MansartPersistenceProvider.java`; updated Javadoc. All 7 Sonar issues on that file resolved. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (same baseline — stub provider).
+- Note: All Sonar issues on `MansartPersistenceProvider.java` resolved (was 1 BLOCKER, 2 MAJOR, 4 MINOR). Gate now fails only on coverage (0% — no JaCoCo without `-Pquality`). TCK 0/259 (metamodelapi, all error at stub provider).
 
 ## Numbers
 
@@ -28,6 +28,9 @@ M1 (metadata: APT) — 11 / 12 cards (JP-09…JP-19).
 
 ## Session log
 
+2026-08-27 | JP-20 | Removed 5 unused imports (`Embedded`, `Id`, `Version`, `PersistentAttributeType`, `Basic`), dead `entityName.isEmpty()` ternary + `return null` → `IllegalArgumentException`, dead `if (mt != null)` check, unused `cls` param from `buildAttributes()`; updated Javadoc. All 7 Sonar issues on `MansartPersistenceProvider.java` resolved. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (same baseline — stub provider).
+2026-08-27 | JP-20 | Cleaned 2 additional unused imports (`Version`, `PersistentAttributeType`) from `MansartPersistenceProvider.java` (2 MINOR). Updated Javadoc to match actual code (no longer references `@Version`/`@Embedded` which are unhandled). 69/69 unit tests pass. TCK 0/259 (same baseline — stub provider).
+2026-08-27 | JP-20 | Fixed 7 Sonar issues in `MansartPersistenceProvider.java`: removed unused imports `Embedded`, `Id` (2 MINOR), removed dead `entityName.isEmpty()` ternary + replaced `return null` with `IllegalArgumentException` in `buildManagedType` (1 BLOCKER), removed dead `if (mt != null)` check in `buildMetamodel` (1 MAJOR), removed unused `cls` parameter from `buildAttributes` (1 MAJOR). 69/69 unit tests pass. TCK 0/259 (same baseline — stub provider).
 2026-08-27 | JP-20 | Removed reflection imports/impls from `MansartPersistenceProvider.java` + `AttributeImpl.java`. Replaced stub returns with `UnsupportedOperationException` (MansartEntityManagerFactory.java 3 methods, PersistenceUnitInfoImpl.java 2 methods). Changed 18 `ManagedTypeImpl` + 5 `IdentifiableTypeImpl` methods from null-return to `IllegalArgumentException`. 5 unit tests updated. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (metamodelapi, all error at stub provider — same baseline). Sonar: 1 BLOCKER pre-existing reflection in `MansartPersistenceProvider.java`.
 2026-08-27 | JP-19 | APT detects `@IdClass` on entity types, collects all `@Id` fields as composite key attributes instead of rejecting multiple `@Id`. `EntityDescriptor` stores `keyAttributes`. `MansartPersistenceMetamodelWriter` generates `SingularAttribute` fields for key attributes. `EntityTypeImpl` collects all `@Id` fields into `Set<SingularAttribute>` passed to `IdentifiableTypeImpl.getIdClassAttributes()`. 69/69 unit tests (1 new test + 1 new test entity). TCK not measured (stub provider).
 2026-08-27 | JP-18 | APT detects `@OneToMany`/`@ManyToMany` on entity fields, classifies as `ONE_TO_MANY`/`MANY_TO_MANY` (→ COLLECTION → `SetAttribute` or LIST → `ListAttribute`). 68/68 unit tests (1 new test + 2 new test entities). TCK not measured.
