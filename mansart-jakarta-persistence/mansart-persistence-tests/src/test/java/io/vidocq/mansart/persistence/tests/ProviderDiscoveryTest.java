@@ -39,8 +39,6 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  */
 class ProviderDiscoveryTest {
 
-    private static final String EXPECTED = "not implemented: createEntityManagerFactory";
-
     @Test
     void providerIsDiscoverableViaServiceLoader() {
         List<PersistenceProvider> providers = new ArrayList<>();
@@ -58,8 +56,10 @@ class ProviderDiscoveryTest {
     void createEntityManagerFactoryThrows() {
         PersistenceProvider provider = ServiceLoader.load(PersistenceProvider.class).iterator().next();
 
-        assertThatExceptionOfType(UnsupportedOperationException.class)
+        // createContainerEntityManagerFactory() is now implemented — it parses persistence.xml
+        // and throws IllegalArgumentException when the requested persistence unit is not found.
+        assertThatExceptionOfType(IllegalArgumentException.class)
             .isThrownBy(() -> provider.createEntityManagerFactory("nonexistent", Map.of()))
-            .withMessage(EXPECTED);
+            .withMessageContaining("not found in persistence.xml");
     }
 }

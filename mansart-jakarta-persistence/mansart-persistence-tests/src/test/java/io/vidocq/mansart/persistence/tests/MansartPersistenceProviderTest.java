@@ -82,18 +82,18 @@ class MansartPersistenceProviderTest {
 
     /**
      * Verify that {@code createContainerEntityManagerFactory(PersistenceUnitInfo, Map)}
-     * throws when managed classes require runtime attribute building (not yet implemented).
+     * succeeds when entity classes can be loaded and their attributes inspected.
      *
-     * <p>Attribute-level metadata collection is delegated to the APT processor.
-     * This test verifies that attempting to build a metamodel from loadable
-     * entity classes fails with the expected exception.</p>
+     * <p>Attribute-level metadata collection uses reflection at bootstrap time
+     * (not runtime during entity operations) to read annotations and field types.</p>
      */
     @Test
-    void createContainerEntityManagerFactoryWithLoadableEntitiesThrows() {
-        assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(() -> provider.createContainerEntityManagerFactory(
-                        makeInfo(List.of("io.vidocq.mansart.persistence.tests.TestEntity")), Map.of()))
-                .withMessageContaining("buildAttributes");
+    void createContainerEntityManagerFactoryWithLoadableEntitiesSucceeds() {
+        var emf = provider.createContainerEntityManagerFactory(
+                makeInfo(List.of("io.vidocq.mansart.persistence.tests.TestEntity")), Map.of());
+
+        assertThat(emf).isNotNull();
+        assertThat(emf.isOpen()).isTrue();
     }
 
     /**
@@ -131,13 +131,13 @@ class MansartPersistenceProviderTest {
 
     /**
      * Verify that {@code createEntityManagerFactory(String, Map)} throws
-     * {@code UnsupportedOperationException}.
+     * {@code IllegalArgumentException} when the persistence unit is not found.
      */
     @Test
     void createEntityManagerFactoryWithNameAndHintsThrows() {
-        assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(() -> provider.createEntityManagerFactory("test", Map.of()))
-                .withMessageContaining("not implemented");
+        assertThatExceptionOfType(IllegalArgumentException.class)
+            .isThrownBy(() -> provider.createEntityManagerFactory("nonexistent", Map.of()))
+            .withMessageContaining("not found in persistence.xml");
     }
 
     /**
