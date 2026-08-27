@@ -6,17 +6,25 @@ Start a new work session on mansart-jakarta-persistence.
 
 **Session warm-up (do this first, once, before anything else):**
 
-- **Wake jdtls.** Call the `lsp` tool with `workspaceSymbol` for `EntityManager`.
-  If it errors or returns nothing, jdtls is still indexing the 30-module reactor —
-  wait ~15 s and call it once more. Do not proceed to code until it answers; a warm
-  jdtls is what keeps the session off `read` and `grep`. If it still fails after two
-  tries, say so and continue — but expect to rely on `read`.
+- **Wake jdtls by READING a Java file — not by calling `lsp`.** OpenCode starts a
+  language server only when a file of that language is opened: "LSPs will activate
+  as files are read". A bare `lsp` call hits a server that does not exist yet and
+  comes back empty. So, in order:
+  1. `read` one small existing Java file to trigger the spawn — e.g.
+     `mansart-jakarta-data/mansart-data-core/src/main/java/module-info.java` (a
+     dozen lines; this is the one justified whole-file `read` of the session).
+  2. **Index the TCK** (below) — this takes a second and gives jdtls a moment to
+     begin indexing the 30-module reactor.
+  3. Now call `lsp` `workspaceSymbol` for `EntityManager`. If it is still empty,
+     jdtls is mid-index — wait ~15 s and retry once. If it answers, jdtls is warm
+     for the whole session. If it still fails, say so and continue on `read` — but
+     that is the degraded mode, not the normal one.
 - **Index the TCK for search.** Call `ctx_ctx_index` with
   `path: ".tck-ref/tck-index.md"`, `source: "JPA32-TCK"`. Nothing enters context.
   This makes `@spec-reader` able to `ctx_search` the TCK + spec instead of
   unzipping jars. If `.tck-ref/tck-index.md` is missing, run
-  `python3 .opencode/build-tck-index.py` first (it needs the extracted sources; the
-  TCK skill documents the one-time extraction).
+  `python3 .opencode/build-tck-index.py` first (the TCK skill documents the
+  one-time source extraction it needs).
 
 Then:
 

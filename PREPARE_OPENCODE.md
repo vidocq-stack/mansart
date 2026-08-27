@@ -671,11 +671,14 @@ for the rest of the session — rational, and fatal. Two causes:
   > matchable form: `25.0.3-tem` → `"25.0.3"`. This is an OpenCode bug; the
   > workaround is to pin a patch version. Verify after launch:
   > `pgrep -f 'org.eclipse.jdt.ls.core'` should show a process parented by opencode.
-- **jdtls starts lazily and indexes 30 modules** (1–2 min). The first `lsp` call
-  lands before it is ready. Two mitigations, both now in place: `/next` **wakes
-  jdtls first** (a `workspaceSymbol` call, retried once after ~15 s), and every
-  agent prompt says a failed `lsp` means *not ready*, retry once — never fall back
-  to `read` on a single error.
+- **jdtls starts lazily and indexes 30 modules** (1–2 min), and — the part that
+  cost an extra round — it spawns **only when a Java file is read**, not when the
+  `lsp` tool is called ("LSPs will activate as files are read"). A bare
+  `workspaceSymbol` hits a server that does not exist yet and returns empty. So
+  `/next` warms it in the right order: **read one small `.java`** (a `module-info`)
+  to trigger the spawn, index the TCK (a natural ~1 s pause), then call `lsp` and
+  retry once if still mid-index. Every agent prompt also says a failed `lsp` means
+  *not ready, retry* — never fall back to `read` on a single error.
 
 Trust but verify: `pgrep -f 'org.eclipse.jdt.ls.core'` during a session tells you
 whether OpenCode's jdtls is actually up (distinct from Claude Code's own).
