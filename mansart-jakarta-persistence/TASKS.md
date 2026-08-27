@@ -151,13 +151,15 @@ notes:  7 test methods across 3 clients. All error at setup (stub provider NPE) 
         `TypeImpl.getPersistenceType()` and `BindableImpl.getBindableType()/getBindableJavaType()`
         were already correct.
 
-### JP-14 — `MapAttribute`, `ListAttribute`, `SetAttribute` impls  [TODO]
+### JP-14 — `MapAttribute`, `ListAttribute`, `SetAttribute` impls  [DONE]
 deps:   JP-13
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/MapAttributeImpl.java`,
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/ListAttributeImpl.java`,
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/SetAttributeImpl.java`
 proof:  TCK `core/metamodelapi/mapattribute/Client`, `listattribute/Client`, `setattribute/Client`
-notes:  11 test methods.
+notes:  12 test methods across 3 clients. `SetAttribute` and `ListAttribute` are marker interfaces
+        (no new methods). `MapAttribute` adds `getKeyType()` and `getKeyJavaType()`.
+        All 12 error at setup (stub provider NPE) — same baseline.
 
 ### JP-15 — `EmbeddableType`, `MappedSuperclassType`, `pluralAttribute` impls  [TODO]
 deps:   JP-14
