@@ -181,3 +181,26 @@ empty snapshot directories), 28 GB for the rejected `…-Optimized-Balance`, 20 
 for the duplicate copy, minus overlap, plus ~47 empty metadata stubs left in the
 HuggingFace cache by deletions made through the oMLX UI, which only manages
 `~/omlx-models`.
+
+### 2026-08-27 — Server ageing costs ~25% decode, a restart recovers it
+
+Session decode averages had drifted down and it looked like a regression. It was
+not the model or the sampling config: it was oMLX uptime.
+
+Decode rate at fixed context, oMLX's own logged tok/s:
+
+| context | 25/08 (server fresh) | 26/08 (aged) | 27/08 after restart |
+| --- | --- | --- | --- |
+| 20k | 113 | 86 | ~89 |
+| 40k | 102 | 71 | **92** |
+
+The 40k row is the clean signal: 71 tok/s after ~19 h of uptime (SSD cache grown to
+90 GB, memory fragmentation), 92 tok/s immediately after a restart, without touching
+any setting. The sampling changes of 26/08 (force_sampling, top_k 20, thinking
+budget) are therefore not the cause — a restart alone recovered it.
+
+First-pass measurements at a cold context (11, 28 tok/s) are artefacts of the SSD
+cache being rebuilt; only the second pass (warm cache) is trustworthy.
+
+**Operational takeaway: restart oMLX periodically** (each morning, or when decode
+feels slow). The Restart button is enough.

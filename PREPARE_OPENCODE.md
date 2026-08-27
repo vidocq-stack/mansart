@@ -910,6 +910,7 @@ State is always on disk. A session that dies loses a turn, never work.
 | Maven log floods the window | not routed through `ctx` | `ctx_execute` / `ctx_batch_execute`, and read surefire XML |
 | a `write` fails twice with a schema error | tool-call formatting | write the file with a bash heredoc and move on |
 | the agent answers, announces what it will do, and stops — every time | it is describing tool calls instead of emitting them, usually after a compaction (§3) | do not prod it; quit, restart, `/next`. State is in `STATUS.md` |
+| decode speed drifts down over a day | oMLX uptime — the SSD cache grows to ~90 GB and memory fragments; costs ~25% decode after ~19 h (measured, BENCH.md) | restart oMLX (the Restart button); a fresh server recovers the speed |
 | the context indicator reads over 100 % | expected: `limit.context` is a display denominator, nothing enforces it (§3) | not a fault. Judge the session by whether it still calls tools, not by the percentage |
 | an agent ignores a frontmatter setting | unknown fields are silently routed into `options` instead of erroring — `topP` vs `top_p` | check the allowed field list, then confirm with a request capture (§4.1) |
 | a custom agent behaves less carefully than `build` | its prompt replaced the built-in one (§5.1) | the shared scaffolding is in `.opencode/OPERATING.md`; check it is still listed in `instructions` |
