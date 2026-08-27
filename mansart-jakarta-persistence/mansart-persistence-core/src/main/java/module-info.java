@@ -2,9 +2,8 @@
  * Core runtime — EntityManagerFactory, EntityManager, persistence context,
  * JPQL/Criteria, flush.
  *
- * Exports nothing; consumers obtain instances via
+ * Exports the metamodel package; consumers obtain instances via
  * {@link jakarta.persistence.Persistence#createEntityManagerFactory}.
- * ServiceLoader support is added when real implementation classes exist.
  */
 module io.vidocq.mansart.persistence.core {
 
@@ -17,6 +16,8 @@ module io.vidocq.mansart.persistence.core {
 
     requires jakarta.inject;
     requires static jakarta.transaction;
+
+    exports io.vidocq.mansart.persistence.core.metamodel;
 
     provides jakarta.persistence.spi.PersistenceProvider
         with io.vidocq.mansart.persistence.core.MansartPersistenceProvider;

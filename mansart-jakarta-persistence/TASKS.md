@@ -119,7 +119,7 @@ notes:  Mirror the Data processor's EntityScanner + JpaMetamodelWriter. Only @En
         No runtime metamodel (that's JP-10+). The TCK's metamodelapi tests use `EntityManager.getMetamodel()`
         at runtime — the static metamodel generation is the APT prerequisite.
 
-### JP-10 — runtime `Metamodel`, `EntityType`, `SingularAttribute` SPI types  [TODO]
+### JP-10 — runtime `Metamodel`, `EntityType`, `SingularAttribute` SPI types  [DONE]
 deps:   JP-09
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/...`
 proof:  TCK `core/metamodelapi/metadata/Client` — `getManagedTypes()`, `entity()`, `embeddable()`
