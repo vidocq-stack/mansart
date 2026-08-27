@@ -19,7 +19,7 @@ Maintained by `@tracker` only.
 | metric | value | measured |
 | --- | --- | --- |
 | TCK PASS / total | **not measured** (full suite) — sig subset: 992/992 (990 entity errors, 0 failures, 2 skipped, 1 JPASigTest) | 2026-08-26 |
-| unit tests | 28 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest) | 2026-08-27 |
+| unit tests | 42 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest + EntityTypeImplTest) | 2026-08-27 |
 | build | 34/34 (install -DskipTests) | 2026-08-27 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -55,3 +55,11 @@ types for `getType()`, `getBindableJavaType()`, constructor casts), `ManagedType
 Unit test `MetamodelEntityNameTest` (3 tests) verifies `entity(String)` resolves by
 name, throws for unknown names, and throws for non-entity types. 34/34 modules build,
 28/28 unit tests pass (3 new). Full TCK client blocked by stub provider (JP-03).
+
+2026-08-27 10:00 — JP-11: `EntityTypeImpl` and `IdentifiableTypeImpl` fully implemented
+(getId, getDeclaredId, getVersion, getDeclaredVersion, getIdClassAttributes, getIdType,
+getDeclaredAttributes). Fixed `ManagedTypeImpl.getDeclaredAttributes()` to return
+`Set.copyOf(declaredAttributes)` (was casting `List` to `Set`, causing `ClassCastException`).
+Made `TypeImpl` constructor public for test accessibility. Unit test `EntityTypeImplTest`
+(14 tests) covers all implemented methods. 34/34 modules build, 42/42 unit tests pass
+(14 new).

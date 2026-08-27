@@ -22,7 +22,7 @@ public abstract class TypeImpl<X> implements Type<X> {
     private final Class<X> javaType;
     private final PersistenceType persistenceType;
 
-    TypeImpl(Class<X> javaType, PersistenceType persistenceType) {
+    public TypeImpl(Class<X> javaType, PersistenceType persistenceType) {
         this.javaType = javaType;
         this.persistenceType = persistenceType;
     }

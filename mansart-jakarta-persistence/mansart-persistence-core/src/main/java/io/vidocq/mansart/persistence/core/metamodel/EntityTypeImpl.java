@@ -32,7 +32,25 @@ public final class EntityTypeImpl<X> extends IdentifiableTypeImpl<X>
     @SuppressWarnings("rawtypes")
     public EntityTypeImpl(Class<?> javaType, String entityName,
                    List<Attribute<? super Object, ?>> declaredAttributes) {
-        super((Class<X>) javaType, entityName, declaredAttributes);
+        SingularAttribute<? super Object, ?> idAttr = null;
+        SingularAttribute<? super Object, ?> verAttr = null;
+        boolean singleId = false;
+        int idCount = 0;
+
+        for (Attribute<? super Object, ?> attr : declaredAttributes) {
+            if (attr instanceof SingularAttribute<?, ?> sa) {
+                if (sa.isId()) {
+                    idCount++;
+                    idAttr = (SingularAttribute<? super Object, ?>) sa;
+                }
+                if (sa.isVersion()) {
+                    verAttr = (SingularAttribute<? super Object, ?>) sa;
+                }
+            }
+        }
+        singleId = (idCount == 1);
+        super((Class<X>) javaType, entityName, declaredAttributes,
+              null, idAttr, verAttr, singleId);
         this.entityName = entityName;
     }
 

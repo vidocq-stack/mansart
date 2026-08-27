@@ -54,22 +54,40 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
 
     @Override
     public <Y> SingularAttribute<? super X, Y> getId(Class<Y> type) {
-        throw new UnsupportedOperationException("not implemented: getId(Class)");
+        if (idAttribute != null && type.isAssignableFrom(idAttribute.getJavaType())) {
+            return (SingularAttribute<? super X, Y>) idAttribute;
+        }
+        return null;
     }
 
     @Override
     public <Y> SingularAttribute<X, Y> getDeclaredId(Class<Y> type) {
-        throw new UnsupportedOperationException("not implemented: getDeclaredId(Class)");
+        for (Attribute<? super X, ?> attr : getDeclaredAttributes()) {
+            if (attr instanceof SingularAttribute<?, ?> sa
+                    && sa.isId() && type.isAssignableFrom(sa.getJavaType())) {
+                return (SingularAttribute<X, Y>) sa;
+            }
+        }
+        return null;
     }
 
     @Override
     public <Y> SingularAttribute<? super X, Y> getVersion(Class<Y> type) {
-        throw new UnsupportedOperationException("not implemented: getVersion(Class)");
+        if (versionAttribute != null && type.isAssignableFrom(versionAttribute.getJavaType())) {
+            return (SingularAttribute<? super X, Y>) versionAttribute;
+        }
+        return null;
     }
 
     @Override
     public <Y> SingularAttribute<X, Y> getDeclaredVersion(Class<Y> type) {
-        throw new UnsupportedOperationException("not implemented: getDeclaredVersion(Class)");
+        for (Attribute<? super X, ?> attr : getDeclaredAttributes()) {
+            if (attr instanceof SingularAttribute<?, ?> sa
+                    && sa.isVersion() && type.isAssignableFrom(sa.getJavaType())) {
+                return (SingularAttribute<X, Y>) sa;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -89,11 +107,14 @@ public abstract class IdentifiableTypeImpl<X> extends ManagedTypeImpl<X>
 
     @Override
     public Set<SingularAttribute<? super X, ?>> getIdClassAttributes() {
-        throw new UnsupportedOperationException("not implemented: getIdClassAttributes");
+        return Set.of();
     }
 
     @Override
     public Type<?> getIdType() {
-        throw new UnsupportedOperationException("not implemented: getIdType");
+        if (idAttribute != null) {
+            return idAttribute.getType();
+        }
+        return null;
     }
 }

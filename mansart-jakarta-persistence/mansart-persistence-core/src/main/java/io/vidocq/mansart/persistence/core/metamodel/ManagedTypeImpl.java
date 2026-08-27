@@ -49,7 +49,7 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
 
     @Override
     public Set<Attribute<X, ?>> getDeclaredAttributes() {
-        return (Set) declaredAttributes;
+        return (Set) Set.copyOf(declaredAttributes);
     }
 
     @Override
