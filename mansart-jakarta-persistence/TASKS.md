@@ -125,7 +125,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/metamodelapi/metadata/Client` — `getManagedTypes()`, `entity()`, `embeddable()`
 notes:  Runtime implementation of `jakarta.persistence.metamodel.Metamodel` and subtypes.
 
-### JP-11 — `EntityType`, `IdentifiableType`, `ManagedType` concrete impls  [WIP]
+### JP-11 — `EntityType`, `IdentifiableType`, `ManagedType` concrete impls  [DONE]
 deps:   JP-10
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/EntityTypeImpl.java`,
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/IdentifiableTypeImpl.java`,
@@ -134,7 +134,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/metamodelapi/entitytype/Client` — `getName()`, `getId()`, `getVersion()`, `getSupertype()`
 notes:  17 test methods. 14 unit tests pass. 3 TCK-specific methods remain (getDeclaredIdType, getVersionType, etc).
 
-### JP-12 — `SingularAttribute`, `PluralAttribute`, `CollectionAttribute` impls  [TODO]
+### JP-12 — `SingularAttribute`, `PluralAttribute`, `CollectionAttribute` impls  [DONE]
 deps:   JP-11
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/SingularAttributeImpl.java`,
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/PluralAttributeImpl.java`

@@ -20,7 +20,8 @@ public abstract class BindableImpl<T> extends TypeImpl<T> implements Bindable<T>
 
     private final BindableType bindableType;
 
-    BindableImpl(Class<T> javaType, BindableType bindableType) {
+    @SuppressWarnings("rawtypes")
+    BindableImpl(Class<?> javaType, BindableType bindableType) {
         super(javaType, null);
         this.bindableType = bindableType;
     }

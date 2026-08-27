@@ -23,19 +23,20 @@ import java.lang.reflect.Member;
  * @param <X> the type containing the represented attribute
  * @param <Y> the type of the represented attribute
  */
-public abstract class AttributeImpl<X, Y> extends BindableImpl<Y> implements Attribute<X, Y> {
+public abstract class AttributeImpl<X, Y> extends TypeImpl<Y> implements Attribute<X, Y> {
 
     private final String name;
     private final ManagedType<X> declaringType;
     private final PersistentAttributeType persistentAttributeType;
     protected final boolean optional;
 
-    AttributeImpl(Class<Y> javaType, String name,
-                  ManagedType<X> declaringType,
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    AttributeImpl(Class<?> javaType, String name,
+                  ManagedType<?> declaringType,
                   PersistentAttributeType persistentAttributeType, boolean optional) {
-        super(javaType, BindableType.SINGULAR_ATTRIBUTE);
+        super(javaType, null);
         this.name = name;
-        this.declaringType = declaringType;
+        this.declaringType = (ManagedType<X>) declaringType;
         this.persistentAttributeType = persistentAttributeType;
         this.optional = optional;
     }

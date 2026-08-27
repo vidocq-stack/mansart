@@ -22,8 +22,9 @@ public abstract class TypeImpl<X> implements Type<X> {
     private final Class<X> javaType;
     private final PersistenceType persistenceType;
 
-    public TypeImpl(Class<X> javaType, PersistenceType persistenceType) {
-        this.javaType = javaType;
+    @SuppressWarnings("rawtypes")
+    public TypeImpl(Class<?> javaType, PersistenceType persistenceType) {
+        this.javaType = (Class<X>) javaType;
         this.persistenceType = persistenceType;
     }
 
