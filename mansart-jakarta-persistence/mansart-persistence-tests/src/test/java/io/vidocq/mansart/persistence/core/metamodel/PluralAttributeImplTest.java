@@ -41,11 +41,84 @@ class PluralAttributeImplTest {
     }
 
     @Test
+    void getPersistentAttributeTypeReturnsOneToMany() {
+        var attr = new PluralAttributeImpl<>(
+                java.util.Collection.class, "projects",
+                new TestManagedType<>(Object.class),
+                PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
+                new BasicType<>(String.class));
+        assertEquals(PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
+                attr.getPersistentAttributeType());
+    }
+
+    @Test
+    void getPersistentAttributeTypeReturnsManyToMany() {
+        var attr = new PluralAttributeImpl<>(
+                java.util.Set.class, "employees",
+                new TestManagedType<>(Object.class),
+                PluralAttribute.CollectionType.SET,
+                PluralAttribute.PersistentAttributeType.MANY_TO_MANY,
+                new BasicType<>(String.class));
+        assertEquals(PluralAttribute.PersistentAttributeType.MANY_TO_MANY,
+                attr.getPersistentAttributeType());
+    }
+
+    @Test
+    void getPersistentAttributeTypeReturnsManyToOne() {
+        var attr = new PluralAttributeImpl<>(
+                java.util.Collection.class, "department",
+                new TestManagedType<>(Object.class),
+                PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.MANY_TO_ONE,
+                new BasicType<>(String.class));
+        assertEquals(PluralAttribute.PersistentAttributeType.MANY_TO_ONE,
+                attr.getPersistentAttributeType());
+    }
+
+    @Test
+    void getPersistentAttributeTypeReturnsOneToOne() {
+        var attr = new PluralAttributeImpl<>(
+                java.util.Collection.class, "profile",
+                new TestManagedType<>(Object.class),
+                PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_ONE,
+                new BasicType<>(String.class));
+        assertEquals(PluralAttribute.PersistentAttributeType.ONE_TO_ONE,
+                attr.getPersistentAttributeType());
+    }
+
+    @Test
+    void getPersistentAttributeTypeReturnsElementCollection() {
+        var attr = new PluralAttributeImpl<>(
+                java.util.List.class, "tags",
+                new TestManagedType<>(Object.class),
+                PluralAttribute.CollectionType.LIST,
+                PluralAttribute.PersistentAttributeType.ELEMENT_COLLECTION,
+                new BasicType<>(String.class));
+        assertEquals(PluralAttribute.PersistentAttributeType.ELEMENT_COLLECTION,
+                attr.getPersistentAttributeType());
+    }
+
+    @Test
+    void getPersistentAttributeTypeReturnsBasic() {
+        var attr = new PluralAttributeImpl<>(
+                java.util.Collection.class, "items",
+                new TestManagedType<>(Object.class),
+                PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.BASIC,
+                new BasicType<>(String.class));
+        assertEquals(PluralAttribute.PersistentAttributeType.BASIC,
+                attr.getPersistentAttributeType());
+    }
+
+    @Test
     void getCollectionTypeReturnsCollection() {
         var attr = new PluralAttributeImpl<>(
                 java.util.Collection.class, "projects",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
                 new BasicType<>(String.class));
         assertEquals(PluralAttribute.CollectionType.COLLECTION, attr.getCollectionType());
     }
@@ -56,6 +129,7 @@ class PluralAttributeImplTest {
                 java.util.Set.class, "tags",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.SET,
+                PluralAttribute.PersistentAttributeType.ELEMENT_COLLECTION,
                 new BasicType<>(String.class));
         assertEquals(PluralAttribute.CollectionType.SET, attr.getCollectionType());
     }
@@ -66,6 +140,7 @@ class PluralAttributeImplTest {
                 java.util.List.class, "items",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.LIST,
+                PluralAttribute.PersistentAttributeType.BASIC,
                 new BasicType<>(String.class));
         assertEquals(PluralAttribute.CollectionType.LIST, attr.getCollectionType());
     }
@@ -76,6 +151,7 @@ class PluralAttributeImplTest {
                 java.util.Map.class, "properties",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.MAP,
+                PluralAttribute.PersistentAttributeType.BASIC,
                 new BasicType<>(Integer.class));
         assertEquals(PluralAttribute.CollectionType.MAP, attr.getCollectionType());
     }
@@ -86,6 +162,7 @@ class PluralAttributeImplTest {
                 java.util.Collection.class, "projects",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
                 new BasicType<>(String.class));
         assertEquals(String.class, attr.getElementType().getJavaType());
     }
@@ -106,6 +183,7 @@ class PluralAttributeImplTest {
                 java.util.Collection.class, "projects",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
                 new BasicType<>(String.class));
         assertEquals("projects", attr.getName());
     }
@@ -116,6 +194,7 @@ class PluralAttributeImplTest {
                 java.util.Collection.class, "projects",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
                 new BasicType<>(String.class));
         assertTrue(attr.isCollection());
     }
@@ -126,6 +205,7 @@ class PluralAttributeImplTest {
                 java.util.Collection.class, "projects",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
                 new BasicType<>(String.class));
         assertEquals(jakarta.persistence.metamodel.Bindable.BindableType.PLURAL_ATTRIBUTE,
                 attr.getBindableType());
@@ -137,6 +217,7 @@ class PluralAttributeImplTest {
                 java.util.Collection.class, "projects",
                 new TestManagedType<>(Object.class),
                 PluralAttribute.CollectionType.COLLECTION,
+                PluralAttribute.PersistentAttributeType.ONE_TO_MANY,
                 new BasicType<>(String.class));
         assertEquals(String.class, attr.getBindableJavaType());
     }

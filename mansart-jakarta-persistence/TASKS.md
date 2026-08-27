@@ -161,7 +161,7 @@ notes:  12 test methods across 3 clients. `SetAttribute` and `ListAttribute` are
         (no new methods). `MapAttribute` adds `getKeyType()` and `getKeyJavaType()`.
         All 12 error at setup (stub provider NPE) — same baseline.
 
-### JP-15 — `EmbeddableType`, `MappedSuperclassType`, `pluralAttribute` impls  [TODO]
+### JP-15 — `EmbeddableType`, `MappedSuperclassType`, `pluralAttribute` impls  [DONE]
 deps:   JP-14
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/EmbeddableTypeImpl.java`,
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/MappedSuperclassTypeImpl.java`

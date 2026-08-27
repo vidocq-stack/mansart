@@ -28,7 +28,7 @@ TCK universe: 269 client classes, ~1 745 methods
 ## Milestone
 
 M0 (skeleton and harness) — 8 / 8 cards done.
-M1 (metadata: APT) — 6 / 12 cards done (JP-09, JP-10, JP-11, JP-12, JP-13, JP-14).
+M1 (metadata: APT) — 7 / 12 cards done (JP-09, JP-10, JP-11, JP-12, JP-13, JP-14, JP-15).
 
 ## Session log
 
@@ -37,6 +37,8 @@ M1 (metadata: APT) — 6 / 12 cards done (JP-09, JP-10, JP-11, JP-12, JP-13, JP-
 2026-08-27 14:25 — JP-13: `BasicTypeImpl` (extends `TypeImpl`, marker interface — no new methods). `TypeImpl` + `BindableImpl` were already correct. 34/34 build, 52/52 unit tests. TCK 7 tests all error at setup (stub provider NPE) — same baseline.
 
 2026-08-27 14:50 — JP-14: `SetAttributeImpl` + `ListAttributeImpl` (marker subclasses of `PluralAttributeImpl`) + `MapAttributeImpl` (adds `getKeyType()` + `getKeyJavaType()`). 34/34 build, 52/52 unit tests. TCK 12 tests all error at setup (stub provider NPE) — same baseline.
+
+2026-08-27 15:10 — JP-15: `MappedSuperclassTypeImpl` (extends `IdentifiableTypeImpl`, `getIdClassAttributes()` throws `IllegalArgumentException`), `PluralAttributeImpl` constructor accepts `PersistentAttributeType` (was hardcoded `BASIC`), `ManagedTypeImpl.getSingularAttributes()` + `getPluralAttributes()` filter by instance type (was raw cast / empty set). 34/34 build, 58/58 unit tests (6 new). TCK 67 tests across 3 clients all error at setup (stub provider NPE) — same baseline.
 
 2026-08-26 14:35 — JP-09: APT processes `@Entity`, generates JPA static metamodel
 (`ClassName_`). 34/34 modules build, 25/25 tests pass (23 existing + 2 new).

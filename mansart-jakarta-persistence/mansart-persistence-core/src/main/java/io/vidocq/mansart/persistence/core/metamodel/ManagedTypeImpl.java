@@ -64,12 +64,16 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
 
     @Override
     public Set<SingularAttribute<? super X, ?>> getSingularAttributes() {
-        return (Set) declaredAttributes;
+        return declaredAttributes.stream()
+                .filter(attr -> attr instanceof SingularAttribute<?, ?>)
+                .map(attr -> (SingularAttribute<? super X, ?>) attr)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Set<SingularAttribute<X, ?>> getDeclaredSingularAttributes() {
-        return (Set) declaredAttributes;
+        return (Set) getSingularAttributes();
     }
 
     @Override
@@ -114,12 +118,16 @@ public abstract class ManagedTypeImpl<X> extends TypeImpl<X> implements ManagedT
 
     @Override
     public Set<PluralAttribute<? super X, ?, ?>> getPluralAttributes() {
-        return Set.of();
+        return declaredAttributes.stream()
+                .filter(attr -> attr instanceof PluralAttribute<?, ?, ?>)
+                .map(attr -> (PluralAttribute<? super X, ?, ?>) attr)
+                .collect(java.util.stream.Collectors.toSet());
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Set<PluralAttribute<X, ?, ?>> getDeclaredPluralAttributes() {
-        return Set.of();
+        return (Set) getPluralAttributes();
     }
 
     @Override

@@ -27,10 +27,32 @@ public class PluralAttributeImpl<X, C, E> extends AttributeImpl<X, C>
         implements PluralAttribute<X, C, E> {
 
     private final PluralAttribute.CollectionType collectionType;
+    private final PluralAttribute.PersistentAttributeType persistentAttributeType;
     private final Type<E> elementType;
 
     /**
      * Creates a plural attribute.
+     *
+     * @param javaType the collection Java type (e.g. {@code java.util.Collection})
+     * @param name the attribute name
+     * @param declaringType the declaring managed type
+     * @param collectionType the collection type (COLLECTION, SET, LIST, MAP)
+     * @param persistentAttributeType the persistent attribute type (ONE_TO_MANY, etc.)
+     * @param elementType the element type
+     */
+    public PluralAttributeImpl(Class<?> javaType, String name,
+                               ManagedType<?> declaringType,
+                               PluralAttribute.CollectionType collectionType,
+                               PluralAttribute.PersistentAttributeType persistentAttributeType,
+                               Type<E> elementType) {
+        super(javaType, name, declaringType, persistentAttributeType, true);
+        this.collectionType = collectionType;
+        this.persistentAttributeType = persistentAttributeType;
+        this.elementType = elementType;
+    }
+
+    /**
+     * Creates a plural attribute with {@link PluralAttribute.PersistentAttributeType#BASIC}.
      *
      * @param javaType the collection Java type (e.g. {@code java.util.Collection})
      * @param name the attribute name
@@ -42,10 +64,8 @@ public class PluralAttributeImpl<X, C, E> extends AttributeImpl<X, C>
                                ManagedType<?> declaringType,
                                PluralAttribute.CollectionType collectionType,
                                Type<E> elementType) {
-        super(javaType, name, declaringType,
-              PersistentAttributeType.BASIC, true);
-        this.collectionType = collectionType;
-        this.elementType = elementType;
+        this(javaType, name, declaringType, collectionType,
+             PluralAttribute.PersistentAttributeType.BASIC, elementType);
     }
 
     @Override
