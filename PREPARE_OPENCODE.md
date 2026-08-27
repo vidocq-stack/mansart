@@ -549,7 +549,8 @@ rather than in the prompt.
 | `/audit [scope]` | anti-drift audit of the branch |
 | `/spec <question>` | one question to the spec oracle |
 | `/status` | where the project stands, from `STATUS.md` and `TASKS.md` only |
-| `/session-end` | hands real numbers to `@tracker`, updates state, commits |
+| `/commit` | updates `STATUS.md` + `TASKS.md` via `@tracker`, THEN commits, in that order and one commit — the geste that replaces `git commit` so the tracker is never out of sync |
+| `/session-end` | hands real numbers to `@tracker`, updates state, commits, and hands off for a fresh session |
 | `/see <question>` | reads an attached image with the vision model and returns its exact text (§5) |
 | `/log-bug`, `/log-bench` | append to `BUG.md` / `BENCH.md` in the workspace format |
 
