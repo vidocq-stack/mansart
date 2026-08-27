@@ -24,11 +24,11 @@ import jakarta.persistence.metamodel.Type;
  * @param <X> the type the represented set belongs to
  * @param <E> the element type of the represented set
  */
-final class SetAttributeImpl<X, E> extends PluralAttributeImpl<X, java.util.Set<E>, E>
+public final class SetAttributeImpl<X, E> extends PluralAttributeImpl<X, java.util.Set<E>, E>
         implements SetAttribute<X, E> {
 
     @SuppressWarnings("rawtypes")
-    SetAttributeImpl(Class<?> javaType, String name,
+    public SetAttributeImpl(Class<?> javaType, String name,
                      ManagedType<?> declaringType,
                      Type<E> elementType) {
         super(javaType, name, declaringType,

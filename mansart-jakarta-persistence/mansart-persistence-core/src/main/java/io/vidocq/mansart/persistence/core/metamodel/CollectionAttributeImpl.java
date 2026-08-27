@@ -9,32 +9,29 @@
  */
 package io.vidocq.mansart.persistence.core.metamodel;
 
-import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.CollectionAttribute;
+import jakarta.persistence.metamodel.ManagedType;
 import jakarta.persistence.metamodel.Type;
-import jakarta.persistence.metamodel.PluralAttribute;
 
 /**
  * Implementation of {@link CollectionAttribute} for the Mansart persistence provider.
  *
- * @param <X> the type the represented Collection belongs to
- * @param <E> the element type of the represented Collection
+ * <p>A collection attribute is a plural (collection) attribute with {@link
+ * jakarta.persistence.metamodel.PluralAttribute.CollectionType#COLLECTION} semantics.
+ * The interface itself is a marker — no methods beyond {@link
+ * jakarta.persistence.metamodel.PluralAttribute} are added.</p>
+ *
+ * @param <X> the type the represented collection belongs to
+ * @param <E> the element type of the represented collection
  */
-@SuppressWarnings("unchecked")
 public final class CollectionAttributeImpl<X, E> extends PluralAttributeImpl<X, java.util.Collection<E>, E>
         implements CollectionAttribute<X, E> {
 
-    /**
-     * Creates a collection attribute.
-     *
-     * @param name the attribute name
-     * @param declaringType the declaring managed type
-     * @param elementType the element type
-     */
-    public CollectionAttributeImpl(String name,
-                                   ManagedType<?> declaringType,
-                                   Type<E> elementType) {
-        super(java.util.Collection.class, name, declaringType,
-              PluralAttribute.CollectionType.COLLECTION, elementType);
+    @SuppressWarnings("rawtypes")
+    public CollectionAttributeImpl(Class<?> javaType, String name,
+                            ManagedType<?> declaringType,
+                            Type<E> elementType) {
+        super(javaType, name, declaringType,
+              jakarta.persistence.metamodel.PluralAttribute.CollectionType.COLLECTION, elementType);
     }
 }

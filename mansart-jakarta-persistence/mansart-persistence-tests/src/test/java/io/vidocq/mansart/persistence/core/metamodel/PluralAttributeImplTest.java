@@ -169,7 +169,9 @@ class PluralAttributeImplTest {
 
     @Test
     void collectionAttributeImplementsCollectionInterface() {
+        @SuppressWarnings("rawtypes")
         var attr = new CollectionAttributeImpl<>(
+                java.util.Collection.class,
                 "projects",
                 new TestManagedType<>(Object.class),
                 new BasicType<>(String.class));

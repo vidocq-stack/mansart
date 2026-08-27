@@ -24,7 +24,7 @@ import jakarta.persistence.metamodel.Type;
  * @param <K> the key type of the represented map
  * @param <V> the value type of the represented map
  */
-final class MapAttributeImpl<X, K, V> extends PluralAttributeImpl<X, java.util.Map<K, V>, V>
+public class MapAttributeImpl<X, K, V> extends PluralAttributeImpl<X, java.util.Map<K, V>, V>
         implements MapAttribute<X, K, V> {
 
     private final Type<K> keyType;

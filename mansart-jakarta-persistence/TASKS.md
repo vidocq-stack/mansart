@@ -168,7 +168,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/metamodelapi/embeddabletype/Client`, `mappedsuperclasstype/Client`, `pluralattribute/Client`
 notes:  67 test methods across 3 clients. Largest single card in M1.
 
-### JP-16 — `ManagedType` concrete impl (getDeclaredSingular/Plural/Collection attributes)  [TODO]
+### JP-16 — `ManagedType` collection lookup methods (10 overloads) + `CollectionAttributeImpl`  [DONE]
 deps:   JP-15
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/metamodel/ManagedTypeImpl.java`
 proof:  TCK `core/metamodelapi/managedtype/Client`

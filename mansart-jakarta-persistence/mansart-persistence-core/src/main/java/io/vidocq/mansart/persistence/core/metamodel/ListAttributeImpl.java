@@ -24,11 +24,11 @@ import jakarta.persistence.metamodel.Type;
  * @param <X> the type the represented list belongs to
  * @param <E> the element type of the represented list
  */
-final class ListAttributeImpl<X, E> extends PluralAttributeImpl<X, java.util.List<E>, E>
+public final class ListAttributeImpl<X, E> extends PluralAttributeImpl<X, java.util.List<E>, E>
         implements ListAttribute<X, E> {
 
     @SuppressWarnings("rawtypes")
-    ListAttributeImpl(Class<?> javaType, String name,
+    public ListAttributeImpl(Class<?> javaType, String name,
                       ManagedType<?> declaringType,
                       Type<E> elementType) {
         super(javaType, name, declaringType,
