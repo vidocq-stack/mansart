@@ -48,7 +48,11 @@ import java.util.Set;
  * @see <a href="https://jakarta.ee/specifications/persistence/3.2/">Jakarta Persistence 3.2 Spec</a>
  */
 @SupportedSourceVersion(SourceVersion.RELEASE_25)
-@SupportedAnnotationTypes("jakarta.persistence.Entity")
+@SupportedAnnotationTypes({
+        "jakarta.persistence.Entity",
+        "jakarta.persistence.Embeddable",
+        "jakarta.persistence.MappedSuperclass"
+})
 public final class MansartPersistenceProcessor extends AbstractProcessor {
 
     private Elements     elements;
@@ -71,29 +75,45 @@ public final class MansartPersistenceProcessor extends AbstractProcessor {
             return false;
         }
 
-        Set<TypeElement> entities = new LinkedHashSet<>();
         for (TypeElement annotation : annotations) {
             String fqn = annotation.getQualifiedName().toString();
-            if (!"jakarta.persistence.Entity".equals(fqn)) continue;
             for (Element e : round.getElementsAnnotatedWith(annotation)) {
-                if (e instanceof TypeElement t) {
-                    entities.add(t);
+                if (!(e instanceof TypeElement type)) continue;
+                try {
+                    switch (fqn) {
+                        case "jakarta.persistence.Entity" ->
+                            processEntity(type);
+                        case "jakarta.persistence.Embeddable" ->
+                            processEmbeddable(type);
+                        case "jakarta.persistence.MappedSuperclass" ->
+                            processMappedSuperclass(type);
+                    }
+                } catch (IOException ex) {
+                    processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                            "[mansart-persistence] Failed to write metamodel for "
+                                    + type.getQualifiedName() + ": " + ex.getMessage(), type);
                 }
             }
         }
 
-        for (TypeElement type : entities) {
-            EntityScanner.EntityDescriptor descriptor = scanner.scan(type);
-            if (descriptor == null) continue;
-            try {
-                writer.write(descriptor);
-            } catch (IOException ex) {
-                processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
-                        "[mansart-persistence] Failed to write metamodel for "
-                                + type.getQualifiedName() + ": " + ex.getMessage(), type);
-            }
-        }
-
         return true;
+    }
+
+    private void processEntity(TypeElement type) throws IOException {
+        EntityScanner.EntityDescriptor descriptor = scanner.scan(type);
+        if (descriptor == null) return;
+        writer.write(descriptor);
+    }
+
+    private void processEmbeddable(TypeElement type) throws IOException {
+        EntityScanner.EmbeddableDescriptor descriptor = scanner.scanEmbeddable(type);
+        if (descriptor == null) return;
+        writer.writeEmbeddable(descriptor);
+    }
+
+    private void processMappedSuperclass(TypeElement type) throws IOException {
+        EntityScanner.EntityDescriptor descriptor = scanner.scanMappedSuperclass(type);
+        if (descriptor == null) return;
+        writer.writeMappedSuperclass(descriptor);
     }
 }

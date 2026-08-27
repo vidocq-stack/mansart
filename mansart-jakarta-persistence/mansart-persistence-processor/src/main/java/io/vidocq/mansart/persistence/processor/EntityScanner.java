@@ -98,6 +98,74 @@ final class EntityScanner {
         return new EntityDescriptor(type, tableName, id, version, attributes);
     }
 
+    /**
+     * Scans an embeddable type, returning a descriptor with all persistent attributes.
+     * Embeddables do not require an {@code @Id} field.
+     */
+    EmbeddableDescriptor scanEmbeddable(TypeElement type) {
+        if (!hasAnnotation(type, "jakarta.persistence.Embeddable")) {
+            return null;
+        }
+
+        List<AttributeDescriptor> attributes = new ArrayList<>();
+
+        for (Element member : type.getEnclosedElements()) {
+            if (member.getKind() != ElementKind.FIELD) continue;
+            if (member.getModifiers().contains(Modifier.STATIC)) continue;
+            if (member.getModifiers().contains(Modifier.TRANSIENT)) continue;
+            if (hasAnnotation(member, "jakarta.persistence.Transient")) continue;
+
+            VariableElement field = (VariableElement) member;
+            AttributeDescriptor a = describe(field);
+            if (a == null) continue;
+
+            attributes.add(a);
+        }
+
+        return new EmbeddableDescriptor(type, attributes);
+    }
+
+    /**
+     * Scans a mapped-superclass type, returning a descriptor with all persistent attributes.
+     * Mapped superclasses do not require an {@code @Id} field.
+     */
+    EntityDescriptor scanMappedSuperclass(TypeElement type) {
+        if (!hasAnnotation(type, "jakarta.persistence.MappedSuperclass")) {
+            return null;
+        }
+
+        String tableName = readEntityTable(type);
+
+        List<AttributeDescriptor> attributes = new ArrayList<>();
+        AttributeDescriptor       id         = null;
+        AttributeDescriptor       version    = null;
+
+        for (Element member : type.getEnclosedElements()) {
+            if (member.getKind() != ElementKind.FIELD) continue;
+            if (member.getModifiers().contains(Modifier.STATIC)) continue;
+            if (member.getModifiers().contains(Modifier.TRANSIENT)) continue;
+            if (hasAnnotation(member, "jakarta.persistence.Transient")) continue;
+
+            VariableElement field = (VariableElement) member;
+            AttributeDescriptor a = describe(field);
+            if (a == null) continue;
+
+            attributes.add(a);
+            if (a.kind == AttributeKind.ID) {
+                if (id != null) {
+                    error(field, "Multiple @Id fields are not supported.");
+                    return null;
+                }
+                id = a;
+            }
+            if (a.kind == AttributeKind.VERSION) {
+                version = a;
+            }
+        }
+
+        return new EntityDescriptor(type, tableName, id, version, attributes);
+    }
+
     private AttributeDescriptor describe(VariableElement field) {
         String name = field.getSimpleName().toString();
         TypeMirror typeMirror = field.asType();
@@ -105,10 +173,12 @@ final class EntityScanner {
 
         boolean isId     = hasAnnotation(field, "jakarta.persistence.Id");
         boolean isVersion = hasAnnotation(field, "jakarta.persistence.Version");
+        boolean isElementCollection = hasAnnotation(field, "jakarta.persistence.ElementCollection");
 
         AttributeKind kind;
         if (isId)       kind = AttributeKind.ID;
         else if (isVersion) kind = AttributeKind.VERSION;
+        else if (isElementCollection) kind = classifyCollection(field);
         else if (isTextType(javaTypeFqn))  kind = AttributeKind.TEXT;
         else if (isBoolean(javaTypeFqn))   kind = AttributeKind.BOOLEAN;
         else if (isTemporal(javaTypeFqn))  kind = AttributeKind.TEMPORAL;
@@ -128,6 +198,24 @@ final class EntityScanner {
         boolean nullable = readBoolean(column, "nullable", true);
 
         return new AttributeDescriptor(field, name, columnName, javaTypeFqn, kind, nullable);
+    }
+
+    /**
+     * Classifies an {@code @ElementCollection} field as COLLECTION, LIST, or MAP
+     * based on the raw type name.
+     */
+    private AttributeKind classifyCollection(VariableElement field) {
+        TypeMirror typeMirror = field.asType();
+        String fqn = typeMirror.toString();
+
+        if (fqn.startsWith("java.util.Map<")) {
+            return AttributeKind.MAP;
+        }
+        if (fqn.startsWith("java.util.List<") || fqn.startsWith("java.util.SortedList<")) {
+            return AttributeKind.LIST;
+        }
+        // Collection, Set, HashSet, TreeSet, ArrayList all map to COLLECTION
+        return AttributeKind.COLLECTION;
     }
 
     /* ----- helpers ---- */
@@ -216,7 +304,10 @@ final class EntityScanner {
 
     /* ----- DTOs ---- */
 
-    enum AttributeKind { ID, VERSION, TEXT, NUMERIC, BOOLEAN, TEMPORAL }
+    enum AttributeKind {
+        ID, VERSION, TEXT, NUMERIC, BOOLEAN, TEMPORAL,
+        COLLECTION, LIST, MAP
+    }
 
     record AttributeDescriptor(
             VariableElement element,
@@ -232,6 +323,11 @@ final class EntityScanner {
             String tableName,
             AttributeDescriptor id,
             AttributeDescriptor version,
+            List<AttributeDescriptor> attributes
+    ) {}
+
+    record EmbeddableDescriptor(
+            TypeElement type,
             List<AttributeDescriptor> attributes
     ) {}
 }

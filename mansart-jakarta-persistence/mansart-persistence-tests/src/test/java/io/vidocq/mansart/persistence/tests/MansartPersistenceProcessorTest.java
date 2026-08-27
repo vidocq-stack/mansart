@@ -73,4 +73,82 @@ class MansartPersistenceProcessorTest {
         assertThat(content).contains("public static final String AGE = \"age\"");
         assertThat(content).contains("public static final String VERSION = \"version\"");
     }
+
+    /**
+     * Verifies that the APT processor generates static metamodel for
+     * {@code @Embeddable} types, including plural attributes for
+     * {@code @ElementCollection} fields.
+     */
+    @Test
+    void processorGeneratesEmbeddableMetamodel() throws IOException {
+        String basedir = System.getProperty("user.dir");
+        Path generatedFile = Path.of(basedir, "target", "generated-sources",
+                "annotations", "io.vidocq.mansart.persistence.tests.TestEmbeddable_.java");
+
+        assertThat(generatedFile)
+                .as("JPA static metamodel TestEmbeddable_ should be generated")
+                .exists()
+                .isReadable();
+
+        String content = Files.readString(generatedFile);
+
+        assertThat(content).contains("public abstract class TestEmbeddable_");
+        assertThat(content).contains("@StaticMetamodel(TestEmbeddable.class)");
+        // Singular attributes for basic fields
+        assertThat(content).contains("SingularAttribute<TestEmbeddable, java.lang.String> street");
+        assertThat(content).contains("SingularAttribute<TestEmbeddable, java.lang.String> city");
+        assertThat(content).contains("SingularAttribute<TestEmbeddable, java.lang.String> state");
+        // Plural attributes for @ElementCollection fields (fully qualified names)
+        assertThat(content).contains("SetAttribute<TestEmbeddable");
+        assertThat(content).contains("sZipcode");
+        assertThat(content).contains("ListAttribute<TestEmbeddable");
+        assertThat(content).contains("lZipcode");
+        assertThat(content).contains("MapAttribute<TestEmbeddable");
+        assertThat(content).contains("mZipcode");
+    }
+
+    /**
+     * Verifies that the APT processor generates static metamodel for
+     * nested {@code @Embeddable} types.
+     */
+    @Test
+    void processorGeneratesNestedEmbeddableMetamodel() throws IOException {
+        String basedir = System.getProperty("user.dir");
+        Path generatedFile = Path.of(basedir, "target", "generated-sources",
+                "annotations", "io.vidocq.mansart.persistence.tests.TestZipCode_.java");
+
+        assertThat(generatedFile)
+                .as("JPA static metamodel TestZipCode_ should be generated")
+                .exists()
+                .isReadable();
+
+        String content = Files.readString(generatedFile);
+
+        assertThat(content).contains("public abstract class TestZipCode_");
+        assertThat(content).contains("@StaticMetamodel(TestZipCode.class)");
+        assertThat(content).contains("SingularAttribute<TestZipCode, java.lang.String> zip");
+        assertThat(content).contains("SingularAttribute<TestZipCode, java.lang.String> plusFour");
+    }
+
+    /**
+     * Verifies that the APT processor generates static metamodel for
+     * {@code @MappedSuperclass} types.
+     */
+    @Test
+    void processorGeneratesMappedSuperclassMetamodel() throws IOException {
+        String basedir = System.getProperty("user.dir");
+        Path generatedFile = Path.of(basedir, "target", "generated-sources",
+                "annotations", "io.vidocq.mansart.persistence.tests.TestMappedSuperclass_.java");
+
+        assertThat(generatedFile)
+                .as("JPA static metamodel TestMappedSuperclass_ should be generated")
+                .exists()
+                .isReadable();
+
+        String content = Files.readString(generatedFile);
+
+        assertThat(content).contains("public abstract class TestMappedSuperclass_");
+        assertThat(content).contains("@StaticMetamodel(TestMappedSuperclass.class)");
+        assertThat(content).contains("SingularAttribute<TestMappedSuperclass, java.lang.String> createdAt");
+    }
 }

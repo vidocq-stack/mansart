@@ -174,12 +174,17 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/metamodelapi/managedtype/Client`
 notes:  52 test methods. The most complex runtime type — delegates to SingularAttributeImpl, PluralAttributeImpl.
 
-### JP-17 — APT: `@Embeddable`, `@MappedSuperclass`, `@OneToMany`, `@ManyToMany`  [TODO]
+### JP-17 — APT: `@Embeddable`, `@MappedSuperclass`, `@ElementCollection` (→ Set/List/MapAttribute)  [DONE]
 deps:   JP-09
-files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (extended),
-        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceMetamodelWriter.java` (extended)
-proof:  TCK `core/metamodelapi/embeddabletype/Client` (51 tests), `identitytype/Client` (64 tests)
-notes:  Extends JP-09 scanner + writer. EmbeddableType, MappedSuperclassType, MapAttribute, SetAttribute.
+files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceProcessor.java` (extends `@SupportedAnnotationTypes`),
+        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java` (scanEmbeddable, scanMappedSuperclass, classifyCollection),
+        `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/MansartPersistenceMetamodelWriter.java` (writeEmbeddable, writeMappedSuperclass, writePluralAttributes),
+        `mansart-persistence-tests/src/main/java/io/vidocq/mansart/persistence/tests/TestEmbeddable.java` (new),
+        `mansart-persistence-tests/src/main/java/io/vidocq/mansart/persistence/tests/TestZipCode.java` (new),
+        `mansart-persistence-tests/src/main/java/io/vidocq/mansart/persistence/tests/TestMappedSuperclass.java` (new),
+        `mansart-persistence-tests/src/test/java/io/vidocq/mansart/persistence/tests/MansartPersistenceProcessorTest.java` (3 new tests)
+proof:  `mansart-persistence-tests` — 4 new tests (embeddable, nested embeddable, mapped superclass, entity), 67/67 unit tests
+notes:  Extends JP-09 scanner + writer. Generates `EmbeddableName_`, `MappedSuperclassName_`, plus `SetAttribute_`/`ListAttribute_`/`MapAttribute_` for `@ElementCollection`. TCK embeddabletype/Client tests runtime `EmbeddableType` (already done in JP-15).
 
 ### JP-18 — APT: `@OneToMany`/`@ManyToMany` → `PluralAttribute` generation  [TODO]
 deps:   JP-17
