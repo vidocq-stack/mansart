@@ -740,10 +740,15 @@ empty reactor it is five minutes. Hence card **JP-01b**, scheduled before JP-02.
 Container **`mansart-sonar`**, `sonarqube:community` 26.5.0, published on host port
 **9001** (container 9000). Project key `vidocq-mansart-persistence`.
 
-> **It has no volume mounted.** Its data lives in the container's writable layer.
-> `docker stop` and `docker start` are safe. `docker rm mansart-sonar` destroys the
-> project history and any token that was minted for it. The `sonar-runner` agent has
-> `docker rm` and `docker volume` on `ask` for exactly this reason.
+> **Now backed by persistent volumes** (`mansart-sonar-data`, `-exts`, `-logs`),
+> recreated 2026-08-27. `docker stop`/`start`/`restart` preserve everything —
+> account, token, history. Only `docker rm` **plus** deleting the volumes wipes it.
+> The `sonar-runner` agent keeps `docker rm`/`docker volume` on `ask` anyway.
+>
+> The admin default password had been changed and lost, so the container was
+> recreated fresh with volumes, the admin password reset, and a
+> `GLOBAL_ANALYSIS_TOKEN` generated via the API. That token lives in the
+> `SONAR_TOKEN` env var (see below), never in the repo.
 
 ### Maven wiring
 
@@ -775,14 +780,20 @@ output.
 
 ### Authentication
 
-**SonarQube 26.5 does not allow anonymous analysis.** `sonar.forceAuthentication`
-was removed in the 10.x line; a token is required. The runner tries without one and,
-on 401/403, stops immediately with the exact instruction rather than retrying:
+**SonarQube 26.5 does not allow anonymous analysis** (`sonar.forceAuthentication`
+was removed in 10.x, and it cannot be re-enabled). Verified empirically: every
+protected endpoint returns 401 without auth. A token is mandatory. One has been
+generated (`GLOBAL_ANALYSIS_TOKEN`, admin account); put it in the environment
+before launching opencode, or in `~/.zshrc` to persist it:
 
 ```bash
-# http://localhost:9001 → My Account → Security → generate a token
-export SONAR_TOKEN=<token>          # before launching opencode
+export SONAR_TOKEN=<token>          # the sonar-runner reads it automatically
 ```
+
+To mint a fresh one: `http://localhost:9001` → My Account → Security → Generate,
+or the API `POST /api/user_tokens/generate` with an admin Basic-auth header. The
+runner tries without a token and, on 401/403, stops with this instruction rather
+than retrying — and a missing token is a clean `NOT RUN`, never a gate failure.
 
 ### Where it hooks into the loop
 
