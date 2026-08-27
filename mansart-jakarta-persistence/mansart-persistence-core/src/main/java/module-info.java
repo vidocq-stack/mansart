@@ -17,6 +17,8 @@ module io.vidocq.mansart.persistence.core {
     requires jakarta.inject;
     requires static jakarta.transaction;
 
+    exports io.vidocq.mansart.persistence.core;
+
     exports io.vidocq.mansart.persistence.core.metamodel;
 
     provides jakarta.persistence.spi.PersistenceProvider

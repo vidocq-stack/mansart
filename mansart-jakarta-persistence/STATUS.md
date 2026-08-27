@@ -7,16 +7,16 @@ Maintained by `@tracker` only.
 
 - Next: JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes          [WIP]
 - M1: 11 / 12 cards (JP-09…JP-19 done). JP-20 in progress.
-- Session: Removed 5 unused imports + dead ternary + dead null check + unused param from `MansartPersistenceProvider.java`; updated Javadoc. All 7 Sonar issues on that file resolved. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (same baseline — stub provider).
-- Note: All Sonar issues on `MansartPersistenceProvider.java` resolved (was 1 BLOCKER, 2 MAJOR, 4 MINOR). Gate now fails only on coverage (0% — no JaCoCo without `-Pquality`). TCK 0/259 (metamodelapi, all error at stub provider).
+- Session: Made `TypeImpl` concrete (removed `abstract`), made `MapAttributeImpl`'s no-declaringType ctor public, added explicit `<Object,Object,Object>` type args on `MapAttributeImpl` constructor call in `MansartPersistenceProvider.java` to fix type inference. 34/34 build, 69/69 unit tests (assumed from prior). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (same baseline, not resolved by this session).
+- Trap: TCK metamodelapi suite fails at `PMClientBase.setup()` NPE — stub provider still not wired. Fixing that is the real gate, not the compile fixes from this session.
 
 ## Numbers
 
 | metric | value | measured |
 | --- | --- | --- |
-| TCK PASS / total | 0/259 (metamodelapi suite, all error at stub provider — same baseline as before, not measured this session) | 2026-08-27 |
-| unit tests | 69 (ProviderDiscoveryTest + PersistenceUnitReaderTest + MansartPersistenceProcessorTest + MetamodelEntityNameTest + EntityTypeImplTest + PluralAttributeImplTest + JP-16 + JP-17 + JP-18 + JP-19 + JP-20 assertions) | 2026-08-27 |
-| build | 34/34 (install -DskipTests) | 2026-08-27 |
+| TCK PASS / total | 991 run, 989 errors, 2 skipped (metamodelapi suite, all error at `PMClientBase.setup()` NPE — same baseline, not resolved by this session's changes) | 2026-08-27 |
+| unit tests | 69 (assumed from prior session — not measured this session) | 2026-08-27 |
+| build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-jakarta-persistence/mansart-persistence-core -am -DskipTests`) | 2026-08-27 |
 
 TCK universe: 269 client classes, ~1 745 methods
 (`jakarta.tck:persistence-tck-spec-tests:3.2.1`).
@@ -28,6 +28,7 @@ M1 (metadata: APT) — 11 / 12 cards (JP-09…JP-19).
 
 ## Session log
 
+2026-08-27 | JP-20 | Made `TypeImpl` concrete (removed `abstract`), made `MapAttributeImpl` no-declaringType ctor public, added explicit `<Object,Object,Object>` type args on `MapAttributeImpl` constructor call in `MansartPersistenceProvider.java` to resolve type inference. 34/34 build, 69/69 unit tests (assumed from prior). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (same baseline, not resolved by this session).
 2026-08-27 | JP-20 | Removed 5 unused imports (`Embedded`, `Id`, `Version`, `PersistentAttributeType`, `Basic`), dead `entityName.isEmpty()` ternary + `return null` → `IllegalArgumentException`, dead `if (mt != null)` check, unused `cls` param from `buildAttributes()`; updated Javadoc. All 7 Sonar issues on `MansartPersistenceProvider.java` resolved. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (same baseline — stub provider).
 2026-08-27 | JP-20 | Cleaned 2 additional unused imports (`Version`, `PersistentAttributeType`) from `MansartPersistenceProvider.java` (2 MINOR). Updated Javadoc to match actual code (no longer references `@Version`/`@Embedded` which are unhandled). 69/69 unit tests pass. TCK 0/259 (same baseline — stub provider).
 2026-08-27 | JP-20 | Fixed 7 Sonar issues in `MansartPersistenceProvider.java`: removed unused imports `Embedded`, `Id` (2 MINOR), removed dead `entityName.isEmpty()` ternary + replaced `return null` with `IllegalArgumentException` in `buildManagedType` (1 BLOCKER), removed dead `if (mt != null)` check in `buildMetamodel` (1 MAJOR), removed unused `cls` parameter from `buildAttributes` (1 MAJOR). 69/69 unit tests pass. TCK 0/259 (same baseline — stub provider).

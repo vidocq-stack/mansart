@@ -19,11 +19,35 @@
 package io.vidocq.mansart.persistence.core;
 
 import jakarta.persistence.EmbeddedId;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Embeddable;
 import jakarta.persistence.MappedSuperclass;
+import jakarta.persistence.Id;
+import jakarta.persistence.Version;
+import jakarta.persistence.Column;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.OrderColumn;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.MapKey;
+import jakarta.persistence.MapKeyColumn;
+import jakarta.persistence.MapKeyClass;
+import jakarta.persistence.Transient;
+import jakarta.persistence.Access;
+import jakarta.persistence.AccessType;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.ManagedType;
+import jakarta.persistence.metamodel.SingularAttribute;
+import jakarta.persistence.metamodel.CollectionAttribute;
+import jakarta.persistence.metamodel.SetAttribute;
+import jakarta.persistence.metamodel.ListAttribute;
+import jakarta.persistence.metamodel.MapAttribute;
+import jakarta.persistence.metamodel.Type;
 import jakarta.persistence.spi.PersistenceUnitInfo;
 import jakarta.persistence.spi.PersistenceProvider;
 import jakarta.persistence.spi.ProviderUtil;
@@ -33,12 +57,24 @@ import jakarta.persistence.PersistenceConfiguration;
 
 import io.vidocq.mansart.persistence.core.metamodel.MetamodelImpl;
 import io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.IdentifiableTypeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.EmbeddableTypeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.MappedSuperclassTypeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.SingularAttributeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.CollectionAttributeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.SetAttributeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.ListAttributeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.MapAttributeImpl;
+import io.vidocq.mansart.persistence.core.metamodel.TypeImpl;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.HashMap;
+import java.util.HashSet;
 
 /**
  * Jakarta Persistence provider for the Mansart reactor.
@@ -144,7 +180,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
      */
     private EntityTypeImpl<?> buildEntityType(Class<?> cls, String entityName,
             jakarta.persistence.metamodel.IdentifiableType<?> supertype) {
-        List<Attribute<? super Object, ?>> attributes = buildAttributes();
+        List<Attribute<? super Object, ?>> attributes = buildAttributes(cls);
         return new EntityTypeImpl<>(cls, entityName, attributes);
     }
 
@@ -152,22 +188,199 @@ public class MansartPersistenceProvider implements PersistenceProvider {
      * Build an embeddable type with its attributes.
      */
     private EmbeddableTypeImpl<?> buildEmbeddableType(Class<?> cls) {
-        List<Attribute<? super Object, ?>> attributes = buildAttributes();
+        List<Attribute<? super Object, ?>> attributes = buildAttributes(cls);
         return new EmbeddableTypeImpl<>(cls, attributes);
     }
 
     /**
-     * Build attributes for a class — not yet implemented.
+     * Build attributes for a class by inspecting its fields.
      *
-     * <p>Field-level metadata collection is delegated to the APT processor
-     * ({@code MansartPersistenceProcessor}). This method exists as a stub
-     * and always throws {@code UnsupportedOperationException}.</p>
+     * <p>Uses reflection at bootstrap time (not runtime during entity operations)
+     * to read annotations and field types, then constructs the appropriate
+     * metamodel attribute instances. Returns attributes with null declaringType;
+     * the caller must wire them to their declaring type.</p>
      *
-     * @return never — always throws
-     * @throws UnsupportedOperationException always
+     * @param cls the class to inspect
+     * @return a list of attribute instances for all persistent fields
      */
-    private List<Attribute<? super Object, ?>> buildAttributes() {
-        throw new UnsupportedOperationException(
-            "not implemented: buildAttributes — use APT-generated metadata");
+    private List<Attribute<? super Object, ?>> buildAttributes(Class<?> cls) {
+        List<Attribute<? super Object, ?>> attributes = new ArrayList<>();
+        Class<?> current = cls;
+        while (current != null && current != Object.class) {
+            for (Field field : current.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())
+                        || field.isAnnotationPresent(Transient.class)) {
+                    continue;
+                }
+                Attribute<? super Object, ?> attr = buildSingleAttribute(field);
+                if (attr != null) {
+                    attributes.add(attr);
+                }
+            }
+            current = current.getSuperclass();
+        }
+        return attributes;
+    }
+
+    /**
+     * Build a single attribute from a field, inspecting annotations.
+     */
+    @SuppressWarnings("unchecked")
+    private Attribute<? super Object, ?> buildSingleAttribute(Field field) {
+        String fieldName = field.getName();
+        Class<?> fieldType = field.getType();
+
+        // Check for @Id
+        if (field.isAnnotationPresent(Id.class)) {
+            return buildSingularAttribute(field, fieldName, fieldType,
+                    Attribute.PersistentAttributeType.BASIC, true, false);
+        }
+
+        // Check for @Version
+        if (field.isAnnotationPresent(Version.class)) {
+            return buildSingularAttribute(field, fieldName, fieldType,
+                    Attribute.PersistentAttributeType.BASIC, false, true);
+        }
+
+        // Check for @Embedded
+        if (field.isAnnotationPresent(Embedded.class)) {
+            return buildSingularAttribute(field, fieldName, fieldType,
+                    Attribute.PersistentAttributeType.EMBEDDED, false, false);
+        }
+
+        // Check for @OneToMany
+        if (field.isAnnotationPresent(OneToMany.class)) {
+            Class<?> targetClass = getTargetClass(field, OneToMany.class);
+            return buildCollectionAttribute(field, fieldName, fieldType, targetClass,
+                    Attribute.PersistentAttributeType.ONE_TO_MANY);
+        }
+
+        // Check for @ManyToMany
+        if (field.isAnnotationPresent(ManyToMany.class)) {
+            Class<?> targetClass = getTargetClass(field, ManyToMany.class);
+            return buildCollectionAttribute(field, fieldName, fieldType, targetClass,
+                    Attribute.PersistentAttributeType.MANY_TO_MANY);
+        }
+
+        // Check for @ManyToOne
+        if (field.isAnnotationPresent(ManyToOne.class)) {
+            Class<?> targetClass = getTargetClass(field, ManyToOne.class);
+            return buildSingularAttribute(field, fieldName, fieldType,
+                    Attribute.PersistentAttributeType.MANY_TO_ONE, false, false);
+        }
+
+        // Check for @OneToOne
+        if (field.isAnnotationPresent(OneToOne.class)) {
+            Class<?> targetClass = getTargetClass(field, OneToOne.class);
+            return buildSingularAttribute(field, fieldName, fieldType,
+                    Attribute.PersistentAttributeType.ONE_TO_ONE, false, false);
+        }
+
+        // Check for @ElementCollection
+        if (field.isAnnotationPresent(ElementCollection.class)) {
+            Class<?> targetClass = fieldType;
+            if (java.util.Set.class.isAssignableFrom(fieldType)) {
+                return buildSetAttribute(field, fieldName, fieldType, targetClass);
+            } else if (java.util.List.class.isAssignableFrom(fieldType)) {
+                return buildListAttribute(field, fieldName, fieldType, targetClass);
+            } else if (java.util.Map.class.isAssignableFrom(fieldType)) {
+                return buildMapAttribute(field, fieldName, fieldType, targetClass);
+            }
+            return buildCollectionAttribute(field, fieldName, fieldType, targetClass,
+                    Attribute.PersistentAttributeType.ELEMENT_COLLECTION);
+        }
+
+        // Default: basic attribute
+        return buildSingularAttribute(field, fieldName, fieldType,
+                Attribute.PersistentAttributeType.BASIC, false, false);
+    }
+
+    /**
+     * Get the target class from a relationship annotation.
+     */
+    @SuppressWarnings("unchecked")
+    private Class<?> getTargetClass(Field field, Class<? extends java.lang.annotation.Annotation> annotationType) {
+        try {
+            if (annotationType == OneToMany.class) {
+                OneToMany ann = field.getAnnotation(OneToMany.class);
+                Class<?> targetEntity = ann.targetEntity();
+                if (targetEntity != void.class) {
+                    return targetEntity;
+                }
+            }
+            if (annotationType == ManyToMany.class) {
+                ManyToMany ann = field.getAnnotation(ManyToMany.class);
+                Class<?> targetEntity = ann.targetEntity();
+                if (targetEntity != void.class) {
+                    return targetEntity;
+                }
+            }
+            if (annotationType == ManyToOne.class) {
+                ManyToOne ann = field.getAnnotation(ManyToOne.class);
+                Class<?> targetEntity = ann.targetEntity();
+                if (targetEntity != void.class) {
+                    return targetEntity;
+                }
+            }
+            if (annotationType == OneToOne.class) {
+                OneToOne ann = field.getAnnotation(OneToOne.class);
+                Class<?> targetEntity = ann.targetEntity();
+                if (targetEntity != void.class) {
+                    return targetEntity;
+                }
+            }
+        } catch (Exception e) {
+            // Fall through to field type
+        }
+        return field.getType();
+    }
+
+    /**
+     * Build a singular attribute from a field (no declaring type).
+     */
+    private SingularAttributeImpl<? super Object, Object> buildSingularAttribute(
+            Field field, String name, Class<?> javaType,
+            Attribute.PersistentAttributeType persistentType,
+            boolean isId, boolean isVersion) {
+        return new SingularAttributeImpl<>(field.getType(), name,
+                persistentType, true, isId, isVersion, null);
+    }
+
+    /**
+     * Build a collection attribute from a field (no declaring type).
+     */
+    private CollectionAttributeImpl<? super Object, Object> buildCollectionAttribute(
+            Field field, String name, Class<?> javaType, Class<?> elementType,
+            Attribute.PersistentAttributeType persistentType) {
+        return new CollectionAttributeImpl<>(javaType, name,
+                new TypeImpl<>(elementType, null));
+    }
+
+    /**
+     * Build a set attribute from a field (no declaring type).
+     */
+    private SetAttributeImpl<? super Object, Object> buildSetAttribute(
+            Field field, String name, Class<?> javaType, Class<?> elementType) {
+        return new SetAttributeImpl<>(javaType, name,
+                new TypeImpl<>(elementType, null));
+    }
+
+    /**
+     * Build a list attribute from a field (no declaring type).
+     */
+    private ListAttributeImpl<? super Object, Object> buildListAttribute(
+            Field field, String name, Class<?> javaType, Class<?> elementType) {
+        return new ListAttributeImpl<>(javaType, name,
+                new TypeImpl<>(elementType, null));
+    }
+
+    /**
+     * Build a map attribute from a field (no declaring type).
+     */
+    private MapAttributeImpl<? super Object, Object, Object> buildMapAttribute(
+            Field field, String name, Class<?> javaType, Class<?> valueType) {
+        return new MapAttributeImpl<Object, Object, Object>(javaType, name,
+                new TypeImpl<>(Object.class, null), Object.class,
+                new TypeImpl<>(valueType, null));
     }
 }

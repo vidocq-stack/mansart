@@ -34,4 +34,14 @@ public final class ListAttributeImpl<X, E> extends PluralAttributeImpl<X, java.u
         super(javaType, name, declaringType,
               PluralAttribute.CollectionType.LIST, elementType);
     }
+
+    /**
+     * Constructor without declaring type — for bootstrap-time metamodel building.
+     */
+    @SuppressWarnings("rawtypes")
+    public ListAttributeImpl(Class<?> javaType, String name,
+                      Type<E> elementType) {
+        super(javaType, name,
+              PluralAttribute.CollectionType.LIST, elementType);
+    }
 }

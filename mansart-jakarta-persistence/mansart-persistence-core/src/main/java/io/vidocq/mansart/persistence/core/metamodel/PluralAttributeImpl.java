@@ -68,6 +68,30 @@ public class PluralAttributeImpl<X, C, E> extends AttributeImpl<X, C>
              PluralAttribute.PersistentAttributeType.BASIC, elementType);
     }
 
+    /**
+     * Constructor without declaring type — for bootstrap-time metamodel building.
+     */
+    public PluralAttributeImpl(Class<?> javaType, String name,
+                               PluralAttribute.CollectionType collectionType,
+                               PluralAttribute.PersistentAttributeType persistentAttributeType,
+                               Type<E> elementType) {
+        super(javaType, name, persistentAttributeType, true);
+        this.collectionType = collectionType;
+        this.persistentAttributeType = persistentAttributeType;
+        this.elementType = elementType;
+    }
+
+    /**
+     * Constructor without declaring type and persistent attribute type — for
+     * bootstrap-time metamodel building.
+     */
+    public PluralAttributeImpl(Class<?> javaType, String name,
+                               PluralAttribute.CollectionType collectionType,
+                               Type<E> elementType) {
+        this(javaType, name, collectionType,
+             PluralAttribute.PersistentAttributeType.BASIC, elementType);
+    }
+
     @Override
     public PluralAttribute.CollectionType getCollectionType() {
         return collectionType;

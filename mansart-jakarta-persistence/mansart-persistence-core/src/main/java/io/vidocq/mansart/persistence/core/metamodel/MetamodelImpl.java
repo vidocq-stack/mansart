@@ -88,7 +88,7 @@ public final class MetamodelImpl implements Metamodel {
 
     @Override
     public Set<ManagedType<?>> getManagedTypes() {
-        return (Set) byClass.values();
+        return Set.copyOf(byClass.values());
     }
 
     @Override

@@ -22,7 +22,7 @@ import jakarta.persistence.metamodel.Attribute.PersistentAttributeType;
 public abstract class AttributeImpl<X, Y> extends TypeImpl<Y> implements Attribute<X, Y> {
 
     private final String name;
-    private final ManagedType<X> declaringType;
+    private ManagedType<X> declaringType;
     private final PersistentAttributeType persistentAttributeType;
     protected final boolean optional;
 
@@ -33,6 +33,21 @@ public abstract class AttributeImpl<X, Y> extends TypeImpl<Y> implements Attribu
         super(javaType, null);
         this.name = name;
         this.declaringType = (ManagedType<X>) declaringType;
+        this.persistentAttributeType = persistentAttributeType;
+        this.optional = optional;
+    }
+
+    /**
+     * Constructor without declaring type — for bootstrap-time metamodel building
+     * where the declaring type is not yet available. The declaring type is
+     * set later via {@link #setDeclaringType}.
+     */
+    @SuppressWarnings("rawtypes")
+    AttributeImpl(Class<?> javaType, String name,
+                  PersistentAttributeType persistentAttributeType, boolean optional) {
+        super(javaType, null);
+        this.name = name;
+        this.declaringType = null;
         this.persistentAttributeType = persistentAttributeType;
         this.optional = optional;
     }
@@ -50,6 +65,15 @@ public abstract class AttributeImpl<X, Y> extends TypeImpl<Y> implements Attribu
     @Override
     public ManagedType<X> getDeclaringType() {
         return declaringType;
+    }
+
+    /**
+     * Package-private setter for wiring attributes to their declaring type
+     * after the managed type is constructed.
+     */
+    @SuppressWarnings("unchecked")
+    void setDeclaringType(ManagedType<?> declaringType) {
+        this.declaringType = (ManagedType<X>) declaringType;
     }
 
     @Override

@@ -15,9 +15,12 @@ import jakarta.persistence.metamodel.Type.PersistenceType;
 /**
  * Base implementation of {@link Type} for the Mansart persistence provider.
  *
+ * <p>This class is concrete and can be instantiated directly for bootstrap-time
+ * metamodel building where a persistence type is not yet known.</p>
+ *
  * @param <X> the represented Java type
  */
-public abstract class TypeImpl<X> implements Type<X> {
+public class TypeImpl<X> implements Type<X> {
 
     private final Class<X> javaType;
     private final PersistenceType persistenceType;

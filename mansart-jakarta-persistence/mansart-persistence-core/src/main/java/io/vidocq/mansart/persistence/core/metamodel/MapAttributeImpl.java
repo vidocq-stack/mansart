@@ -41,6 +41,19 @@ public class MapAttributeImpl<X, K, V> extends PluralAttributeImpl<X, java.util.
         this.keyJavaType = (Class<K>) keyJavaType;
     }
 
+    /**
+     * Constructor without declaring type — for bootstrap-time metamodel building.
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public MapAttributeImpl(Class<?> javaType, String name,
+                     Type<K> keyType, Class<K> keyJavaType,
+                     Type<V> elementType) {
+        super(javaType, name,
+              jakarta.persistence.metamodel.PluralAttribute.CollectionType.MAP, elementType);
+        this.keyType = keyType;
+        this.keyJavaType = (Class<K>) keyJavaType;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public Class<K> getKeyJavaType() {

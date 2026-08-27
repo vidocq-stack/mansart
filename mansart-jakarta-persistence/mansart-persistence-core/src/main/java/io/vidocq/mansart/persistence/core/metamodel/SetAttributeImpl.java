@@ -29,9 +29,19 @@ public final class SetAttributeImpl<X, E> extends PluralAttributeImpl<X, java.ut
 
     @SuppressWarnings("rawtypes")
     public SetAttributeImpl(Class<?> javaType, String name,
-                     ManagedType<?> declaringType,
-                     Type<E> elementType) {
+                      ManagedType<?> declaringType,
+                      Type<E> elementType) {
         super(javaType, name, declaringType,
+              jakarta.persistence.metamodel.PluralAttribute.CollectionType.SET, elementType);
+    }
+
+    /**
+     * Constructor without declaring type — for bootstrap-time metamodel building.
+     */
+    @SuppressWarnings("rawtypes")
+    public SetAttributeImpl(Class<?> javaType, String name,
+                      Type<E> elementType) {
+        super(javaType, name,
               jakarta.persistence.metamodel.PluralAttribute.CollectionType.SET, elementType);
     }
 }

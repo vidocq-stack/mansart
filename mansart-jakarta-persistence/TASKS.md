@@ -205,7 +205,7 @@ notes:  DID2Employee entity with composite key (firstName + lastName).
 deps:   JP-10, JP-11, JP-12, JP-13, JP-14, JP-15, JP-16, JP-17, JP-18, JP-19
 files:  STATUS.md (update TCK numbers)
 proof:  TCK `--sig` or entity-only run: `core/metamodelapi` — 257 methods PASS
-notes:  Full-suite run. 16 Client classes, 257 test methods. Gate for M1. All 7 Sonar issues on `MansartPersistenceProvider.java` resolved (1 BLOCKER, 2 MAJOR, 4 MINOR). Gate now fails only on coverage (0% — no JaCoCo without `-Pquality`). TCK 0/259 (stub provider, same baseline).
+notes:  Full-suite run. 16 Client classes, 257 test methods. Gate for M1. All 7 Sonar issues on `MansartPersistenceProvider.java` resolved (1 BLOCKER, 2 MAJOR, 4 MINOR). Session: `TypeImpl` made concrete, `MapAttributeImpl` no-declaringType ctor made public, explicit `<Object,Object,Object>` type args on constructor call — build 34/34. TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (stub provider not wired, same baseline).
 
 ## M2 … M9
 

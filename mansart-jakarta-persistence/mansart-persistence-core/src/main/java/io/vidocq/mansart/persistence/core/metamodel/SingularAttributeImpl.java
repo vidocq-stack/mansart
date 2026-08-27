@@ -31,12 +31,26 @@ public final class SingularAttributeImpl<X, T> extends AttributeImpl<X, T>
 
     @SuppressWarnings("rawtypes")
     public SingularAttributeImpl(Class<?> javaType, String name,
-                          ManagedType<?> declaringType,
-                          PersistentAttributeType persistentAttributeType,
-                          boolean optional, boolean id, boolean version,
-                          Type<?> type) {
+                           ManagedType<?> declaringType,
+                           PersistentAttributeType persistentAttributeType,
+                           boolean optional, boolean id, boolean version,
+                           Type<?> type) {
         super((Class<T>) javaType, name, (ManagedType<X>) declaringType,
               persistentAttributeType, optional);
+        this.id = id;
+        this.version = version;
+        this.type = (Type<T>) type;
+    }
+
+    /**
+     * Constructor without declaring type — for bootstrap-time metamodel building.
+     */
+    @SuppressWarnings("rawtypes")
+    public SingularAttributeImpl(Class<?> javaType, String name,
+                           PersistentAttributeType persistentAttributeType,
+                           boolean optional, boolean id, boolean version,
+                           Type<?> type) {
+        super((Class<T>) javaType, name, persistentAttributeType, optional);
         this.id = id;
         this.version = version;
         this.type = (Type<T>) type;
