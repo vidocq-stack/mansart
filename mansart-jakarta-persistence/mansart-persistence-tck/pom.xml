@@ -234,9 +234,15 @@
                              <includes>
                                  <include>**/Client.class</include>
                              </includes>
-                            <systemPropertyVariables>
-                                <h2driverscript.classname>org.h2.Driver</h2driverscript.classname>
-                            </systemPropertyVariables>
+                             <systemPropertyVariables>
+                                 <h2driverscript.classname>org.h2.Driver</h2driverscript.classname>
+                                 <!-- Force standalone mode so PMClientBase uses
+                                      Persistence.createEntityManagerFactory() directly
+                                      instead of expecting a JakartaEE container. -->
+                                 <platform.mode>standalone</platform.mode>
+                                 <persistence.unit.name>JPATCK</persistence.unit.name>
+                                 <persistence.properties.file>${project.basedir}/src/test/resources/tck-standalone.properties</persistence.properties.file>
+                             </systemPropertyVariables>
                         </configuration>
                     </plugin>
                 </plugins>

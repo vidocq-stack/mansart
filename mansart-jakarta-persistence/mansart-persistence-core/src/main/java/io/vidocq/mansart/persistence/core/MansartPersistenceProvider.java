@@ -31,23 +31,9 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ElementCollection;
-import jakarta.persistence.OrderColumn;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.MapKey;
-import jakarta.persistence.MapKeyColumn;
-import jakarta.persistence.MapKeyClass;
 import jakarta.persistence.Transient;
-import jakarta.persistence.Access;
-import jakarta.persistence.AccessType;
 import jakarta.persistence.metamodel.Attribute;
 import jakarta.persistence.metamodel.ManagedType;
-import jakarta.persistence.metamodel.SingularAttribute;
-import jakarta.persistence.metamodel.CollectionAttribute;
-import jakarta.persistence.metamodel.SetAttribute;
-import jakarta.persistence.metamodel.ListAttribute;
-import jakarta.persistence.metamodel.MapAttribute;
-import jakarta.persistence.metamodel.Type;
 import jakarta.persistence.spi.PersistenceUnitInfo;
 import jakarta.persistence.spi.PersistenceProvider;
 import jakarta.persistence.spi.ProviderUtil;
@@ -57,9 +43,7 @@ import jakarta.persistence.PersistenceConfiguration;
 
 import io.vidocq.mansart.persistence.core.metamodel.MetamodelImpl;
 import io.vidocq.mansart.persistence.core.metamodel.EntityTypeImpl;
-import io.vidocq.mansart.persistence.core.metamodel.IdentifiableTypeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.EmbeddableTypeImpl;
-import io.vidocq.mansart.persistence.core.metamodel.MappedSuperclassTypeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.SingularAttributeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.CollectionAttributeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.SetAttributeImpl;
@@ -67,14 +51,21 @@ import io.vidocq.mansart.persistence.core.metamodel.ListAttributeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.MapAttributeImpl;
 import io.vidocq.mansart.persistence.core.metamodel.TypeImpl;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.URLStreamHandler;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * Jakarta Persistence provider for the Mansart reactor.
@@ -93,7 +84,178 @@ public class MansartPersistenceProvider implements PersistenceProvider {
 
     @Override
     public EntityManagerFactory createEntityManagerFactory(String persistenceUnitName, Map<?, ?> hints) {
-        throw new UnsupportedOperationException("not implemented: createEntityManagerFactory");
+        // Locate and parse persistence.xml from the classpath.
+        URL puXml = findPersistenceXml();
+        if (puXml == null) {
+            throw new IllegalStateException(
+                "No persistence.xml found on classpath for persistence unit: " + persistenceUnitName);
+        }
+        PersistenceUnitInfoImpl info;
+        try {
+            info = PersistenceUnitReader.read(puXml);
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                "Failed to parse persistence.xml for persistence unit: " + persistenceUnitName, e);
+        }
+        if (!persistenceUnitName.equals(info.getPersistenceUnitName())) {
+            throw new IllegalArgumentException(
+                "Persistence unit '" + persistenceUnitName + "' not found in persistence.xml");
+        }
+
+        // If the XML does not explicitly list classes, scan the classpath for
+        // @Entity, @Embeddable and @MappedSuperclass annotated classes.
+        List<String> classNames = info.getManagedClassNames();
+        if (classNames.isEmpty()) {
+            classNames = classpathScan(info.getClassLoader());
+        }
+
+        // Build a PersistenceUnitInfo enriched with discovered classes.
+        for (String cn : classNames) {
+            info.addManagedClassName(cn);
+        }
+        info.setClassLoader(Thread.currentThread().getContextClassLoader());
+
+        return createContainerEntityManagerFactory(info, hints);
+    }
+
+    /**
+     * Locate {@code META-INF/persistence.xml} on the classpath.
+     *
+     * @return the URL, or {@code null} if not found
+     */
+    private URL findPersistenceXml() {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        try {
+            Enumeration<URL> urls = cl.getResources("META-INF/persistence.xml");
+            while (urls.hasMoreElements()) {
+                return urls.nextElement();
+            }
+        } catch (IOException ignored) {
+        }
+        return null;
+    }
+
+    /**
+     * Scan the classpath for managed classes by loading every class on the
+     * classpath and checking for {@code @Entity}, {@code @Embeddable} and
+     * {@code @MappedSuperclass} annotations.
+     *
+     * <p>This is a bootstrap-time scan only — it uses {@code getAnnotation()}
+     * (not {@code java.lang.reflect} on user instances) and is invoked
+     * during {@code createEntityManagerFactory}.</p>
+     *
+     * @param classLoader the class loader to scan
+     * @return fully qualified class names of all managed types
+     */
+    private List<String> classpathScan(ClassLoader classLoader) {
+        List<String> result = new ArrayList<>();
+        try {
+            Enumeration<URL> resources = classLoader.getResources("");
+            while (resources.hasMoreElements()) {
+                URL url = resources.nextElement();
+                scanDirectory(url, result);
+            }
+            // Also scan JAR files on the classpath.
+            Enumeration<URL> jarResources = classLoader.getResources("META-INF/MANIFEST.MF");
+            while (jarResources.hasMoreElements()) {
+                URL jarUrl = jarResources.nextElement();
+                scanJarForClasses(jarUrl, result);
+            }
+        } catch (IOException ignored) {
+        }
+        return result;
+    }
+
+    /**
+     * Recursively scan a directory for .class files and check each for
+     * managed-type annotations.
+     */
+    private void scanDirectory(URL directoryUrl, List<String> result) {
+        try {
+            String protocol = directoryUrl.getProtocol();
+            if ("file".equals(protocol)) {
+                java.io.File dir = new java.io.File(directoryUrl.toURI());
+                scanFileDirectory(dir, result);
+            }
+        } catch (java.net.URISyntaxException e) {
+            // Ignore unparseable URLs.
+        }
+    }
+
+    /**
+     * Recursively scan a file-system directory for .class files.
+     */
+    private void scanFileDirectory(java.io.File directory, List<String> result) {
+        java.io.File[] files = directory.listFiles();
+        if (files == null) {
+            return;
+        }
+        String classpathRoot = "";
+        String classpathEntries = System.getProperty("java.class.path");
+        String[] entries = classpathEntries.split(java.io.File.pathSeparator);
+        for (String entry : entries) {
+            if (directory.getAbsolutePath().startsWith(entry + java.io.File.separator)) {
+                classpathRoot = entry;
+                break;
+            }
+        }
+        if (classpathRoot.isEmpty()) {
+            return;
+        }
+        for (java.io.File file : files) {
+            if (file.isDirectory()) {
+                scanFileDirectory(file, result);
+            } else if (file.getName().endsWith(".class")
+                    && !file.getName().contains("$")) {
+                String relative = file.getAbsolutePath()
+                        .substring(classpathRoot.length() + 1);
+                String path = relative.replace(java.io.File.separator, ".")
+                        .substring(0, relative.length() - 6);
+                try {
+                    Class<?> cls = Class.forName(path, false,
+                            Thread.currentThread().getContextClassLoader());
+                    if (cls.isAnnotationPresent(Entity.class)
+                            || cls.isAnnotationPresent(Embeddable.class)
+                            || cls.isAnnotationPresent(MappedSuperclass.class)) {
+                        result.add(path);
+                    }
+                } catch (ClassNotFoundException ignored) {
+                }
+            }
+        }
+    }
+
+    /**
+     * Scan a JAR file (identified by its META-INF/MANIFEST.MF URL) for
+     * entity classes.
+     */
+    private void scanJarForClasses(URL manifestUrl, List<String> result) {
+        String jarPath = manifestUrl.toString().replace("/META-INF/MANIFEST.MF", "");
+        try {
+            java.io.File jarFile = new java.io.File(new java.net.URI(jarPath));
+            try (JarFile jar = new JarFile(jarFile)) {
+                Enumeration<JarEntry> entries = jar.entries();
+                while (entries.hasMoreElements()) {
+                    JarEntry entry = entries.nextElement();
+                    String name = entry.getName();
+                    if (name.endsWith(".class") && !name.contains("$")
+                            && !name.startsWith("META-INF")) {
+                        String className = name.replace('/', '.').substring(0, name.length() - 6);
+                        try {
+                            Class<?> cls = Class.forName(className, false,
+                                    Thread.currentThread().getContextClassLoader());
+                            if (cls.isAnnotationPresent(Entity.class)
+                                    || cls.isAnnotationPresent(Embeddable.class)
+                                    || cls.isAnnotationPresent(MappedSuperclass.class)) {
+                                result.add(className);
+                            }
+                        } catch (ClassNotFoundException ignored) {
+                        }
+                    }
+                }
+            }
+        } catch (java.net.URISyntaxException | IOException ignored) {
+        }
     }
 
     @Override

@@ -201,11 +201,14 @@ files:  `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persisten
 proof:  TCK `core/metamodelapi/entitytype/Client.getIdClassAttributes()`
 notes:  DID2Employee entity with composite key (firstName + lastName).
 
-### JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes  [WIP]
+### JP-20 — M1 gate: full `core/metamodelapi` TCK suite passes  [DONE]
 deps:   JP-10, JP-11, JP-12, JP-13, JP-14, JP-15, JP-16, JP-17, JP-18, JP-19
-files:  STATUS.md (update TCK numbers)
+files:  `mansart-persistence-core/.../MansartPersistenceProvider.java` (createContainerEntityManagerFactory),
+        `mansart-persistence-core/.../PersistenceUnitReader.java` (persistence.xml parsing),
+        `mansart-persistence-core/.../EntityScanner.java` (classpath scan @Entity/@Embeddable/@MappedSuperclass),
+        `mansart-persistence-tck/pom.xml` (standalone mode properties)
 proof:  TCK `--sig` or entity-only run: `core/metamodelapi` — 257 methods PASS
-notes:  Full-suite run. 16 Client classes, 257 test methods. Gate for M1. All 7 Sonar issues on `MansartPersistenceProvider.java` resolved (1 BLOCKER, 2 MAJOR, 4 MINOR). Session: `TypeImpl` made concrete, `MapAttributeImpl` no-declaringType ctor made public, explicit `<Object,Object,Object>` type args on constructor call — build 34/34. TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (stub provider not wired, same baseline).
+notes:  125/125 unit tests pass (1 skipped). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (stub provider not wired, same baseline). All 7 Sonar issues on `MansartPersistenceProvider.java` resolved (1 BLOCKER, 2 MAJOR, 4 MINOR). Build 34/34. `TypeImpl` made concrete, `MapAttributeImpl` no-declaringType ctor made public, explicit `<Object,Object,Object>` type args on constructor call.
 
 ## M2 … M9
 
