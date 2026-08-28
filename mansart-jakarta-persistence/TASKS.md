@@ -210,7 +210,135 @@ files:  `mansart-persistence-core/.../MansartPersistenceProvider.java` (createCo
 proof:  TCK `--sig` or entity-only run: `core/metamodelapi` — 257 methods PASS
 notes:  125/125 unit tests pass (1 skipped). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (stub provider not wired, same baseline). All 7 Sonar issues on `MansartPersistenceProvider.java` resolved (1 BLOCKER, 2 MAJOR, 4 MINOR). Build 34/34. `TypeImpl` made concrete, `MapAttributeImpl` no-declaringType ctor made public, explicit `<Object,Object,Object>` type args on constructor call.
 
-## M2 … M9
+## M2 — EntityManager CRUD
+
+### JP-21 — EntityManagerFactory infrastructure (persistence context, property handling, createEntityManager)            [TODO]
+deps:   JP-20
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactoryImpl.java`
+proof:  Unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityManagerFactoryTest.java`. TCK reference `se/entityManagerFactory/Client2` is infrastructure validation (EMF is M2 infrastructure, though this specific client is outside the M2 gate).
+notes:  Builds on M1's MansartPersistenceProvider. Creates EntityManager instances, manages persistence context, handles EMF properties.
+
+### JP-22 — EntityManager basic lifecycle (open, close, isOpen, isJoinedToTransaction)            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java`
+proof:  TCK `se/entityManager/Client` — `entityManagerMethodsAfterClose1Test()` through `entityManagerMethodsAfterClose25Test()` (post-close IllegalStateException checks); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityManagerLifecycleTest.java`
+notes:  Every EntityManager method must throw IllegalStateException after close(). This is the most-tested aspect of M2.
+
+### JP-23 — persist(): new entity gets DB row + assigned ID            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist)
+proof:  TCK `core/entitytest/persist/basic/Client` — `persistBasicTest1()` through `persistBasicTest5()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistBasicTest.java`
+notes:  Basic persist: new entity, null argument, already-removed entity, detached entity, mixed operations. 5 methods. BigDecimal/BigInteger persistBasicTest1-5 exercise column mapping (not special behavior).
+
+### JP-24a — persist(): many-to-many relationship (owning + inverse side)            [TODO]
+deps:   JP-23
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist many-to-many)
+proof:  TCK `core/entitytest/persist/manyXmany/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistManyToManyTest.java`
+notes:  ~14 methods. Owns FK, updates inverse collection.
+
+### JP-24b — persist(): many-to-one relationship            [TODO]
+deps:   JP-23
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist many-to-one)
+proof:  TCK `core/entitytest/persist/manyXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistManyToOneTest.java`
+notes:  ~14 methods. Sets FK on owning side.
+
+### JP-24c — persist(): one-to-many relationship (inverse side, collection management)            [TODO]
+deps:   JP-23
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist one-to-many)
+proof:  TCK `core/entitytest/persist/oneXmany/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistOneToManyTest.java`
+notes:  ~14 methods. Maintains inverse collection, does NOT set FK.
+
+### JP-24d — persist(): one-to-one relationship            [TODO]
+deps:   JP-23
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist one-to-one)
+proof:  TCK `core/entitytest/persist/oneXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistOneToOneTest.java`
+notes:  ~14 methods. Sets FK on owning side.
+
+### JP-25 — find(): by ID, with/without fetch mode, not-found case            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (find)
+proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest2()` (find / getReference); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FindByIdTest.java`
+notes:  Finds entity by ID from DB. Returns null if not found. Also tested in apitests.Client.
+
+### JP-26 — remove(): managed + detached entity, already-removed entity            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (remove)
+proof:  TCK `core/entitytest/remove/basic/Client` — `removeBasicTest1()` through `removeBasicTest5()`, `removeMergeBasicTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveBasicTest.java`
+notes:  6 methods. Basic remove: new entity (no-op/warn), managed entity (DELETE), detached entity (find + DELETE), already-removed entity (no-op), mixed operations.
+
+### JP-27 — remove(): relationship-specific (one-to-many, one-to-one)            [TODO]
+deps:   JP-26
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (remove + relationship handling)
+proof:  TCK `core/entitytest/remove/oneXmany/Client`, `remove/oneXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveRelationshipTest.java`
+notes:  13 methods across 2 relationship types. Same behavior applied to each.
+
+### JP-28 — merge(): detached entity state re-attached to persistence context            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (merge)
+proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest1()`, `entityAPITest8()`, `entityAPITest17()` (merge scenarios); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/MergeTest.java`
+notes:  Merge copies state from detached entity to managed entity (or new entity). Also tested in apitests.Client entityAPITest1, entityAPITest8, entityAPITest17.
+
+### JP-29 — flush(): sync persistence context to DB, flush ordering (persist/merge/remove → flush)            [TODO]
+deps:   JP-23, JP-25, JP-26, JP-28
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (flush)
+proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest3()` (flush behavior); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FlushTest.java`
+notes:  Flush ordering is explicitly named in the milestone scope. Persist/merge/remove operations must auto-flush before query execution in correct order.
+
+### JP-30 — clear() + contains(): check managed state, post-close behavior            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (clear, contains)
+proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest4()` (clear / contains / lock), `se/entityManager/Client` — `clearAfterClose()`, `containsAfterClose()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ClearContainsTest.java`
+notes:  4 methods across 2 TCK clients. Both test the same EntityManager.java methods.
+
+### JP-32 — lock(): re-attach detached entity with lock mode (PESSIMISTIC_READ, PESSIMISTIC_WRITE, etc.)            [BLOCKED — defer to M8]
+deps:   JP-21
+files:  (deferred)
+proof:  (deferred)
+notes:  Lock operations belong to M8 (`core/lock` in PLAN.md). This card is a placeholder.
+
+### JP-33 — getReference(): returns lazy proxy, throws on close/not-found            [TODO]
+deps:   JP-25, JP-24a, JP-24b, JP-24c, JP-24d
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getReference), `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/LazyProxyFactory.java` (new)
+proof:  TCK `core/entitytest/apitests/Client` — `getReferenceTest()`, `getReferenceExceptionsTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/GetReferenceTest.java`
+notes:  Returns a lazy proxy (not a real entity). Throws on close() and not-found. Requires proxy generation (Class-File API, tier 1).
+
+### JP-34 — refresh(): re-read entity state from DB            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (refresh)
+proof:  TCK `se/entityManager/Client` — `refreshAfterClose()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RefreshTest.java`
+notes:  1 method (post-close). Overwrites managed entity state with DB state.
+
+### JP-35 — EntityTransaction: begin, commit, rollback, isActive, getRollbackOnly            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityTransaction.java` (new), `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getTransaction)
+proof:  TCK `se/entityManager/Client` — `entityManagerMethodsRuntimeExceptionsCauseRollback18Test()` through `entityManagerMethodsRuntimeExceptionsCauseRollback22Test()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityTransactionTest.java`
+notes:  Resource-local transaction management. Binds to mansart-transactions. RuntimeException during persist/merge/remove/flush triggers rollback.
+
+### JP-36a — EntityManager edge cases: EMF.getMetamodel() after close, EMF.createEntityManagerFactory with invalid config            [TODO]
+deps:   JP-22, JP-35
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (remaining methods), `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactoryImpl.java`
+proof:  TCK `se/entityManagerFactory/Client1` — `getMetamodelIllegalStateExceptionTest()`, `se/entityManagerFactory/Client2` — `createEntityManagerFactoryNoBeanValidatorTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityManagerEdgeCasesTest.java`
+notes:  Post-close behavior for EMF methods. Only these 2 TCK clients — nothing else.
+
+### JP-36b — StoredProcedureQuery: post-close behavior for all methods            [BLOCKED — defer to M9]
+deps:   JP-36a
+files:  (deferred)
+proof:  (deferred)
+notes:  StoredProcedureQuery belongs to M9. This card is a placeholder.
+
+### JP-36c — Named queries from XML: xmlNamedQueryTest, xmlOverridesNamedQueryTest, xmlNamedNativeQueryTest, xmlOverridesNamedNativeQueryTest, namedNativeQueryInMappedSuperClass, NamedQueryInMappedSuperClass            [BLOCKED — defer to M4/M9]
+deps:   JP-21
+files:  (deferred)
+proof:  (deferred)
+notes:  Named queries from XML belong to M4 (JPQL) or M9 (annotation sweep). This card is a placeholder.
+
+### JP-36d — Lock operations: pessimistic read, write, force, time + post-close behavior            [BLOCKED — defer to M8]
+deps:   JP-21
+files:  (deferred)
+proof:  (deferred)
+notes:  Lock belongs to M8 (`core/lock`). This card is a placeholder.
+
+## M3 … M9
 
 See `PLAN.md`. Not expanded.
 

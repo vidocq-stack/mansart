@@ -24,7 +24,7 @@ Le modèle en question s'appelle Qwen3.6, un descendant chinois de la grande fam
 
 Pour le piloter, j'utilise deux outils. Un serveur local qui héberge le modèle et répond aux questions, et un assistant de programmation qui joue les chefs d'orchestre : il lit mes fichiers, lance les compilations, écrit le code, relance les tests. Le modèle est le cerveau, l'assistant est les mains. Mon travail à moi, dans tout ça, se résume de plus en plus à celui d'un contremaître un peu méfiant.
 
-L'objectif, tant qu'à faire, n'était pas de générer un « bonjour le monde ». J'ai visé une bête de concours : implémenter Jakarta Persistence, la norme officielle qui permet à un programme Java de discuter avec une base de données. C'est une spécification énorme, aride, avec sa propre suite de tests de conformité : 269 familles de tests, environ 1 745 vérifications individuelles. Le genre de montagne qu'on ne gravit pas en un week-end. Parfait pour voir si la petite IA locale tient la distance ou déclare forfait au premier virage.
+L'objectif, tant qu'à faire, n'était pas de générer un « bonjour le monde ». Puisque je trichais déjà sur le matériel, autant ne pas tricher sur le reste. J'ai donc visé une bête de concours, une des spécifications les plus retorses de tout l'écosystème Java : implémenter Jakarta Persistence, la norme officielle qui permet à un programme de discuter avec une base de données. Un monument aride, doté de sa propre suite de tests de conformité : 269 familles de tests, environ 1 745 vérifications individuelles, chacune impitoyable. Le genre de montagne qu'on ne gravit pas en un week-end, et que la plupart des gens sensés n'iraient pas attaquer avec une petite IA posée sur un ordinateur portable. Appelez ça de la folie. Moi j'appelle ça refuser de me faciliter la tâche : pour savoir si l'IA locale tient vraiment la route, il faut la mettre face à quelque chose de dur, pas lui tendre une perche. Une démonstration facile ne prouve que la facilité.
 
 ## Ce qui marche, et qui m'a bluffé
 
@@ -210,6 +210,36 @@ Pas le modèle local, en tout cas pas cette fois. Pour aller vite, j'ai confié 
 Et je veux être honnête sur ce point, parce que c'est tentant d'en tirer une morale trop nette. Je n'ai pas prouvé que le modèle local était incapable de bâtir sa propre maison. Je ne lui ai simplement pas demandé. J'ai pris le raccourci du costaud parce qu'il était là, sous la main, et qu'il allait plus vite, pas parce que j'aurais fait la démonstration que le petit n'y arriverait pas. Peut-être qu'il en serait capable, bien guidé, plus lentement. Je n'en sais rien encore.
 
 C'est justement la prochaine expérience, et la vraie marche qui reste à gravir vers le tout-local : non plus seulement faire travailler l'IA locale dans un atelier construit pour elle, mais lui faire construire l'atelier. Pour l'instant, disons-le comme c'est : le costaud a fabriqué les béquilles du petit, le petit tient debout et marche. Reste à savoir s'il peut apprendre à se fabriquer ses propres béquilles. Je vous raconterai.
+
+## Le jour où je l'ai laissé s'organiser tout seul
+
+Je vous disais que je raconterais plus tard s'il savait se fabriquer ses propres béquilles. Je n'ai pas tenu une journée.
+
+Voilà le contexte. Le travail avance par petites tâches que je découpe une à une, en général avec l'aide du gros modèle distant. Un soir, la liste s'est vidée. Il fallait attaquer le morceau suivant, un gros chapitre, et le débiter en tâches assez fines pour tenir dans la courte mémoire du petit. Plutôt que de le faire moi-même, je me suis demandé : et si je laissais le local se donner ses propres ordres ? Je lui ai posé une seule règle, mais ferme : avant d'inventer quoi que ce soit, va lire les tests officiels qui décrivent ce qu'il faut construire. Ensuite, découpe.
+
+Le résultat m'a scié, dans les deux sens.
+
+Le bon d'abord. Il est vraiment allé lire les tests. Il ne les a pas inventés, il a cité les vrais, à la ligne près, et il en a tiré une liste de tâches dans un ordre qui tenait debout : poser les fondations avant de bâtir dessus, ne pas essayer de modifier une donnée avant de savoir la créer. Pour quelque chose qu'on présente partout comme le domaine réservé des gros modèles, l'ossature était étonnamment juste.
+
+Le moins bon ensuite. Il a débordé. Il a glissé dans la liste des tâches qui appartenaient à un chapitre situé bien plus loin, entraîné par des tests qui mélangeaient les sujets. Il a pondu deux ou trois tâches monstrueuses, du genre une seule ligne annonçant tranquillement « implémenter l'interface entière », soit des semaines de travail déguisées en case à cocher. Et surtout, il a oublié une règle qu'on venait de fixer ensemble vingt minutes plus tôt, une règle qu'il avait sous les yeux, et qu'il a superbement ignorée.
+
+La morale du premier jet tient en une phrase : il sait ébaucher, pas finaliser. Il pose une charpente correcte, mais il faut ensuite quelqu'un pour couper le hors-sujet, ramener les tâches monstres à taille humaine, et rattraper les règles qu'il a laissées filer. Il se fabrique bien des béquilles, sauf qu'elles sont un peu de travers, et qu'un adulte doit repasser resserrer les vis avant qu'il ose s'appuyer dessus.
+
+Sauf que je n'allais pas me contenter de corriger sa copie. Ce qui m'intéressait, c'était de savoir s'il pouvait apprendre. Alors j'ai fait ce qu'on fait avec un apprenti : j'ai pris chacune de ses bourdes et je l'ai transformée en règle écrite, noir sur blanc dans ses consignes. Ne mets pas dans ta liste ce qui appartient à un chapitre futur. Ne fabrique pas de tâche géante. Range tes tests au bon endroit. Et relis-toi avant de me rendre ta copie. Puis j'ai effacé son premier jet, et je l'ai laissé tout recommencer, ces règles sous les yeux.
+
+C'était nettement mieux. Les tâches démesurées avaient disparu, le gros du hors-sujet aussi, la liste était plus courte et mieux rangée. Les règles écrites l'avaient tenu. Mais pas complètement : il gardait encore une ou deux fonctions qui appartenaient visiblement à un chapitre lointain, et il avait discrètement recréé une tâche fourre-tout, la case où l'on jette ce qu'on ne sait pas classer. Les fautes grossières corrigées, les nuances fines continuaient de lui filer entre les doigts. On peut lui apprendre de ses erreurs, et il apprend pour de vrai. Mais il reste une frontière que la règle écrite ne franchit pas : ce petit jugement qui vous fait dire « ça, ça n'a rien à faire ici ». Passé une certaine finesse, il faut encore quelqu'un qui sait, et ce quelqu'un, pour l'instant, n'est pas lui.
+
+C'est peut-être ça, le vrai statut de l'IA locale aujourd'hui. Pas incapable de penser à votre place. Capable, même, d'apprendre de ses bourdes quand on les lui écrit noir sur blanc. Juste pas encore capable de se relire tout seul jusqu'au bout.
+
+Alors je ne l'ai pas laissé se relire tout seul.
+
+C'est là que j'ai eu mon idée, et je vais me permettre d'en être un peu fier, parce qu'elle est de moi. Pas du gros modèle distant qui a bâti tout l'atelier, pas du petit local qui y travaille. De moi, l'humain resté dans la boucle, avec une astuce toute bête que connaît n'importe quel écrivain : on relit toujours mieux le texte d'un autre que le sien. Le sien, on l'aime déjà, on glisse sur ses défauts sans les voir. Alors pourquoi ne pas faire relire le plan au modèle, mais dans une conversation neuve, cerveau vidé, en lui cachant qu'il en est l'auteur ? Le même modèle, convoqué cette fois comme correcteur, pas comme écrivain.
+
+J'ai fabriqué une seconde commande pour ça. Elle relance le modèle à froid, avec une seule mission : voilà un plan que quelqu'un a écrit, déchire-le, trouve ce qui déborde, ce qui est trop gros, ce qui est mal rangé, et corrige.
+
+Le résultat m'a bluffé. Cette fois, il a tout attrapé. Le hors-sujet renvoyé au bon chapitre, les tâches géantes découpées en morceaux digestes, les tests remis à leur place. Mieux : il a corrigé des choses que je ne lui avais même pas signalées, et il a eu l'élégance de finir par « ces deux points-là, honnêtement, je ne suis pas sûr, à vous de trancher ». Le correcteur a réussi là où l'écrivain s'était planté. Le même modèle, la même machine. La seule différence, c'est qu'on lui a fait relire le travail d'un inconnu qui se trouvait être lui-même.
+
+Et voilà ce qui me réjouit, sans vouloir froisser les machines. Cette idée-là, ni le gros cerveau distant ni le petit local ne l'avaient eue. C'est l'humain de service qui l'a trouvée, en piochant dans un vieux réflexe de métier. Dans une histoire où une IA a dessiné l'atelier et une autre l'a fait tourner, c'est encore moi qui ai apporté le tour de main que ni l'une ni l'autre n'avait vu. On n'est peut-être pas tout à fait caducs, nous autres. Il nous reste des idées que les machines, pour l'instant, ne pensent pas à avoir.
 
 ## L'IA locale, ça marche ?
 
