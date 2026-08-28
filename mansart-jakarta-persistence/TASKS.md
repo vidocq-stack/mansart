@@ -212,11 +212,14 @@ notes:  125/125 unit tests pass (1 skipped). TCK 991 run, 989 errors, 2 skipped 
 
 ## M2 — EntityManager CRUD
 
-### JP-21 — EntityManagerFactory infrastructure (persistence context, property handling, createEntityManager)            [TODO]
+### JP-21 — EntityManagerFactory infrastructure (persistence context, property handling, createEntityManager)            [DONE]
 deps:   JP-20
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactoryImpl.java`
-proof:  Unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityManagerFactoryTest.java`. TCK reference `se/entityManagerFactory/Client2` is infrastructure validation (EMF is M2 infrastructure, though this specific client is outside the M2 gate).
-notes:  Builds on M1's MansartPersistenceProvider. Creates EntityManager instances, manages persistence context, handles EMF properties.
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/PersistenceContext.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java`,
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactory.java`,
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactoryTest.java`
+proof:  Unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactoryTest.java` — 23/23 pass. TCK reference `se/entityManagerFactory/Client2` is infrastructure validation (EMF is M2 infrastructure, though this specific client is outside the M2 gate).
+notes:  Builds on M1's MansartPersistenceProvider. `PersistenceContext` (identity map tracking managed entities) + `MansartEntityManager` (64 JPA 3.2 methods, all CRUD/query throw `UnsupportedOperationException`, lifecycle methods wired) + factory returns live EM via all 4 `createEntityManager()` variants. 4 tests that previously expected `UnsupportedOperationException` now return live EM — expectations inverted.
 
 ### JP-22 — EntityManager basic lifecycle (open, close, isOpen, isJoinedToTransaction)            [TODO]
 deps:   JP-21

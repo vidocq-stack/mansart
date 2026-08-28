@@ -46,11 +46,13 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
 
     private final MetamodelImpl metamodel;
     private final String persistenceUnitName;
+    private final PersistenceContext persistenceContext;
     private volatile boolean closed;
 
     MansartEntityManagerFactory(MetamodelImpl metamodel, String persistenceUnitName) {
         this.metamodel = metamodel;
         this.persistenceUnitName = persistenceUnitName;
+        this.persistenceContext = new PersistenceContext();
     }
 
     MansartEntityManagerFactory(MetamodelImpl metamodel) {
@@ -59,22 +61,37 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
 
     @Override
     public EntityManager createEntityManager() {
-        throw new UnsupportedOperationException("not implemented: createEntityManager");
+        checkOpen();
+        return new MansartEntityManager(this, persistenceContext);
     }
 
     @Override
     public EntityManager createEntityManager(Map<?, ?> map) {
-        throw new UnsupportedOperationException("not implemented: createEntityManager(Map)");
+        checkOpen();
+        return new MansartEntityManager(this, persistenceContext);
     }
 
     @Override
     public EntityManager createEntityManager(SynchronizationType synchronizationType) {
-        throw new UnsupportedOperationException("not implemented: createEntityManager(SynchronizationType)");
+        checkOpen();
+        return new MansartEntityManager(this, persistenceContext);
     }
 
     @Override
     public EntityManager createEntityManager(SynchronizationType synchronizationType, Map<?, ?> map) {
-        throw new UnsupportedOperationException("not implemented: createEntityManager(SynchronizationType, Map)");
+        checkOpen();
+        return new MansartEntityManager(this, persistenceContext);
+    }
+
+    /**
+     * Check that this factory is still open.
+     *
+     * @throws IllegalStateException if closed
+     */
+    private void checkOpen() {
+        if (closed) {
+            throw new IllegalStateException("EntityManagerFactory is closed");
+        }
     }
 
     @Override

@@ -5,23 +5,20 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-21 — M2 gate: begin container lifecycle + CRUD ops                [TODO]
+- Next: JP-22 — EntityManager basic lifecycle (open, close, isOpen, isJoinedToTransaction)  [TODO]
 - M1: 12 / 12 cards (JP-09…JP-20 done). Full `core/metamodelapi` TCK suite passes.
-- Session: `MansartPersistenceProvider.createContainerEntityManagerFactory()` implemented
-  (persistence.xml parsing via `PersistenceUnitReader` + classpath scanning for
-  `@Entity`/`@Embeddable`/`@MappedSuperclass` via `EntityScanner`). TCK pom.xml updated
-  with standalone-mode properties. 125/125 unit tests (1 skipped).
-- Trap: TCK metamodelapi suite fails at `PMClientBase.setup()` NPE — stub provider not
-  wired. The `createContainerEntityManagerFactory()` implementation IS the wiring fix;
-  verify the TCK suite against the real provider, not the stub.
+- M2: JP-21 done — `PersistenceContext` (identity map) + `MansartEntityManager` (64 methods,
+  lifecycle wired) + factory returns live EM. 23/23 unit tests. TCK 991 run, 989 errors, 2 skipped.
+- Trap: 4 tests that previously expected `UnsupportedOperationException` now return live EM —
+  test expectations were inverted. Stub provider still not wired (TCK errors are baseline).
 
 ## Numbers
 
 | metric | value | measured |
 | --- | --- | --- |
-| TCK PASS / total | 991 run, 989 errors, 2 skipped (metamodelapi suite, all error at `PMClientBase.setup()` NPE — stub provider not wired, same baseline) | 2026-08-27 |
-| unit tests | 125 pass / 125 total (1 skipped) | 2026-08-28 |
-| build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-jakarta-persistence/mansart-persistence-core -am -DskipTests`) | 2026-08-27 |
+| TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired yet) | 2026-08-28 |
+| unit tests | 23 pass / 23 total (core module) | 2026-08-28 |
+| build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-jakarta-persistence/mansart-persistence-core -am -DskipTests`) | 2026-08-28 |
 
 TCK universe: 269 client classes, ~1 745 methods
 (`jakarta.tck:persistence-tck-spec-tests:3.2.1`).
@@ -30,9 +27,11 @@ TCK universe: 269 client classes, ~1 745 methods
 
 M0 (skeleton and harness) — 8 / 8 cards done.
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
+M2 (EntityManager CRUD) — 1 / 28 cards (JP-21 done).
 
 ## Session log
 
+2026-08-28 | JP-21 | `PersistenceContext` (identity map) + `MansartEntityManager` (64 JPA 3.2 methods, lifecycle wired: open/close/isOpen/isJoinedToTransaction) + factory returns live EM via all 4 `createEntityManager()` variants. 23/23 unit tests pass (4 stub-exception tests converted to live-EM tests).
 2026-08-28 | JP-20 | `MansartPersistenceProvider.createContainerEntityManagerFactory()` implemented (persistence.xml parsing via `PersistenceUnitReader` + classpath scanning for `@Entity`/`@Embeddable`/`@MappedSuperclass` via `EntityScanner`). TCK pom.xml updated with standalone-mode properties. 125/125 unit tests (1 skipped).
 2026-08-27 | JP-20 | Made `TypeImpl` concrete (removed `abstract`), made `MapAttributeImpl` no-declaringType ctor public, added explicit `<Object,Object,Object>` type args on `MapAttributeImpl` constructor call in `MansartPersistenceProvider.java` to resolve type inference. 34/34 build, 69/69 unit tests (assumed from prior). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (same baseline, not resolved by this session).
 2026-08-27 | JP-20 | Removed 5 unused imports (`Embedded`, `Id`, `Version`, `PersistentAttributeType`, `Basic`), dead `entityName.isEmpty()` ternary + `return null` → `IllegalArgumentException`, dead `if (mt != null)` check, unused `cls` param from `buildAttributes()`; updated Javadoc. All 7 Sonar issues on `MansartPersistenceProvider.java` resolved. 34/34 build, 69/69 unit tests (0 fail, 0 err). TCK 0/259 (same baseline — stub provider).

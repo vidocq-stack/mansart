@@ -102,15 +102,16 @@ class MansartEntityManagerFactoryTest {
     }
 
     /**
-     * Verify that {@code createEntityManager()} throws
-     * {@code UnsupportedOperationException}.
+     * Verify that {@code createEntityManager()} returns a live EntityManager.
      */
     @Test
-    void createEntityManagerThrowsUnsupportedOperationException() {
+    void createEntityManagerReturnsLiveEntityManager() {
         var factory = buildFactory();
-        org.assertj.core.api.Assertions.assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(factory::createEntityManager)
-                .withMessageContaining("not implemented");
+        var em = factory.createEntityManager();
+
+        assertThat(em).isNotNull();
+        assertThat(em.isOpen()).isTrue();
+        em.close();
     }
 
     /**
@@ -126,41 +127,47 @@ class MansartEntityManagerFactoryTest {
     }
 
     /**
-     * Verify that {@code createEntityManager(Map)} throws
-     * {@code UnsupportedOperationException}.
+     * Verify that {@code createEntityManager(Map)} returns a live EntityManager.
      */
     @Test
-    void createEntityManagerWithMapThrows() {
+    void createEntityManagerWithMapReturnsLiveEntityManager() {
         var factory = buildFactory();
-        org.assertj.core.api.Assertions.assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(() -> factory.createEntityManager(java.util.Map.of()))
-                .withMessageContaining("not implemented");
+        var em = factory.createEntityManager(java.util.Map.of());
+
+        assertThat(em).isNotNull();
+        assertThat(em.isOpen()).isTrue();
+        em.close();
     }
 
     /**
-     * Verify that {@code createEntityManager(SynchronizationType)} throws
-     * {@code UnsupportedOperationException}.
+     * Verify that {@code createEntityManager(SynchronizationType)} returns
+     * a live EntityManager.
      */
     @Test
-    void createEntityManagerWithSyncTypeThrows() {
+    void createEntityManagerWithSyncTypeReturnsLiveEntityManager() {
         var factory = buildFactory();
-        org.assertj.core.api.Assertions.assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(() -> factory.createEntityManager(
-                        jakarta.persistence.SynchronizationType.SYNCHRONIZED))
-                .withMessageContaining("not implemented");
+        var em = factory.createEntityManager(
+                jakarta.persistence.SynchronizationType.SYNCHRONIZED);
+
+        assertThat(em).isNotNull();
+        assertThat(em.isOpen()).isTrue();
+        em.close();
     }
 
     /**
-     * Verify that {@code createEntityManager(SynchronizationType, Map)} throws
-     * {@code UnsupportedOperationException}.
+     * Verify that {@code createEntityManager(SynchronizationType, Map)}
+     * returns a live EntityManager.
      */
     @Test
-    void createEntityManagerWithSyncTypeAndMapThrows() {
+    void createEntityManagerWithSyncTypeAndMapReturnsLiveEntityManager() {
         var factory = buildFactory();
-        org.assertj.core.api.Assertions.assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(() -> factory.createEntityManager(
-                        jakarta.persistence.SynchronizationType.SYNCHRONIZED, java.util.Map.of()))
-                .withMessageContaining("not implemented");
+        var em = factory.createEntityManager(
+                jakarta.persistence.SynchronizationType.SYNCHRONIZED,
+                java.util.Map.of());
+
+        assertThat(em).isNotNull();
+        assertThat(em.isOpen()).isTrue();
+        em.close();
     }
 
     /**
