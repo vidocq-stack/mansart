@@ -31,7 +31,18 @@ Then:
 1. Read `mansart-jakarta-persistence/STATUS.md` — the `## Current focus` block and
    the last 3 lines of `## Session log` only. Do not read the whole file if it has
    grown.
-2. Read `mansart-jakarta-persistence/TASKS.md` and pick the first card whose
+2. **Before committing to a card, sanity-check it — the plan may be imperfect.**
+   A card is safe to implement only if it is in the CURRENT milestone's scope AND its
+   foundations exist. If the next `TODO` card clearly belongs to a later milestone
+   (it is about locking/versioning, advanced queries, or relationship cascade while
+   you are still on basic CRUD — check the `PLAN.md` milestone table), or depends on
+   something not built yet, or is a vague catch-all ("all remaining methods…"), do
+   NOT implement it and do NOT bricoler a stub to move on. Ask `@tracker` (via the
+   `task` tool) to mark it `BLOCKED` with a one-line reason ("defer to M8: needs
+   versioning"), then take the next eligible `TODO`. This is how a wrong plan
+   corrects itself at execution time, without anyone hand-editing it.
+
+3. Read `mansart-jakarta-persistence/TASKS.md` and pick the first card whose
    status is `TODO` and whose dependencies are all `DONE`. If $ARGUMENTS names a
    card id, use that one instead and say why it is safe to take out of order.
 3. Load the `mansart-jpa` skill, and `mansart-jpa-tck` if the card names a TCK
