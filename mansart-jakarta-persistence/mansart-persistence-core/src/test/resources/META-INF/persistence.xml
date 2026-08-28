@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+                                 https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd"
+             version="3.2">
+    <persistence-unit name="testUnit" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.MansartPersistenceProvider</provider>
+        <class>com.example.User</class>
+        <class>com.example.Order</class>
+        <jta-data-source>jdbc/testDB</jta-data-source>
+        <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:test"/>
+        <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+        <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
+    </persistence-unit>
+</persistence>

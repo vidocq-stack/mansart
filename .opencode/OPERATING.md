@@ -69,6 +69,10 @@ silently widening the current one.
   `hover`, `documentSymbol`, `workspaceSymbol`. ~100 tokens instead of ~3 000. A
   first `lsp` call that errors means jdtls is still indexing, not that `lsp` is
   unusable — wait and retry once before falling back to `read`.
+- **A whole-file `read` is the last resort, not the reflex.** `documentSymbol` and
+  `hover` answer "what is in this file" for ~100 tokens where a full `read` costs
+  2–5k. Reserve `read` for the ≤4 files you are about to EDIT: a session that
+  `read`s a dozen source files whole has already burned ~30k it never needed.
 - **`webfetch` is available, and it is the easiest way to ruin a window.** Local
   sources outrank it: the TCK test, the Javadoc in `~/.m2`, the shipped spec
   artifact. Use it for what genuinely lives online — jakarta.ee, openjdk.org JEPs,

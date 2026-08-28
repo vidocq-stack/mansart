@@ -4,6 +4,17 @@ agent: jpa-dev
 ---
 Start a new work session on mansart-jakarta-persistence.
 
+**Context discipline — a session must not creep toward the window. Three rules,
+measured from real sessions that used to peak at 119k tokens:**
+
+- **Never `ctx_search` the TCK or spec from THIS agent.** Every spec/TCK question
+  goes to `@spec-reader` via the `task` tool; only its distilled answer returns.
+  Direct TCK searches here cost ~24k a session — in the subagent they cost you nothing.
+- **`lsp` before `read`.** Use `documentSymbol`/`hover` to understand a file; reserve a
+  full `read` for the ≤4 files you will EDIT. A dozen whole-file reads is ~31k wasted.
+- **Build/test output through `ctx`, never raw.** Run `./mvnw` via the ctx tools and
+  read the surefire XML — never let a Maven log into the window (~7k a run).
+
 **Session warm-up (do this first, once, before anything else):**
 
 - **Wake jdtls by READING a Java file — not by calling `lsp`.** OpenCode starts a
