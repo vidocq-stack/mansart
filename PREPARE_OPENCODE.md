@@ -542,7 +542,8 @@ rather than in the prompt.
 | command | what it does |
 | --- | --- |
 | `/next [JP-xx]` | opens a session: **warms jdtls and indexes the TCK**, reads `STATUS.md`, picks one `TODO` card, states the failing test and the ≤4 files before writing anything |
-| `/plan-next` | expands the next `PLAN.md` milestone into `JP` cards in `TASKS.md` (planning, not coding): reads the TCK behaviours via `@spec-reader`, writes atomic cards via `@tracker`. Its output is meant to be human-reviewed — planning is the local model's weak spot |
+| `/plan-next` | expands the next `PLAN.md` milestone into `JP` cards in `TASKS.md` (planning, not coding): reads the TCK behaviours via `@spec-reader`, writes atomic cards via `@tracker`. Planning is the local model's weak spot — pair with `/check-plan` |
+| `/check-plan` | **fresh-session reviewer pass** over the just-expanded milestone: fixes out-of-scope cards (defer to their real milestone), monster cards (split), mis-located tests, bad ordering. A separate session judges a plan better than the one that wrote it. Flow: `/plan-next` → new session → `/check-plan` |
 | `/gate` | the validation gate: build, unit tests, `@auditor`, the card's TCK client, and a Sonar scan of the touched module. Returns `GATE: PASS` or `FAIL`. Required before any card becomes `DONE` |
 | `/tck [Client\|all]` | delegates a TCK run to `@tck-runner` |
 | `/sonar [module\|all]` | delegates a SonarQube scan to `@sonar-runner` (§12) |
