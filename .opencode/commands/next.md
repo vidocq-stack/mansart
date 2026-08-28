@@ -31,27 +31,28 @@ Then:
 1. Read `mansart-jakarta-persistence/STATUS.md` — the `## Current focus` block and
    the last 3 lines of `## Session log` only. Do not read the whole file if it has
    grown.
-2. **Before committing to a card, sanity-check it — the plan may be imperfect.**
-   A card is safe to implement only if it is in the CURRENT milestone's scope AND its
-   foundations exist. If the next `TODO` card clearly belongs to a later milestone
-   (it is about locking/versioning, advanced queries, or relationship cascade while
-   you are still on basic CRUD — check the `PLAN.md` milestone table), or depends on
-   something not built yet, or is a vague catch-all ("all remaining methods…"), do
-   NOT implement it and do NOT bricoler a stub to move on. Ask `@tracker` (via the
-   `task` tool) to mark it `BLOCKED` with a one-line reason ("defer to M8: needs
-   versioning"), then take the next eligible `TODO`. This is how a wrong plan
-   corrects itself at execution time, without anyone hand-editing it.
+2. Read `mansart-jakarta-persistence/TASKS.md` and pick the first candidate card:
+   status `TODO`, dependencies all `DONE`. If $ARGUMENTS names a card id, use that
+   one and say why it is safe to take out of order.
 
-3. Read `mansart-jakarta-persistence/TASKS.md` and pick the first card whose
-   status is `TODO` and whose dependencies are all `DONE`. If $ARGUMENTS names a
-   card id, use that one instead and say why it is safe to take out of order.
-3. Load the `mansart-jpa` skill, and `mansart-jpa-tck` if the card names a TCK
+3. **Sanity-check that card before committing to it — the plan may be imperfect.**
+   A card is safe only if it is in the CURRENT milestone's scope AND its foundations
+   exist. If it clearly belongs to a later milestone (locking/versioning → M8,
+   relationship cascade → M5, advanced queries → M4 — check the `PLAN.md` table),
+   or depends on something not built yet, or is a vague catch-all ("all remaining
+   methods…"), do NOT implement it and do NOT bricoler a stub to move past it. Ask
+   `@tracker` (via the `task` tool) to mark it `BLOCKED` with a one-line reason
+   ("defer to M8: needs versioning"), then take the next eligible `TODO` and
+   sanity-check that one too. This is how a wrong plan corrects itself at execution
+   time, hands-off — nobody hand-edits the plan.
+
+4. Load the `mansart-jpa` skill, and `mansart-jpa-tck` if the card names a TCK
    client.
-4. Before writing any code, state in at most 12 lines:
+5. Before writing any code, state in at most 12 lines:
    - the card id and its goal;
    - the failing test you will write FIRST, and its exact path;
    - the files you will touch (max 4);
    - the command that will prove the card is done.
 
-Then stop and wait for nothing — proceed with step 4's plan, starting with the
+Then stop and wait for nothing — proceed with step 5's plan, starting with the
 failing test. Do not open a second card in this session.
