@@ -15,19 +15,23 @@ import java.util.Map;
 /**
  * Tracks managed entity instances for a single {@code EntityManager}.
  *
- * <p>Serves as the identity map: given an entity instance, returns whether
- * it is managed by this context. Future iterations add class+ID lookup.</p>
+ * <p>Serves as the identity map (instance → class) and also supports
+ * class+ID lookup for entity retrieval by primary key.</p>
  */
 final class PersistenceContext {
 
     /** Entity instance → entity class, keyed by identity. */
     private final Map<Object, Class<?>> managedEntities;
 
+    /** Entity class → (ID → entity instance), for class+ID lookup. */
+    private final Map<Class<?>, Map<Object, Object>> registeredById;
+
     /** Flag indicating whether this context is open. */
     private volatile boolean open;
 
     PersistenceContext() {
         this.managedEntities = new IdentityHashMap<>();
+        this.registeredById = new IdentityHashMap<>();
         this.open = true;
     }
 
@@ -57,6 +61,50 @@ final class PersistenceContext {
      */
     void unregister(Object entity) {
         managedEntities.remove(entity);
+        // Also remove from the class+ID lookup by scanning all registered entities.
+        Class<?> cls = managedEntities.values().stream()
+                .filter(c -> c == entity.getClass())
+                .findFirst().orElse(null);
+        if (cls != null) {
+            Map<Object, Object> byId = registeredById.get(cls);
+            if (byId != null) {
+                // Remove the entry whose value is this entity instance (identity match).
+                for (java.util.Map.Entry<Object, Object> entry : byId.entrySet()) {
+                    if (entry.getValue() == entity) {
+                        byId.remove(entry.getKey());
+                        break;
+                    }
+                }
+                if (byId.isEmpty()) {
+                    registeredById.remove(cls);
+                }
+            }
+        }
+    }
+
+    /**
+     * Register an entity by its class and ID for lookup.
+     *
+     * @param entityClass the entity class
+     * @param id          the entity's primary key value
+     * @param entity      the entity instance
+     */
+    void registerById(Class<?> entityClass, Object id, Object entity) {
+        managedEntities.put(entity, entityClass);
+        registeredById.computeIfAbsent(entityClass, k -> new IdentityHashMap<>())
+                .put(id, entity);
+    }
+
+    /**
+     * Look up an entity by its class and ID.
+     *
+     * @param entityClass the entity class
+     * @param id          the primary key value
+     * @return the managed entity instance, or {@code null} if not found
+     */
+    Object lookupById(Class<?> entityClass, Object id) {
+        Map<Object, Object> byId = registeredById.get(entityClass);
+        return byId == null ? null : byId.get(id);
     }
 
     /**
@@ -64,6 +112,7 @@ final class PersistenceContext {
      */
     void clear() {
         managedEntities.clear();
+        registeredById.clear();
     }
 
     /**
@@ -72,6 +121,7 @@ final class PersistenceContext {
     void close() {
         open = false;
         managedEntities.clear();
+        registeredById.clear();
     }
 
     /**

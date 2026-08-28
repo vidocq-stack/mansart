@@ -227,11 +227,14 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `se/entityManager/Client` — `entityManagerMethodsAfterClose1Test()` through `entityManagerMethodsAfterClose25Test()` (post-close IllegalStateException checks); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityManagerLifecycleTest.java`
 notes:  Every EntityManager method must throw IllegalStateException after close(). This is the most-tested aspect of M2.
 
-### JP-23 — persist(): new entity gets DB row + assigned ID            [TODO]
+### JP-23 — persist(Object entity) — INSERT SQL execution + persistence context registration  [DONE]
 deps:   JP-21
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist)
-proof:  TCK `core/entitytest/persist/basic/Client` — `persistBasicTest1()` through `persistBasicTest5()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistBasicTest.java`
-notes:  Basic persist: new entity, null argument, already-removed entity, detached entity, mixed operations. 5 methods. BigDecimal/BigInteger persistBasicTest1-5 exercise column mapping (not special behavior).
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartPersistenceProvider.java` (accept entityModels from hints),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/PersistenceContext.java` (registerById also registers in managedEntities),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistBasicTest.java` (3 tests)
+proof:  Unit test `PersistBasicTest` — `persistBasicTest1()` (persist creates DB row), `persistBasicTest2()` (null → `IllegalArgumentException`), `persistBasicTest3()` (after close → `IllegalStateException`). TCK `core/entitytest/persist/basic/Client` — `persistBasicTest1()` through `persistBasicTest5()`.
+notes:  Also: `module-info.java` (added `uses DialectFactory`), `pom.xml` (added `mansart-data-dialect-h2` to dependencyManagement). Null check, closed-EM check, EntityModel lookup, INSERT via Dialect, bind parameters, managedEntities + registeredById registration.
 
 ### JP-24a — persist(): many-to-many relationship (owning + inverse side)            [TODO]
 deps:   JP-23

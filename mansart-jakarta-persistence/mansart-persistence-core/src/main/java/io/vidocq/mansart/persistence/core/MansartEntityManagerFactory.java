@@ -28,11 +28,18 @@ import jakarta.persistence.metamodel.Metamodel;
 
 import io.vidocq.mansart.persistence.core.metamodel.MetamodelImpl;
 
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.DialectFactory;
+import io.vidocq.mansart.data.dialect.EntityModel;
+
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
+import java.util.ServiceLoader;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.IdentityHashMap;
+import javax.sql.DataSource;
 
 /**
  * Minimal {@link EntityManagerFactory} implementation that exposes a
@@ -47,22 +54,72 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     private final MetamodelImpl metamodel;
     private final String persistenceUnitName;
     private final PersistenceContext persistenceContext;
+    private final DataSource dataSource;
+    private final Dialect dialect;
+    private final Map<Class<?>, EntityModel<?>> entityModels;
     private volatile boolean closed;
 
     MansartEntityManagerFactory(MetamodelImpl metamodel, String persistenceUnitName) {
-        this.metamodel = metamodel;
-        this.persistenceUnitName = persistenceUnitName;
-        this.persistenceContext = new PersistenceContext();
+        this(metamodel, persistenceUnitName, null, null, Map.of());
     }
 
     MansartEntityManagerFactory(MetamodelImpl metamodel) {
         this(metamodel, "default");
     }
 
+    /**
+     * Construct a factory with database connectivity.
+     *
+     * @param metamodel     the runtime metamodel
+     * @param persistenceUnitName the persistence unit name
+     * @param dataSource    the database source (may be {@code null} for no-DB mode)
+     * @param dialect       the SQL dialect (may be {@code null} for no-DB mode)
+     * @param entityModels  entity class → {@code EntityModel} mapping
+     */
+    MansartEntityManagerFactory(MetamodelImpl metamodel, String persistenceUnitName,
+                                DataSource dataSource, Dialect dialect,
+                                Map<Class<?>, EntityModel<?>> entityModels) {
+        this.metamodel = metamodel;
+        this.persistenceUnitName = persistenceUnitName;
+        this.persistenceContext = new PersistenceContext();
+        this.dataSource = dataSource;
+        this.dialect = dialect;
+        this.entityModels = new IdentityHashMap<>(entityModels);
+    }
+
     @Override
     public EntityManager createEntityManager() {
         checkOpen();
         return new MansartEntityManager(this, persistenceContext);
+    }
+
+    /**
+     * Return the database source, or {@code null} if this factory has no DB connectivity.
+     *
+     * @return the data source, or {@code null}
+     */
+    DataSource getDataSource() {
+        return dataSource;
+    }
+
+    /**
+     * Return the SQL dialect, or {@code null} if this factory has no DB connectivity.
+     *
+     * @return the dialect, or {@code null}
+     */
+    Dialect getDialect() {
+        return dialect;
+    }
+
+    /**
+     * Look up the {@code EntityModel} for an entity class.
+     *
+     * @param entityClass the entity class
+     * @return the entity model, or {@code null} if not registered
+     */
+    @SuppressWarnings("unchecked")
+    <E> EntityModel<E> getEntityModel(Class<E> entityClass) {
+        return (EntityModel<E>) entityModels.get(entityClass);
     }
 
     @Override

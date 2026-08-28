@@ -14,6 +14,8 @@ module io.vidocq.mansart.persistence.core {
     requires io.vidocq.mansart.persistence.spi;
     requires io.vidocq.mansart.data.dialect.spi;
 
+    uses io.vidocq.mansart.data.dialect.DialectFactory;
+
     requires jakarta.inject;
     requires static jakarta.transaction;
 

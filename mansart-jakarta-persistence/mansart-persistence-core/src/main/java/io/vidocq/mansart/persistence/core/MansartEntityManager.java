@@ -32,6 +32,15 @@ import jakarta.persistence.criteria.CriteriaSelect;
 import jakarta.persistence.criteria.CriteriaUpdate;
 import jakarta.persistence.metamodel.ManagedType;
 
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.dialect.SqlFragment;
+import io.vidocq.mansart.data.dialect.Attribute;
+import io.vidocq.mansart.data.dialect.attribute.IdAttribute;
+
+import java.lang.invoke.MethodHandle;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.List;
 import java.util.Map;
 
@@ -72,7 +81,42 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public void persist(Object entity) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: persist");
+        if (entity == null) {
+            throw new IllegalArgumentException("entity must not be null");
+        }
+        var entityClass = entity.getClass();
+        EntityModel<?> model = factory.getEntityModel(entityClass);
+        IdAttribute<?, ?> idAttr = model.id();
+        Object idValue;
+        try {
+            idValue = idAttr.getter().invoke(entity);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to get ID from entity", t);
+        }
+        persistenceContext.registerById(entityClass, idValue, entity);
+        // Generate and execute INSERT SQL.
+        SqlFragment sql = factory.getDialect().insert(model, false);
+        try (Connection conn = factory.getDataSource().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.sql())) {
+            int bindIndex = 1;
+            for (Attribute<?, ?> attr : model.attributes()) {
+                MethodHandle setter = attr.setter();
+                try {
+                    // Get the current value from the entity.
+                    MethodHandle getter = attr.getter();
+                    Object value = getter.invoke(entity);
+                    // Set the value on the prepared statement.
+                    stmt.setObject(bindIndex++, value);
+                    // Also set the value on the entity via the setter (for identity maps).
+                    setter.invoke(entity, value);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to invoke setter for attribute " + attr.name(), t);
+                }
+            }
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to persist entity", e);
+        }
     }
 
     @Override

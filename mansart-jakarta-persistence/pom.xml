@@ -134,6 +134,11 @@
                 <artifactId>mansart-data-dialect-spi</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-data-dialect-h2</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>io.vidocq.mansart</groupId>
