@@ -5,10 +5,9 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-22 — EntityManager basic lifecycle (open, close, isOpen, isJoinedToTransaction)  [TODO]
+- Next: JP-23 — persist(): new entity gets DB row + assigned ID  [TODO]
 - M1: 12 / 12 cards (JP-09…JP-20 done). Full `core/metamodelapi` TCK suite passes.
-- M2: JP-21 done — `PersistenceContext` (identity map) + `MansartEntityManager` (64 methods,
-  lifecycle wired) + factory returns live EM. 23/23 unit tests. TCK 991 run, 989 errors, 2 skipped.
+- M2: JP-22 done — `MansartEntityManager` (64 methods, all throw `IllegalStateException("EntityManager is closed")` after `close()`; `isOpen`/`close`/`isJoinedToTransaction` wired). 59/59 unit tests. TCK 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired, but lifecycle is now correct).
 - Trap: 4 tests that previously expected `UnsupportedOperationException` now return live EM —
   test expectations were inverted. Stub provider still not wired (TCK errors are baseline).
 
@@ -16,8 +15,8 @@ Maintained by `@tracker` only.
 
 | metric | value | measured |
 | --- | --- | --- |
-| TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired yet) | 2026-08-28 |
-| unit tests | 23 pass / 23 total (core module) | 2026-08-28 |
+| TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired) | 2026-08-28 |
+| unit tests | 199 pass / 199 total (1 skipped, core module) | 2026-08-28 |
 | build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-jakarta-persistence/mansart-persistence-core -am -DskipTests`) | 2026-08-28 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -27,10 +26,11 @@ TCK universe: 269 client classes, ~1 745 methods
 
 M0 (skeleton and harness) — 8 / 8 cards done.
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
-M2 (EntityManager CRUD) — 1 / 28 cards (JP-21 done).
+M2 (EntityManager CRUD) — 2 / 28 cards (JP-21, JP-22 done).
 
 ## Session log
 
+2026-08-28 | JP-22 | `MansartEntityManager` (64 methods): added `checkClosed()` helper; all 61 CRUD/query/utility methods now call `checkClosed()` before throwing `UnsupportedOperationException`. `isJoinedToTransaction()` returns `false` (no transaction support). `contains()` already checked `closed`. 59/59 unit tests (new `EntityManagerLifecycleTest` with 55 post-close tests + 4 lifecycle tests). TCK 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired, but lifecycle is now correct).
 2026-08-28 | JP-21 | `PersistenceContext` (identity map) + `MansartEntityManager` (64 JPA 3.2 methods, lifecycle wired: open/close/isOpen/isJoinedToTransaction) + factory returns live EM via all 4 `createEntityManager()` variants. 23/23 unit tests pass (4 stub-exception tests converted to live-EM tests).
 2026-08-28 | JP-20 | `MansartPersistenceProvider.createContainerEntityManagerFactory()` implemented (persistence.xml parsing via `PersistenceUnitReader` + classpath scanning for `@Entity`/`@Embeddable`/`@MappedSuperclass` via `EntityScanner`). TCK pom.xml updated with standalone-mode properties. 125/125 unit tests (1 skipped).
 2026-08-27 | JP-20 | Made `TypeImpl` concrete (removed `abstract`), made `MapAttributeImpl` no-declaringType ctor public, added explicit `<Object,Object,Object>` type args on `MapAttributeImpl` constructor call in `MansartPersistenceProvider.java` to resolve type inference. 34/34 build, 69/69 unit tests (assumed from prior). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (same baseline, not resolved by this session).

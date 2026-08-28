@@ -221,7 +221,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  Unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactoryTest.java` — 23/23 pass. TCK reference `se/entityManagerFactory/Client2` is infrastructure validation (EMF is M2 infrastructure, though this specific client is outside the M2 gate).
 notes:  Builds on M1's MansartPersistenceProvider. `PersistenceContext` (identity map tracking managed entities) + `MansartEntityManager` (64 JPA 3.2 methods, all CRUD/query throw `UnsupportedOperationException`, lifecycle methods wired) + factory returns live EM via all 4 `createEntityManager()` variants. 4 tests that previously expected `UnsupportedOperationException` now return live EM — expectations inverted.
 
-### JP-22 — EntityManager basic lifecycle (open, close, isOpen, isJoinedToTransaction)            [TODO]
+### JP-22 — EntityManager basic lifecycle (open, close, isOpen, isJoinedToTransaction)            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java`
 proof:  TCK `se/entityManager/Client` — `entityManagerMethodsAfterClose1Test()` through `entityManagerMethodsAfterClose25Test()` (post-close IllegalStateException checks); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/EntityManagerLifecycleTest.java`
