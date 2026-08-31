@@ -291,3 +291,57 @@ quantizations at once** — it is a setup-vs-setup number, not a model or a quan
 **Takeaway.** LM Studio IQ4_NL on BigMontreuil is a viable second engine: slightly
 slower decode than the Mac, but steady to 100k and easy to point OpenCode at. Whether
 IQ4_NL trades quality against MTPLX is untested here — this entry is throughput only.
+
+### 2026-08-31 — LM Studio IQ4_NL: quality battery (B/C, E, F), same probes as 08-26
+
+Ran `.opencode/bench-lmstudio.py` — the 08-26 probes verbatim (8 tool-fidelity probes
+at ctx~20k, 8 API questions, one multi-turn chain) against `unsloth/qwen3.6-35b-a3b`
+IQ4_NL. Column added next to the 08-26 winner (4-bit MTPLX on the M5 Max):
+
+| | 4bit MTPLX @ M5 Max (08-26) | IQ4_NL @ BigMontreuil |
+| --- | --- | --- |
+| well-formed calls | 8/8 | 6/8 → **8/8** (see note) |
+| exact arguments | 8/8 | 6/8 → **8/8** (see note) |
+| median out tok | 367 | 567 |
+| total out tok | 3 423 | 7 010 |
+| B/C wall | 36.1 s | 80.6 s |
+| API correctness (E) | 8/8 | **7/8** (missed `cascade`) |
+| chain (F) | correct, 3 turns | correct, 3 turns, 4.0 s |
+
+**The two B/C "failures" are a config artefact, not a capability gap — verified.**
+Both misses (`plain`, the *simplest* probe, and `terse`) were `finish=length`: the
+model spent the whole 2 048-token probe budget *reasoning* about a one-line
+instruction and never emitted the call. Re-ran those two probes two ways:
+
+| probe | budget = 6 000 | `/no_think` |
+| --- | --- | --- |
+| plain | correct call | correct call |
+| terse | correct call | correct call |
+
+Both pass cleanly either way. So effective fidelity is **8/8 once the reasoning is
+bounded** — IQ4_NL calls tools exactly right. The gap versus oMLX is that oMLX had a
+`thinking_budget_tokens` cap; LM Studio here serves Qwen3.6 with reasoning on and
+unbounded within the probe budget, so trivial instructions overflow.
+
+**The real cost is output economy, and it is genuine.** IQ4_NL's reasoning roughly
+**doubles** output (median 567 vs 367, total 7 010 vs 3 423) and wall (80.6 s vs
+36.1 s) on the same probes. In an agent loop that means slower turns *and* a context
+window that fills faster — the exact failure mode this whole workflow is built to
+avoid. Not a correctness problem, an efficiency one.
+
+`cascade` (E) is the one true knowledge miss: the model's `CascadeType` list dropped a
+constant (the check requires all of PERSIST/MERGE/REMOVE/REFRESH/DETACH/ALL). Minor,
+single-run.
+
+**Caveats:** single run, no repetitions (per-probe medians are noisy; the pattern —
+two length-overflows on trivial probes, doubled output — is the robust signal). Two
+boxes, two quants: this is not an isolated IQ4_NL-vs-MTPLX verdict. Sampling was
+matched (temp 0.6, top_p 0.95) but the reasoning-budget asymmetry above was not, and
+it drove the headline B/C numbers.
+
+**Verdict.** IQ4_NL on LM Studio is quality-competitive with the 4-bit MTPLX on
+tool-call correctness (8/8 bounded) and near-parity on API knowledge (7/8), and the
+chain works. **Before using it as an OpenCode engine, cap its reasoning** (a thinking
+budget, or `/no_think` on mechanical steps) — otherwise trivial tool calls overflow
+and every turn bleeds context. Untuned, it is the *worst* of the four for output
+economy; tuned, it should match.
