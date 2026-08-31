@@ -36,11 +36,17 @@ import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.data.dialect.SqlFragment;
 import io.vidocq.mansart.data.dialect.Attribute;
+import io.vidocq.mansart.data.dialect.Where;
+import io.vidocq.mansart.data.dialect.OrderBy;
+import io.vidocq.mansart.data.dialect.Pagination;
 import io.vidocq.mansart.data.dialect.attribute.IdAttribute;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
@@ -108,20 +114,25 @@ final class MansartEntityManager implements EntityManager {
 
                     // Handle @ManyToOne / @OneToOne: resolve FK value.
                     if (attr instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> refAttr) {
-                        if (value != null) {
-                            // Resolve the referenced entity's ID from its actual runtime class.
-                            Class<?> refEntityClass = value.getClass();
-                            EntityModel<?> refModel = factory.getEntityModel(refEntityClass);
-                            Object refId;
-                            try {
-                                refId = refModel.id().getter().invoke(value);
-                            } catch (Throwable t) {
-                                throw new RuntimeException("Failed to get ID from referenced entity " + refEntityClass.getSimpleName(), t);
+                        // Only bind FK during INSERT if this ReferenceAttribute's
+                        // entityType matches the current entity class (owning side).
+                        // For inverse side, entityType is the target entity — skip binding.
+                        if (refAttr.entityType() == entityClass) {
+                            if (value != null) {
+                                // Resolve the referenced entity's ID from its actual runtime class.
+                                Class<?> refEntityClass = value.getClass();
+                                EntityModel<?> refModel = factory.getEntityModel(refEntityClass);
+                                Object refId;
+                                try {
+                                    refId = refModel.id().getter().invoke(value);
+                                } catch (Throwable t) {
+                                    throw new RuntimeException("Failed to get ID from referenced entity " + refEntityClass.getSimpleName(), t);
+                                }
+                                stmt.setObject(bindIndex++, refId);
+                            } else {
+                                // Null reference: explicitly bind null for nullable FK.
+                                stmt.setNull(bindIndex++, java.sql.Types.VARCHAR);
                             }
-                            stmt.setObject(bindIndex++, refId);
-                        } else {
-                            // Null reference: explicitly bind null for nullable FK.
-                            stmt.setNull(bindIndex++, java.sql.Types.VARCHAR);
                         }
                         continue;
                     }
@@ -142,6 +153,69 @@ final class MansartEntityManager implements EntityManager {
         // Handle plural attributes (many-to-many / one-to-many).
         for (Attribute<?, ?> pa : model.pluralAttributes()) {
             tryInsertJoinTable(entity, pa, model, entityClass);
+        }
+
+        // Handle inverse side @OneToOne: update the owning side's FK column.
+        updateInverseSideOneToOne(entity, model, entityClass);
+    }
+
+    /**
+     * Update the owning side's FK column when persisting the inverse side of a
+     * bidirectional {@code @OneToOne} relationship.
+     *
+     * <p>When persisting the inverse side (entity A with {@code @OneToOne(mappedBy="...")}),
+     * this method scans all managed entities for {@code ReferenceAttribute} instances
+     * that point to entity A, and updates those entities' FK columns to point to A's ID.</p>
+     */
+    private void updateInverseSideOneToOne(Object entity, EntityModel<?> model,
+                                           Class<?> entityClass) {
+        try (Connection conn = factory.getDataSource().getConnection()) {
+            // Get the current entity's ID.
+            Object sourceId;
+            try {
+                sourceId = model.id().getter().invoke(entity);
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to get source entity ID", t);
+            }
+
+            // Scan all managed entities for ReferenceAttribute pointing to this entity.
+            for (java.util.Map.Entry<Class<?>, java.util.Map<Object, Object>> entry
+                    : persistenceContext.registeredById().entrySet()) {
+                Class<?> targetClass = entry.getKey();
+                if (targetClass == entityClass) continue;
+
+                EntityModel<?> targetModel = factory.getEntityModel(targetClass);
+
+                // Find the target's ReferenceAttribute with the FK column.
+                String fkColumn = null;
+                for (Attribute<?, ?> targetAttr : targetModel.attributes()) {
+                    if (targetAttr instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> targetRef) {
+                        // Check if this ReferenceAttribute points to the current entity class.
+                        if (targetRef.entityType() == entityClass) {
+                            fkColumn = targetRef.columnName();
+                            break;
+                        }
+                    }
+                }
+                if (fkColumn == null) continue;
+
+                // Build and execute UPDATE on the target table.
+                String updateSql = "UPDATE " + targetModel.tableName()
+                        + " SET " + fkColumn + " = ? WHERE " + targetModel.id().name() + " = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+                    stmt.setObject(1, sourceId);
+                    // Update all managed instances of the target class.
+                    for (java.util.Map.Entry<Object, Object> regEntry : entry.getValue().entrySet()) {
+                        Object targetId = regEntry.getKey();
+                        stmt.setObject(2, targetId);
+                        stmt.executeUpdate();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Inverse side update failure is non-fatal — the owning side INSERT
+            // already bound the FK. Log and continue.
+            System.err.println("[WARN] Inverse side @OneToOne update failed: " + e.getMessage());
         }
     }
 
@@ -406,7 +480,114 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public <T> T find(Class<T> entityClass, Object primaryKey) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: find");
+
+        // Look up the EntityModel for this entity class.
+        EntityModel<?> model = factory.getEntityModel(entityClass);
+        if (model == null) {
+            throw new IllegalArgumentException("not a managed type: " + entityClass.getName());
+        }
+
+        // Check the persistence context's identity map first.
+        Object cached = persistenceContext.lookupById(entityClass, primaryKey);
+        if (cached != null) {
+            @SuppressWarnings("unchecked")
+            T result = (T) cached;
+            return result;
+        }
+
+        // Query the database.
+        String sql;
+        try {
+            SqlFragment fragment = factory.getDialect().select(
+                    model, Where.eq(model.id()), OrderBy.NONE, Pagination.NONE);
+            sql = fragment.sql();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build SELECT for " + entityClass.getSimpleName(), e);
+        }
+
+        // Count ? placeholders in the SQL to determine how many parameters to bind.
+        int paramCount = (sql.length() - sql.replace("?", "").length());
+
+        try (Connection conn = factory.getDataSource().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            // Bind the primary key for each ? placeholder.
+            for (int i = 0; i < paramCount; i++) {
+                stmt.setObject(i + 1, primaryKey);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    return null; // Not found.
+                }
+                // Map the single result row to an entity instance.
+                T entity = instantiateEntity(entityClass, model, rs);
+                // Register in the persistence context.
+                Object id;
+                try {
+                    id = model.id().getter().invoke(entity);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to get entity ID", t);
+                }
+                persistenceContext.registerById(entityClass, id, entity);
+                return entity;
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to find entity " + entityClass.getSimpleName()
+                    + " with ID " + primaryKey, e);
+        }
+    }
+
+    /**
+     * Instantiate an entity from a {@code ResultSet} row.
+     *
+     * @param entityClass the entity class
+     * @param model       the entity model
+     * @param rs          the result set
+     * @return the instantiated entity
+     * @throws Exception if instantiation or attribute binding fails
+     */
+    @SuppressWarnings("unchecked")
+    private <T> T instantiateEntity(Class<T> entityClass, EntityModel<?> model,
+                                     ResultSet rs) throws Exception {
+        // Use the no-arg constructor from the entity model.
+        T entity;
+        try {
+            entity = (T) model.constructor().invoke();
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to instantiate entity " + entityClass.getSimpleName(), t);
+        }
+
+        // Bind each attribute from the result set.
+        for (io.vidocq.mansart.data.dialect.Attribute<?, ?> attr : model.attributes()) {
+            Object value = rs.getObject(attr.name());
+            MethodHandle setter = findSetter(attr);
+            if (setter != null && value != null) {
+                try {
+                    setter.invoke(entity, value);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to set attribute " + attr.name(), t);
+                }
+            }
+        }
+        return entity;
+    }
+
+    /**
+     * Find the setter method handle for an attribute.
+     *
+     * @param attr the attribute
+     * @return the setter method handle, or {@code null} if not found
+     */
+    private MethodHandle findSetter(io.vidocq.mansart.data.dialect.Attribute<?, ?> attr) {
+        try {
+            String setterName = "set" + Character.toUpperCase(attr.name().charAt(0))
+                    + attr.name().substring(1);
+            Class<?> attrType = attr.javaType();
+            return MethodHandles.lookup().findVirtual(attr.entityType(), setterName,
+                    MethodType.methodType(void.class, attrType));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            return null;
+        }
     }
 
     @Override

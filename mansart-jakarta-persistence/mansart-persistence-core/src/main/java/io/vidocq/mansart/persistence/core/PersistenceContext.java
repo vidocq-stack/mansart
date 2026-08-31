@@ -132,4 +132,13 @@ final class PersistenceContext {
     boolean isOpen() {
         return open;
     }
+
+    /**
+     * Return all registered entity classes and their ID→entity maps.
+     *
+     * @return the class-to-ID-map registry
+     */
+    java.util.Map<Class<?>, java.util.Map<Object, Object>> registeredById() {
+        return registeredById;
+    }
 }

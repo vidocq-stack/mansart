@@ -254,13 +254,13 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/persist/oneXmany/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistOneToManyTest.java`
 notes:  ~14 methods. Maintains inverse collection, does NOT set FK.
 
-### JP-24d — persist(): one-to-one relationship            [TODO]
+### JP-24d — persist(): one-to-one relationship            [DONE]
 deps:   JP-23
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist one-to-one)
 proof:  TCK `core/entitytest/persist/oneXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistOneToOneTest.java`
 notes:  ~14 methods. Sets FK on owning side.
 
-### JP-25 — find(): by ID, with/without fetch mode, not-found case            [TODO]
+### JP-25 — find(): by ID, with/without fetch mode, not-found case            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (find)
 proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest2()` (find / getReference); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FindByIdTest.java`
