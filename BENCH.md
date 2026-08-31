@@ -345,3 +345,50 @@ chain works. **Before using it as an OpenCode engine, cap its reasoning** (a thi
 budget, or `/no_think` on mechanical steps) — otherwise trivial tool calls overflow
 and every turn bleeds context. Untuned, it is the *worst* of the four for output
 economy; tuned, it should match.
+
+### 2026-08-31 — Dense Qwen3.8-27B on a single 3090 vs the M5-Max MoE
+
+**Setup correction:** BigMontreuil is **1×3090 (24 GB)**, not two. An earlier "2×3090"
+inference from LM Studio's "GPU 32 GB = Total 32 GB" was wrong — that estimate was at
+the model's 262k max context; at 32768 the dense fits ~16–18 GB on a single card.
+`qwen/qwen3.8-27b` is a **dense** 27B (arch qwen35, Q4_K_M GGUF with an MTP head),
+loaded at 32768.
+
+The question the user posed: does a dense 27B (27B active params/token) beat the
+M5-Max MoE A3B (3B active) by enough to justify the box? Compared to the **M5 MoE**,
+not to a M5 dense (which we do not have). Same throughput + quality protocol.
+
+Throughput (LM Studio native `tokens_per_second` = pure decode):
+
+| context | dense 27B @ 1×3090 | MoE A3B @ M5 Max |
+| --- | --- | --- |
+| 0 | 53 | 142 |
+| ~28–32k | 51 | 108 |
+
+Dense prefill ~580–1940 tok/s (heavy — 27B read per token). The 3090's ~50 tok/s is
+near its bandwidth ceiling (936 GB/s ÷ ~16 GB ≈ 58): the card is well used, a dense 27B
+is simply ~9× the MoE's per-token work. The MTP head gave no dramatic speculative boost.
+
+Quality (same probes as 08-26):
+
+| | MoE A3B @ M5 Max | dense 27B @ 1×3090 |
+| --- | --- | --- |
+| tool fidelity | 8/8 | 7/8 (`terse`: finish=length again) |
+| API correctness | 8/8 | **6/8** (missed `getReference` + `cascade`) |
+| chain | correct | correct, 3 turns |
+
+**The dense is not more accurate — it is less.** The intuition "dense, more active
+params ⇒ smarter" does not hold for *this* model: qwen3.8-27b scores below the
+qwen3.6-35b-a3b MoE on both fidelity and API knowledge, while decoding 2–3× slower and
+drawing ~350 W against ~100 W. Different generations and architectures, so this is a
+setup-vs-setup verdict, not "dense < MoE" in general — but for the choice in front of
+us it is unambiguous.
+
+**Verdict for this workflow: keep the M5 Max + MoE.** It wins on speed (142 vs 53),
+quality (8/8 vs 6–7/8) and power (~100 W vs ~350 W) at the same time. A 3090 — one or
+two — earns its place only for models that do not fit the Mac's effective bandwidth, or
+for batched multi-user serving; neither is this project. The dense 27B on a single 3090
+is strictly dominated here.
+
+Caveats: single run; the `terse` length-overflow is the same unbounded-reasoning config
+as the IQ4_NL entry; the `getReference` miss was a 1024-token over-reasoned wrong answer.

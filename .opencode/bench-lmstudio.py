@@ -4,11 +4,13 @@ scores are directly comparable to the oMLX MTPLX campaign of 2026-08-26.
 
 Model: unsloth/qwen3.6-35b-a3b (IQ4_NL), served at 192.168.2.2:1234.
 """
-import json, glob, time, urllib.request
+import json, glob, time, urllib.request, os
 
 KEY = "lm-studio"
 URL = "http://192.168.2.2:1234/v1/chat/completions"
-MODELS = [("IQ4_NL@BigMontreuil", "unsloth/qwen3.6-35b-a3b")]
+# override with BENCH_TAG / BENCH_MODEL env vars to bench any loaded LM Studio model
+MODELS = [(os.environ.get("BENCH_TAG", "IQ4_NL@BigMontreuil"),
+           os.environ.get("BENCH_MODEL", "unsloth/qwen3.6-35b-a3b"))]
 SAMP = dict(temperature=0.6, top_p=0.95)
 
 src = []
