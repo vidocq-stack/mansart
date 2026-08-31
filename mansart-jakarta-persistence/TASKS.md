@@ -242,7 +242,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/persist/manyXmany/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistManyToManyTest.java`
 notes:  ~14 methods. Owns FK, updates inverse collection. Extended Data processor to generate plural attributes in `$MODEL`. Added `ManyToManyAttribute`/`ManyToManyInverseAttribute` to dialect SPI. Updated `EntityModel` with `pluralAttributes` field. `MansartEntityManager.persist()` iterates plural attributes and executes join table INSERTs via batched PreparedStatement.
 
-### JP-24b — persist(): many-to-one relationship            [TODO]
+### JP-24b — persist(): many-to-one relationship            [DONE]
 deps:   JP-23
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist many-to-one)
 proof:  TCK `core/entitytest/persist/manyXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistManyToOneTest.java`

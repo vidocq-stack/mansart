@@ -105,6 +105,27 @@ final class MansartEntityManager implements EntityManager {
                     // Get the current value from the entity.
                     MethodHandle getter = attr.getter();
                     Object value = getter.invoke(entity);
+
+                    // Handle @ManyToOne / @OneToOne: resolve FK value.
+                    if (attr instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> refAttr) {
+                        if (value != null) {
+                            // Resolve the referenced entity's ID from its actual runtime class.
+                            Class<?> refEntityClass = value.getClass();
+                            EntityModel<?> refModel = factory.getEntityModel(refEntityClass);
+                            Object refId;
+                            try {
+                                refId = refModel.id().getter().invoke(value);
+                            } catch (Throwable t) {
+                                throw new RuntimeException("Failed to get ID from referenced entity " + refEntityClass.getSimpleName(), t);
+                            }
+                            stmt.setObject(bindIndex++, refId);
+                        } else {
+                            // Null reference: explicitly bind null for nullable FK.
+                            stmt.setNull(bindIndex++, java.sql.Types.VARCHAR);
+                        }
+                        continue;
+                    }
+
                     // Set the value on the prepared statement.
                     stmt.setObject(bindIndex++, value);
                     // Also set the value on the entity via the setter (for identity maps).
