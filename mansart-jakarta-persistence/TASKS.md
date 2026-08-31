@@ -248,7 +248,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/persist/manyXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistManyToOneTest.java`
 notes:  ~14 methods. Sets FK on owning side.
 
-### JP-24c — persist(): one-to-many relationship (inverse side, collection management)            [TODO]
+### JP-24c — persist(): one-to-many relationship (inverse side, collection management)            [DONE]
 deps:   JP-23
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist one-to-many)
 proof:  TCK `core/entitytest/persist/oneXmany/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistOneToManyTest.java`

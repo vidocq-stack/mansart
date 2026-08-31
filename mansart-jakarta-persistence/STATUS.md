@@ -5,11 +5,11 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-24c — persist(): one-to-many relationship (inverse side, collection management)  [TODO]
-- M2: JP-23, JP-24a, JP-24b done — `persist(Object entity)`: null check, closed-EM check, EntityModel lookup,
+- Next: JP-24d — persist(): one-to-one relationship (owning side, FK write)  [TODO]
+- M2: JP-23, JP-24a, JP-24b, JP-24c done — `persist(Object entity)`: null check, closed-EM check, EntityModel lookup,
   INSERT SQL via Dialect, bind parameters, persistence context registration, join table INSERTs for
-  `@ManyToMany` (owning + inverse side), FK write for `@ManyToOne`. 12/12 unit tests.
-  Full suite: 211 pass, 0 fail, 1 skip (core module); 161 pass (data module).
+  `@ManyToMany` (owning + inverse side), FK write for `@ManyToOne`, inverse collection maintenance for `@OneToMany` (inverse side). 16/16 unit tests.
+  Full suite: 215 pass, 0 fail, 1 skip (core module); 161 pass (data module).
 - Trap: stub provider still not wired (TCK baseline unchanged).
 
 ## Numbers
@@ -17,7 +17,7 @@ Maintained by `@tracker` only.
 | metric | value | measured |
 | --- | --- | --- |
 | TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired) | 2026-08-28 |
-| unit tests | 211 pass / 212 total (1 skipped, core module); 161 pass (data module) | 2026-08-31 |
+| unit tests | 215 pass / 216 total (1 skipped, core module); 161 pass (data module) | 2026-08-31 |
 | build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-jakarta-persistence/mansart-persistence-core -am -DskipTests`) | 2026-08-31 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -27,11 +27,13 @@ TCK universe: 269 client classes, ~1 745 methods
 
 M0 (skeleton and harness) — 8 / 8 cards done.
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
-M2 (EntityManager CRUD) — 3 / 28 cards (JP-21, JP-22, JP-23 done).
+M2 (EntityManager CRUD) — 4 / 28 cards (JP-21, JP-22, JP-23, JP-24c done).
 
 ## Session log
 
+2026-08-31 | JP-24c | `persist()` one-to-many inverse side: maintains inverse collection by updating target entity's FK column via UPDATE statement. 4/4 unit tests (PersistOneToManyTest). Full suite: 215 pass, 0 fail, 1 skip (core module).
 2026-08-31 | JP-24a | `persist()` many-to-many (owning + inverse side): ~14 methods, plural attribute generation, ManyToManyAttribute/ManyToManyInverseAttribute dialect SPI, join table INSERTs via batched PreparedStatement. TCK 991 run, 989 errors, 2 skipped (same baseline). Unit 207 pass / 208 total (1 skipped, core module); 161 pass (data module).
+2026-08-31 | JP-24c | `persist()` one-to-many inverse side: maintains inverse collection by updating target entity's FK column via UPDATE statement. 4/4 unit tests (PersistOneToManyTest). Full suite: 215 pass, 0 fail, 1 skip (core module).
 2026-08-31 | JP-24b | `persist()` many-to-one: resolves `ReferenceAttribute` FK values — writes target entity's ID into the owning entity's FK column (nullable and non-null cases). 4/4 unit tests (PersistManyToOneTest). Full suite: 211 pass, 0 fail, 1 skip (core module).
 2026-08-28 | JP-23 | `persist(Object entity)`: null check, closed-EM check, EntityModel lookup, INSERT SQL via Dialect, bind parameters, persistence context registration. 3/3 unit tests (PersistBasicTest). Full suite: 202 pass, 0 fail, 1 skip.
 2026-08-28 | JP-22 | `MansartEntityManager` (64 methods): added `checkClosed()` helper; all 61 CRUD/query/utility methods now call `checkClosed()` before throwing `UnsupportedOperationException`. `isJoinedToTransaction()` returns `false` (no transaction support). `contains()` already checked `closed`. 59/59 unit tests (new `EntityManagerLifecycleTest` with 55 post-close tests + 4 lifecycle tests). TCK 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired, but lifecycle is now correct).

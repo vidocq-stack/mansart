@@ -154,6 +154,10 @@ final class MansartEntityManager implements EntityManager {
         boolean inverseSide = pa.inverseSide();
 
         if (joinTableName == null || joinColumnName == null) {
+            // One-to-many inverse side: maintain the inverse collection.
+            if (inverseSide) {
+                maintainInverseCollection(entity, pa, model, entityClass);
+            }
             return; // skip incomplete metadata
         }
 
@@ -214,6 +218,111 @@ final class MansartEntityManager implements EntityManager {
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist join table for " + pa.name(), e);
+        }
+    }
+
+    /**
+     * Maintain the inverse collection for a one-to-many relationship.
+     *
+     * <p>When persisting the inverse side (entity A with {@code @OneToMany(mappedBy="...")}),
+     * this method updates the owning side entity's (B's) foreign key column to point
+     * back to A. This ensures the bidirectional relationship is correctly persisted
+     * in the database.</p>
+     *
+     * <p>For each target entity B in the collection, if B is already in the persistence
+     * context (pre-existing in the DB), an UPDATE statement sets B's FK column to A's ID.</p>
+     */
+    private void maintainInverseCollection(Object entity, Attribute<?, ?> pa,
+                                           EntityModel<?> model, Class<?> entityClass) {
+        String mappedBy = null;
+        if (pa instanceof io.vidocq.mansart.data.dialect.attribute.ManyToManyAttribute<?, ?> m2mAttr) {
+            mappedBy = m2mAttr.mappedBy();
+        }
+
+        try (Connection conn = factory.getDataSource().getConnection()) {
+            // Get the target entities from the collection.
+            Object collection;
+            try {
+                collection = pa.getter().invoke(entity);
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to get collection for " + pa.name(), t);
+            }
+            if (collection == null) return;
+
+            java.util.Collection<?> items;
+            if (collection instanceof java.util.Collection) {
+                items = (java.util.Collection<?>) collection;
+            } else if (collection instanceof java.util.Set) {
+                items = (java.util.Set<?>) collection;
+            } else {
+                return;
+            }
+
+            if (items.isEmpty()) return;
+
+            // Get source entity ID.
+            Object sourceId;
+            try {
+                sourceId = model.id().getter().invoke(entity);
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to get source ID", t);
+            }
+
+            // For each target entity, update its FK column.
+            for (Object item : items) {
+                if (item == null) continue;
+
+                Class<?> targetClass;
+                try {
+                    targetClass = Class.forName(pa.javaTypeFqn());
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException("Target class not found: " + pa.javaTypeFqn(), e);
+                }
+
+                EntityModel<?> targetModel = factory.getEntityModel(targetClass);
+
+                // Find the ReferenceAttribute (the @ManyToOne) on the target entity.
+                // If mappedBy is specified, look for the attribute by name.
+                io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> refAttr = null;
+                if (mappedBy != null) {
+                    var opt = targetModel.attribute(mappedBy);
+                    if (opt.isPresent() && opt.get() instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> ref) {
+                        refAttr = ref;
+                    }
+                }
+                if (refAttr == null) {
+                    // Fallback: find any ReferenceAttribute on the target entity.
+                    for (var attr : targetModel.attributes()) {
+                        if (attr instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> ref) {
+                            refAttr = ref;
+                            break;
+                        }
+                    }
+                }
+                if (refAttr == null) continue; // no reference attribute on target
+
+                // Get target entity ID.
+                Object targetId;
+                try {
+                    targetId = targetModel.id().getter().invoke(item);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to get target ID", t);
+                }
+
+                // UPDATE the FK column on the target entity.
+                // We always attempt the UPDATE — if the target entity doesn't exist
+                // in the DB, 0 rows are affected (no error).
+                String updateSql = "UPDATE " + targetModel.tableName()
+                        + " SET " + refAttr.columnName() + " = ? WHERE "
+                        + targetModel.id().columnName() + " = ?";
+                try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+                    stmt.setObject(1, sourceId);
+                    stmt.setObject(2, targetId);
+                    stmt.executeUpdate();
+                }
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to maintain inverse collection for " + pa.name(), e);
         }
     }
 
