@@ -235,3 +235,59 @@ row above: a draw.
 **Verdict: keep `turboquant_kv_enabled: false` (fp16 KV).** No speed to gain, and KV
 quantization is exactly what would erode long-context quality — the model's weak
 spot. Reverted after the test.
+
+### 2026-08-31 — LM Studio (IQ4_NL) on BigMontreuil vs oMLX (MTPLX) on M5 Max
+
+New setup: a second box, **BigMontreuil** (`192.168.2.2:1234`), running **LM Studio**
+serving `unsloth/qwen3.6-35b-a3b`, quant **IQ4_NL**, `state: loaded`, `loaded_context:
+131072`. Added to OpenCode as provider `lmstudio` (global config,
+`@ai-sdk/openai-compatible`, baseURL above). Confirmed the exact model via LM Studio's
+native `/api/v0/models` (the sibling `qwen/qwen3.6-35b-a3b` is Q4_K_M and not loaded).
+
+**Protocol.** LM Studio's native `/api/v0/chat/completions` returns real
+`stats.tokens_per_second` (pure decode) and `stats.time_to_first_token` (prefill). A
+filler prompt padded to N tokens, 200 tokens generated, temperature 0.3. Each context
+level uses a *distinct* prompt, so TTFT is a genuine cold prefill (no KV reuse).
+
+LM Studio IQ4_NL @ BigMontreuil, full curve:
+
+| context | decode tok/s | TTFT (cold) | prefill tok/s |
+| --- | --- | --- | --- |
+| 0.06k | 115.9 | 0.07 s | – |
+| 4k | 109.9 | 1.46 s | ~2 770 |
+| 16k | 103.7 | 4.54 s | ~3 530 |
+| 32k | 95.1 | 6.63 s | ~4 830 |
+| 64k | 79.2 | 15.14 s | ~4 230 |
+| 100k | 66.8 | 20.22 s | ~4 950 |
+
+Decode degrades gently (−42 % from empty to 100k); it stays usable at the top of the
+window. Prefill holds around 4–5k tok/s.
+
+**Pure-decode comparison, same day, same filler, decode isolated** (oMLX's `/v1` does
+not expose per-phase stats, so oMLX decode is isolated with a two-request method:
+`decode = 200 / (wall@208 − wall@8)`, which cancels prefill even when cached):
+
+| context | oMLX MTPLX @ M5 Max | LM Studio IQ4_NL @ BigMontreuil |
+| --- | --- | --- |
+| 0 | 142.3 | 115.9 |
+| 32k | 108.2 | 95.1 |
+| 100k | not run | 66.8 |
+
+At equal context the M5-Max/oMLX/MTPLX stack decodes ~15–20 % faster than the
+BigMontreuil/LM-Studio/IQ4_NL stack. But this compares **two machines and two
+quantizations at once** — it is a setup-vs-setup number, not a model or a quant verdict.
+
+**Caveats — do not quote without them:**
+- Two different boxes, two different quants (MTPLX vs IQ4_NL). Not apples-to-apples.
+- A first oMLX **prefill** figure of ~58 000 tok/s was a **KV-cache artefact**: the
+  two-request method replays the same 32k prompt, so the second call's prefill is
+  cached and the delta is near-zero. Discarded — oMLX prefill was not cleanly measured
+  here (a single cold 32k pass was ~3 350 tok/s wall-derived, one point only).
+- An earlier wall-clock oMLX "17.5 tok/s @ 32k" mixed prefill+decode into one number
+  and is **not** comparable to LM Studio's pure-decode 95; it was replaced by the
+  two-request decode above. Same trap as the 2026-08-27 KV mea culpa: never compare a
+  wall-clock number against a decode-only one.
+
+**Takeaway.** LM Studio IQ4_NL on BigMontreuil is a viable second engine: slightly
+slower decode than the Mac, but steady to 100k and easy to point OpenCode at. Whether
+IQ4_NL trades quality against MTPLX is untested here — this entry is throughput only.
