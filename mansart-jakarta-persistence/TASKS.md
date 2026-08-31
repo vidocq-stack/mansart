@@ -236,11 +236,11 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  Unit test `PersistBasicTest` — `persistBasicTest1()` (persist creates DB row), `persistBasicTest2()` (null → `IllegalArgumentException`), `persistBasicTest3()` (after close → `IllegalStateException`). TCK `core/entitytest/persist/basic/Client` — `persistBasicTest1()` through `persistBasicTest5()`.
 notes:  Also: `module-info.java` (added `uses DialectFactory`), `pom.xml` (added `mansart-data-dialect-h2` to dependencyManagement). Null check, closed-EM check, EntityModel lookup, INSERT via Dialect, bind parameters, managedEntities + registeredById registration.
 
-### JP-24a — persist(): many-to-many relationship (owning + inverse side)            [TODO]
+### JP-24a — persist(): many-to-many relationship (owning + inverse side)            [DONE]
 deps:   JP-23
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist many-to-many)
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (persist many-to-many), `mansart-persistence-processor/src/main/java/io/vidocq/mansart/persistence/processor/EntityScanner.java`, `MansartMetamodelWriter.java` (plural attribute generation)
 proof:  TCK `core/entitytest/persist/manyXmany/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/PersistManyToManyTest.java`
-notes:  ~14 methods. Owns FK, updates inverse collection.
+notes:  ~14 methods. Owns FK, updates inverse collection. Extended Data processor to generate plural attributes in `$MODEL`. Added `ManyToManyAttribute`/`ManyToManyInverseAttribute` to dialect SPI. Updated `EntityModel` with `pluralAttributes` field. `MansartEntityManager.persist()` iterates plural attributes and executes join table INSERTs via batched PreparedStatement.
 
 ### JP-24b — persist(): many-to-one relationship            [TODO]
 deps:   JP-23

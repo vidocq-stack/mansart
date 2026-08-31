@@ -95,6 +95,7 @@ class PersistBasicTest {
                 PersistTestEntity.class, "PERSIST_TEST", null,
                 idAttr, java.util.Optional.empty(),
                 List.of(idAttr, nameAttr),
+                List.of(),
                 privateLookup.findConstructor(PersistTestEntity.class,
                         MethodType.methodType(void.class)));
 

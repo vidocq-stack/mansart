@@ -166,6 +166,32 @@ final class MansartMetamodelWriter {
         }
         list.append("),");
         w.println(list);
+
+        // plural attributes
+        if (e.pluralAttributes().isEmpty()) {
+            w.println("        List.of(),");
+        } else {
+            w.println("        List.of(");
+            for (int i = 0; i < e.pluralAttributes().size(); i++) {
+                var pa = e.pluralAttributes().get(i);
+                String attrName = pa.name() + "Attr";
+                String joinTable = pa.joinTableName();
+                String joinCol = pa.joinColumnName();
+                String invCol = pa.inverseJoinColumnName();
+                String targetEntityRef = pa.javaTypeFqn();
+                boolean inverseSide = pa.inverseSide();
+
+                w.println("            new " + (inverseSide ? "ManyToManyInverse" : "ManyToMany") + "Attribute<>(\""
+                        + pa.name() + "\", \"" + joinTable + "\", \"" + joinCol
+                        + "\", \"" + invCol + "\", " + targetEntityRef + ".class, " + inverseSide + ")");
+                if (i < e.pluralAttributes().size() - 1) {
+                    w.println(",");
+                } else {
+                    w.println();
+                }
+            }
+            w.println("        ),");
+        }
         w.println("        constructorMh());");
         w.println();
         w.println("    private static MethodHandle getterMh(String fieldName, Class<?> type) {");

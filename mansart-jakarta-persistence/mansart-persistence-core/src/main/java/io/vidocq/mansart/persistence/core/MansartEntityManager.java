@@ -117,6 +117,83 @@ final class MansartEntityManager implements EntityManager {
         } catch (Exception e) {
             throw new RuntimeException("Failed to persist entity", e);
         }
+
+        // Handle plural attributes (many-to-many / one-to-many).
+        for (Attribute<?, ?> pa : model.pluralAttributes()) {
+            tryInsertJoinTable(entity, pa, model, entityClass);
+        }
+    }
+
+    private void tryInsertJoinTable(Object entity, Attribute<?, ?> pa,
+                                    EntityModel<?> model, Class<?> entityClass) {
+        String joinTableName = pa.joinTableName();
+        String joinColumnName = pa.joinColumnName();
+        String inverseJoinColumnName = pa.inverseJoinColumnName();
+        String targetEntityFqn = pa.javaTypeFqn();
+        boolean inverseSide = pa.inverseSide();
+
+        if (joinTableName == null || joinColumnName == null) {
+            return; // skip incomplete metadata
+        }
+
+        try (Connection conn = factory.getDataSource().getConnection()) {
+            // Get the target entity IDs from the collection.
+            Object collection = null;
+            try {
+                collection = pa.getter().invoke(entity);
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to get collection for " + pa.name(), t);
+            }
+
+            if (collection == null) return;
+
+            java.util.Collection<?> items;
+            if (collection instanceof java.util.Collection) {
+                items = (java.util.Collection<?>) collection;
+            } else if (collection instanceof java.util.Set) {
+                items = (java.util.Set<?>) collection;
+            } else {
+                return;
+            }
+
+            if (items.isEmpty()) return;
+
+            // Build INSERT into join table.
+            String insertSql = "INSERT INTO " + joinTableName + " ("
+                    + joinColumnName + ", " + inverseJoinColumnName + ") VALUES (?, ?)";
+
+            try (PreparedStatement stmt = conn.prepareStatement(insertSql)) {
+                Object sourceId;
+                try {
+                    sourceId = model.id().getter().invoke(entity);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to get source ID", t);
+                }
+                for (Object item : items) {
+                    if (item == null) continue;
+                    stmt.setObject(1, sourceId);
+                    // Get the target entity's ID.
+                    Class<?> targetClass;
+                    try {
+                        targetClass = Class.forName(targetEntityFqn);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException("Target class not found: " + targetEntityFqn, e);
+                    }
+                    EntityModel<?> targetModel = factory.getEntityModel(targetClass);
+                    Object targetId;
+                    try {
+                        targetId = targetModel.id().getter().invoke(item);
+                    } catch (Throwable t) {
+                        throw new RuntimeException("Failed to get target ID", t);
+                    }
+                    stmt.setObject(2, targetId);
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to persist join table for " + pa.name(), e);
+        }
     }
 
     @Override

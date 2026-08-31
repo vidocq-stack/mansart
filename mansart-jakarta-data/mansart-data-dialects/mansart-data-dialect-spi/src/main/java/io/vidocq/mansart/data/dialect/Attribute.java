@@ -44,7 +44,11 @@ public sealed interface Attribute<E, V>
                 // relations (e.g. book.author.name resolves to JoinedAttribute(leaf=Author.name,
                 // path=[Book.author])). The dialect detects this subtype and emits aliased SQL
                 // with the appropriate INNER JOIN clauses.
-                io.vidocq.mansart.data.dialect.attribute.JoinedAttribute {
+                io.vidocq.mansart.data.dialect.attribute.JoinedAttribute,
+                // M2-24a — many-to-many relationship attributes (owning + inverse side).
+                // These store join table metadata for INSERT/DELETE operations on the join table.
+                io.vidocq.mansart.data.dialect.attribute.ManyToManyAttribute,
+                io.vidocq.mansart.data.dialect.attribute.ManyToManyInverseAttribute {
 
     String name();
     String columnName();
@@ -54,4 +58,12 @@ public sealed interface Attribute<E, V>
     boolean unique();
     MethodHandle getter();
     MethodHandle setter();
+
+    // M2-24a — default methods for plural attributes (many-to-many / one-to-many).
+    // Scalar attributes return null/empty; plural attributes override.
+    default String joinTableName() { return null; }
+    default String joinColumnName() { return null; }
+    default String inverseJoinColumnName() { return null; }
+    default String javaTypeFqn() { return null; }
+    default boolean inverseSide() { return false; }
 }

@@ -74,6 +74,7 @@ final class EntityScanner {
         String schema    = readEntitySchema(type, dialect);
 
         List<AttributeDescriptor> attributes = new ArrayList<>();
+        List<AttributeDescriptor> pluralAttributes = new ArrayList<>();
         AttributeDescriptor       id         = null;
         AttributeDescriptor       version    = null;
 
@@ -84,6 +85,14 @@ final class EntityScanner {
             if (hasAnnotation(member, dialect.transientAnno)) continue;
 
             VariableElement field = (VariableElement) member;
+            boolean isManyToMany = hasAnnotation(field, dialect.manyToManyAnno);
+            boolean isOneToMany = hasAnnotation(field, dialect.oneToManyAnno);
+
+            if (isManyToMany || isOneToMany) {
+                pluralAttributes.add(scanPlural(field, dialect));
+                continue;
+            }
+
             AttributeDescriptor a = describe(field, dialect);
             if (a == null) continue;
 
@@ -105,7 +114,94 @@ final class EntityScanner {
             return null;
         }
 
-        return new EntityDescriptor(type, tableName, schema, id, version, attributes);
+        return new EntityDescriptor(type, tableName, schema, id, version, attributes, pluralAttributes);
+    }
+
+    private AttributeDescriptor scanPlural(VariableElement field, AnnotationDialect dialect) {
+        String name = field.getSimpleName().toString();
+        TypeMirror typeMirror = field.asType();
+        String javaTypeFqn = typeMirror.toString();
+        boolean isManyToMany = hasAnnotation(field, dialect.manyToManyAnno);
+        boolean isOneToMany = hasAnnotation(field, dialect.oneToManyAnno);
+        AttributeKind kind = isManyToMany ? AttributeKind.MANY_TO_MANY : AttributeKind.MANY_TO_ONE;
+
+        String joinTableName = null;
+        String joinColumnName = null;
+        String inverseJoinColumnName = null;
+        boolean inverseSide = false;
+        String mappedBy = null;
+
+        Map<String, ? extends AnnotationValue> joinTable =
+                annotationValues(field, dialect.joinTableAnno);
+        Map<String, ? extends AnnotationValue> manyToMany =
+                annotationValues(field, dialect.manyToManyAnno);
+        Map<String, ? extends AnnotationValue> oneToMany =
+                annotationValues(field, dialect.oneToManyAnno);
+
+        if (joinTable != null) {
+            AnnotationValue nameVal = joinTable.get("name");
+            if (nameVal != null) {
+                String n = nameVal.getValue().toString();
+                if (!n.isEmpty()) joinTableName = n;
+            }
+        }
+
+        if (isManyToMany) {
+            Map<String, ? extends AnnotationValue> joinCol =
+                    annotationValues(field, dialect.joinColumnAnno);
+            if (joinCol != null) {
+                AnnotationValue nameVal = joinCol.get("name");
+                if (nameVal != null) {
+                    String n = nameVal.getValue().toString();
+                    if (!n.isEmpty()) joinColumnName = n;
+                }
+            }
+            Map<String, ? extends AnnotationValue> invJoinCol =
+                    annotationValues(field, "jakarta.persistence.InverseJoinColumn");
+            if (invJoinCol != null) {
+                AnnotationValue nameVal = invJoinCol.get("name");
+                if (nameVal != null) {
+                    String n = nameVal.getValue().toString();
+                    if (!n.isEmpty()) inverseJoinColumnName = n;
+                }
+            }
+        } else {
+            // OneToMany
+            AnnotationValue mappedByVal = oneToMany != null ? oneToMany.get("mappedBy") : null;
+            if (mappedByVal != null) {
+                String mv = mappedByVal.getValue().toString();
+                if (!mv.isEmpty()) {
+                    mappedBy = mv;
+                    inverseSide = true;
+                }
+            }
+            if (joinColumnName == null) {
+                Map<String, ? extends AnnotationValue> joinCol =
+                        annotationValues(field, dialect.joinColumnAnno);
+                if (joinCol != null) {
+                    AnnotationValue nameVal = joinCol.get("name");
+                    if (nameVal != null) {
+                        String n = nameVal.getValue().toString();
+                        if (!n.isEmpty()) joinColumnName = n;
+                    }
+                }
+            }
+        }
+
+        if (joinTableName == null) {
+            joinTableName = field.getEnclosingElement().getSimpleName().toString()
+                    + "_" + name;
+        }
+        if (joinColumnName == null) {
+            joinColumnName = name + "_id";
+        }
+        if (inverseJoinColumnName == null) {
+            inverseJoinColumnName = "id";
+        }
+
+        return new AttributeDescriptor(field, name, null, javaTypeFqn, kind,
+                true, false, 0, false, null,
+                joinTableName, joinColumnName, inverseJoinColumnName, inverseSide, mappedBy);
     }
 
     private AttributeDescriptor describe(VariableElement field, AnnotationDialect dialect) {
@@ -160,7 +256,8 @@ final class EntityScanner {
         }
 
         return new AttributeDescriptor(field, name, columnName, javaTypeFqn, kind,
-                nullable, unique, length, generated, referencedColumn);
+                nullable, unique, length, generated, referencedColumn,
+                null, null, null, false, null);
     }
 
     /* ----- helpers ---- */
@@ -257,7 +354,7 @@ final class EntityScanner {
 
     /* ----- DTOs ---- */
 
-    enum AttributeKind { ID, VERSION, TEXT, NUMERIC, BOOLEAN, TEMPORAL, REFERENCE, ENUM }
+    enum AttributeKind { ID, VERSION, TEXT, NUMERIC, BOOLEAN, TEMPORAL, REFERENCE, ENUM, MANY_TO_MANY, MANY_TO_ONE }
 
     record AttributeDescriptor(
             VariableElement element,
@@ -270,7 +367,13 @@ final class EntityScanner {
             int length,
             boolean generated,
             // M8-3 — for REFERENCE attributes only: PK column on the target entity (defaults "id").
-            String referencedColumn
+            String referencedColumn,
+            // M2-24a — for MANY_TO_MANY/MANY_TO_ONE: join table metadata.
+            String joinTableName,
+            String joinColumnName,
+            String inverseJoinColumnName,
+            boolean inverseSide,
+            String mappedBy
     ) {}
 
     record EntityDescriptor(
@@ -279,7 +382,8 @@ final class EntityScanner {
             String schema,
             AttributeDescriptor id,
             AttributeDescriptor version,
-            List<AttributeDescriptor> attributes
+            List<AttributeDescriptor> attributes,
+            List<AttributeDescriptor> pluralAttributes
     ) {}
 
     private enum AnnotationDialect {
@@ -292,16 +396,24 @@ final class EntityScanner {
                 "jakarta.persistence.GeneratedValue",
                 "jakarta.persistence.ManyToOne",
                 "jakarta.persistence.OneToOne",
+                "jakarta.persistence.JoinColumn",
+                "jakarta.persistence.ManyToMany",
+                "jakarta.persistence.OneToMany",
+                "jakarta.persistence.JoinTable",
                 "jakarta.persistence.JoinColumn");
 
         final String idAnno, versionAnno, columnAnno, tableAnno, transientAnno,
-                generatedValueAnno, manyToOneAnno, oneToOneAnno, joinColumnAnno;
+                generatedValueAnno, manyToOneAnno, oneToOneAnno, joinColumnAnno,
+                manyToManyAnno, oneToManyAnno, joinTableAnno;
 
         AnnotationDialect(String id, String version, String column, String table, String tr,
-                          String gv, String m2o, String o2o, String join) {
+                          String gv, String m2o, String o2o, String join,
+                          String m2m, String o2m, String jt, String jc) {
             this.idAnno = id; this.versionAnno = version; this.columnAnno = column;
             this.tableAnno = table; this.transientAnno = tr; this.generatedValueAnno = gv;
             this.manyToOneAnno = m2o; this.oneToOneAnno = o2o; this.joinColumnAnno = join;
+            this.manyToManyAnno = m2m; this.oneToManyAnno = o2m;
+            this.joinTableAnno = jt;
         }
     }
 }

@@ -41,6 +41,7 @@ public record EntityModel<E>(
         IdAttribute<E, ?> id,
         Optional<VersionAttribute<E, ?>> version,
         List<Attribute<E, ?>> attributes,
+        List<Attribute<E, ?>> pluralAttributes,
         MethodHandle constructor
 ) {
 
@@ -53,5 +54,19 @@ public record EntityModel<E>(
             if (a.name().equals(name)) return Optional.of(a);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Returns the plural (collection-type) attributes for this entity.
+     *
+     * <p>Plural attributes describe relationships that map to collections
+     * ({@code @OneToMany}, {@code @ManyToMany}, {@code @ElementCollection}).
+     * For many-to-many relationships, these carry join table metadata
+     * needed for INSERT/DELETE operations on the join table.</p>
+     *
+     * @return an unmodifiable list of plural attributes
+     */
+    public List<Attribute<E, ?>> pluralAttributes() {
+        return pluralAttributes == null ? List.of() : List.copyOf(pluralAttributes);
     }
 }

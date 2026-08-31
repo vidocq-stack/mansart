@@ -117,7 +117,7 @@ public final class RuntimeEntityModelBuilder {
             }
 
             return new EntityModel<>(entityClass, tableName, schema, id,
-                    Optional.ofNullable(version), attrs, ctor);
+                    Optional.ofNullable(version), attrs, List.of(), ctor);
         } catch (NoSuchMethodException e) {
             throw new MansartDataException(entityClass.getName()
                     + " must declare a no-arg constructor (Mansart/JPA convention).", e);
