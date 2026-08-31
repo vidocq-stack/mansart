@@ -266,11 +266,13 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest2()` (find / getReference); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FindByIdTest.java`
 notes:  Finds entity by ID from DB. Returns null if not found. Also tested in apitests.Client.
 
-### JP-26 — remove(): managed + detached entity, already-removed entity            [TODO]
+### JP-26 — remove(): managed + detached entity, already-removed entity            [DONE]
 deps:   JP-21
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (remove)
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (remove),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveBasicTest.java` (new),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveTestEntity.java` (new)
 proof:  TCK `core/entitytest/remove/basic/Client` — `removeBasicTest1()` through `removeBasicTest5()`, `removeMergeBasicTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveBasicTest.java`
-notes:  6 methods. Basic remove: new entity (no-op/warn), managed entity (DELETE), detached entity (find + DELETE), already-removed entity (no-op), mixed operations.
+notes:  6 methods. Basic remove: new entity (no-op), managed entity (DELETE + unregister), detached entity (find by ID from DB + DELETE + unregister), already-removed entity (no-op), post-close (IllegalStateException), null (IllegalArgumentException).
 
 ### JP-27 — remove(): relationship-specific (one-to-many, one-to-one)            [TODO]
 deps:   JP-26

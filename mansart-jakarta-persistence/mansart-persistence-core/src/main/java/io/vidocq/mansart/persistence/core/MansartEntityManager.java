@@ -54,7 +54,11 @@ import java.util.Map;
  * Minimal {@link EntityManager} backed by a {@link PersistenceContext}.
  *
  * <p>JP-22: lifecycle methods ({@code isOpen}, {@code close},
- * {@code isJoinedToTransaction}) are implemented. All CRUD/query methods
+ * {@code isJoinedToTransaction}) are implemented.
+ * JP-23: {@code persist(Object)} is implemented.
+ * JP-25: {@code find(Class, Object)} is implemented.
+ * JP-26: {@code remove(Object)} is implemented.
+ * All other CRUD/query methods
  * throw {@code IllegalStateException("EntityManager is closed")} after
  * {@code close()}; before close they throw
  * {@code UnsupportedOperationException("not implemented: <method>")}</p>
@@ -409,7 +413,85 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public void remove(Object entity) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: remove");
+
+        if (entity == null) {
+            throw new IllegalArgumentException("null entity");
+        }
+
+        // Look up the EntityModel for this entity class.
+        EntityModel<?> model = factory.getEntityModel(entity.getClass());
+        if (model == null) {
+            throw new IllegalArgumentException("not a managed type: " + entity.getClass().getName());
+        }
+
+        // Case 1: managed entity — DELETE and unregister.
+        if (persistenceContext.contains(entity)) {
+            executeDelete(model, entity);
+            persistenceContext.unregister(entity);
+            return;
+        }
+
+        // Case 2: detached entity — look up by ID in the persistence context,
+        // then in the database, DELETE and unregister if found.
+        Object id;
+        try {
+            id = model.id().getter().invoke(entity);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to get entity ID", t);
+        }
+
+        // Check the persistence context's identity map first (by ID).
+        Object cached = persistenceContext.lookupById(entity.getClass(), id);
+        if (cached != null) {
+            executeDelete(model, cached);
+            persistenceContext.unregister(cached);
+            return;
+        }
+
+        // Not in persistence context: try to find from DB (detached entity).
+        @SuppressWarnings("unchecked")
+        Object found = find((Class<Object>) entity.getClass(), id);
+        if (found != null) {
+            executeDelete(model, found);
+            persistenceContext.unregister(found);
+        }
+        // If found == null: new or already-removed entity — no-op (per spec).
+    }
+
+    /**
+     * Execute a DELETE statement for the given entity.
+     */
+    private void executeDelete(EntityModel<?> model, Object entity) {
+        Object id;
+        try {
+            id = model.id().getter().invoke(entity);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to get entity ID", t);
+        }
+
+        String sql;
+        try {
+            SqlFragment fragment = factory.getDialect().delete(
+                    model, Where.eq(model.id()));
+            sql = fragment.sql();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build DELETE for "
+                    + model.entityClass().getSimpleName(), e);
+        }
+
+        int paramCount = (sql.length() - sql.replace("?", "").length());
+
+        try (Connection conn = factory.getDataSource().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < paramCount; i++) {
+                stmt.setObject(i + 1, id);
+            }
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to remove entity "
+                    + model.entityClass().getSimpleName()
+                    + " with ID " + id, e);
+        }
     }
 
     @Override
