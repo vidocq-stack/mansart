@@ -5,7 +5,7 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: M2 complete — all 28 cards (JP-21…JP-28) done.
+- Next: JP-29 (flush).
 - M2 (EntityManager CRUD) — 11 / 28 cards (JP-21, JP-22, JP-23, JP-24a, JP-24b, JP-24c, JP-24d, JP-25, JP-26, JP-27, JP-28 done).
   Full suite: 236 pass, 0 fail, 1 skip (core module); 161 pass (data module).
 - Trap: stub provider still not wired (TCK baseline unchanged).
