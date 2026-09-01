@@ -119,14 +119,12 @@ class MansartPersistenceProviderTest {
     }
 
     /**
-     * Verify that {@code getProviderUtil()} throws
-     * {@code UnsupportedOperationException}.
+     * Verify that {@code getProviderUtil()} returns a non-null ProviderUtil.
      */
     @Test
-    void getProviderUtilThrows() {
-        assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(provider::getProviderUtil)
-                .withMessageContaining("not implemented");
+    void getProviderUtilReturnsInstance() {
+        var util = provider.getProviderUtil();
+        assertThat(util).isNotNull();
     }
 
     /**

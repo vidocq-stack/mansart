@@ -353,7 +353,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
 
     @Override
     public ProviderUtil getProviderUtil() {
-        throw new UnsupportedOperationException("not implemented: getProviderUtil");
+        return MansartProviderUtil.INSTANCE;
     }
 
     /**

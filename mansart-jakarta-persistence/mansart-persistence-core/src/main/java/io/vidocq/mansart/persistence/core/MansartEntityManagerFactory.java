@@ -25,6 +25,7 @@ import jakarta.persistence.NamedQuery;
 import jakarta.persistence.NamedEntityGraph;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
+import jakarta.persistence.spi.ProviderUtil;
 
 import io.vidocq.mansart.persistence.core.metamodel.MetamodelImpl;
 import jakarta.transaction.TransactionManager;
@@ -60,6 +61,7 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     private final DataSource dataSource;
     private final Dialect dialect;
     private final Map<Class<?>, EntityModel<?>> entityModels;
+    private final ProviderUtil providerUtil;
     TransactionManager transactionManager;
     private volatile boolean closed;
 
@@ -88,6 +90,7 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
         this.metamodel = metamodel;
         this.persistenceUnitName = persistenceUnitName;
         this.persistenceContext = new PersistenceContext();
+        this.providerUtil = MansartProviderUtil.INSTANCE;
         this.dataSource = dataSource;
         this.dialect = dialect;
         this.entityModels = new IdentityHashMap<>(entityModels);
@@ -99,6 +102,7 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     @Override
     public EntityManager createEntityManager() {
         checkOpen();
+        MansartProviderUtil.CURRENT_CONTEXT.set(persistenceContext);
         return new MansartEntityManager(this, persistenceContext);
     }
 
@@ -138,6 +142,15 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
      */
     Set<Class<?>> getEntityModelClassSet() {
         return entityModels.keySet();
+    }
+
+    /**
+     * Return the {@link ProviderUtil} implementation for this factory.
+     *
+     * @return the provider util
+     */
+    ProviderUtil getProviderUtil() {
+        return providerUtil;
     }
 
     @Override
@@ -187,6 +200,7 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     @Override
     public void close() {
         closed = true;
+        MansartProviderUtil.CURRENT_CONTEXT.remove();
     }
 
     @Override

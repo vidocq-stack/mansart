@@ -317,10 +317,12 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entityTransaction/Client` — `beginIllegalStateExceptionTest()`, `commitIllegalStateExceptionTest()`, `getRollbackOnlyIllegalStateExceptionTest()`, `rollbackIllegalStateExceptionTest()`, `setRollbackOnlyIllegalStateExceptionTest()`
 notes:  Implements `jakarta.persistence.EntityTransaction` (resource-local). Delegates to `MansartTransactionManager` from transactions-core. MansartEntityManager.getTransaction() returns new MansartEntityTransaction(this). 5 TCK tests.
 
-### JP-36 — ProviderUtil implementation (isLoaded, isLoaded(Object), isLoaded(Object, String))            [TODO]
+### JP-36 — ProviderUtil implementation (isLoaded, isLoaded(Object), isLoaded(Object, String))            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartPersistenceProvider.java` (getProviderUtil),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartProviderUtil.java` (new, implements ProviderUtil)
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartProviderUtil.java` (new enum singleton),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactory.java` (ThreadLocal binding),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java` (10 tests)
 proof:  TCK `se/pluggability/contracts/resource_local/Client` — `getProviderUtil()`, `isLoaded()` (2 of 15 tests; 13 pass via existing PersistenceUnitInfoImpl); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`
 notes:  13 of 15 resource_local tests already pass (PersistenceUnitInfoImpl getters are complete). Only ProviderUtil.getPersistenceUtil() and PersistenceUtil.isLoaded() remain. Unit test in `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`.
 
