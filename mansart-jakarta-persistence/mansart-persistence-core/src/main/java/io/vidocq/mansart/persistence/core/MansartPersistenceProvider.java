@@ -305,7 +305,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
                 : buildEntityModelRegistry(info.getManagedClassNames());
 
         return new MansartEntityManagerFactory(metamodel,
-                info.getPersistenceUnitName(), dataSource, dialect, entityModels);
+                info.getPersistenceUnitName(), dataSource, dialect, entityModels, null);
     }
 
     /**

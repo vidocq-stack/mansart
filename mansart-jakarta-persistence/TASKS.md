@@ -309,7 +309,7 @@ notes:  Lock operations belong to M8 (`core/lock` in PLAN.md). This card is a pl
 
 ## M3 — transactions
 
-### JP-35 — EntityTransaction lifecycle (begin, commit, rollback, isActive, getRollbackOnly, setRollbackOnly)            [TODO]
+### JP-35 — EntityTransaction lifecycle (begin, commit, rollback, isActive, getRollbackOnly, setRollbackOnly)            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityTransaction.java` (new),
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getTransaction),

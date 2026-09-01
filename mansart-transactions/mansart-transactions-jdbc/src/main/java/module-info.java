@@ -25,7 +25,7 @@
  * <p>Limitation : 1PC only — multi-resource 2PC requires a real XA driver.
  */
 module io.vidocq.mansart.transactions.jdbc {
-    requires transitive io.vidocq.mansart.transactions.core;
+    requires transitive io.vidocq.mansart.transactions;
     requires java.sql;
     requires java.transaction.xa;
 

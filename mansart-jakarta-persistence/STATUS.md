@@ -5,7 +5,8 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-35 (EntityTransaction lifecycle).
+- JP-35 (EntityTransaction lifecycle) is now complete — 274 unit tests pass.
+- Next: JP-36 (ProviderUtil implementation).
 - JP-02 (five reactor modules with module declarations) is now complete — the
   maven-plugin module-info.java was missing and has been added; all 5 modules
   build and install cleanly.
@@ -16,8 +17,8 @@ Maintained by `@tracker` only.
 | metric | value | measured |
 | --- | --- | --- |
 | TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired) | 2026-08-28 |
-| unit tests | 255 pass / 255 total (core module); 161 pass (data module) | 2026-09-01 |
-| build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-persistence-core -am -DskipTests`) | 2026-09-01 |
+| unit tests | 274 pass / 274 total (core module); 161 pass (data module) | 2026-09-01 |
+| build | 34/34 (compile, `./mvnw -ntp clean install -DskipTests`) | 2026-09-01 |
 
 TCK universe: 269 client classes, ~1 745 methods
 (`jakarta.tck:persistence-tck-spec-tests:3.2.1`).
@@ -26,7 +27,7 @@ TCK universe: 269 client classes, ~1 745 methods
 
 M0 (skeleton and harness) — 8 / 8 cards done.
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
-M2 (EntityManager CRUD) — 15 / 28 cards (JP-21…JP-30, JP-33, JP-34 done; JP-32 deferred to M8).
+M2 (EntityManager CRUD) — 16 / 28 cards (JP-21…JP-30, JP-33, JP-34, **JP-35** done; JP-32 deferred to M8).
 
 ## Session log
 
@@ -37,3 +38,4 @@ M2 (EntityManager CRUD) — 15 / 28 cards (JP-21…JP-30, JP-33, JP-34 done; JP-
 2026-09-01 | JP-02 | Verified all 5 modules build: `./mvnw -ntp clean install -DskipTests` green from the mansart root. 5/5 `pom.xml` + 5/5 `module-info.java` present (spi, processor, core, maven-plugin, cdi). `@module-guardian` clean.
 2026-09-01 | JP-02 | Full reactor installs cleanly — all 5 modules (spi, processor, core, maven-plugin, cdi) build and install. Proof: `./mvnw -ntp install -DskipTests` green; `@module-guardian` clean.
 2026-09-01 | audit M3 | Planning audit of M3 cards (JP-35, JP-36, JP-37): fixed JP-36 dependency (JP-35→JP-21), JP-36 proof (added unit test path), PLAN.md M2 scope (removed "EntityTransaction"), PLAN.md M3 gate (added `core/entityTransaction`). No code written. Build: not measured. Unit tests: not measured. TCK: not measured.
+2026-09-01 | JP-35 | `EntityTransaction` lifecycle: rewrote `MansartEntityTransaction` to manage a `java.sql.Connection` for the transaction lifetime (acquired in `begin()`, committed/rolled back in `commit()`/`rollback()`). Updated `MansartEntityManagerFactory` to wire `TransactionManager` to field (was assigned to parameter). Modified all 9 SQL call sites in `MansartEntityManager` to use transaction-bound connection when active. Fixed `rollback()` to throw `IllegalStateException` when never started, but be a no-op after ended transaction. Fixed `EntityTransactionTest` expectation (`jakarta.persistence.RollbackException` per JPA spec). 19/19 EntityTransactionTest pass (was 7 pass, 3 fail, 9 errors). Full suite: 274 pass, 0 fail, 1 skipped (core module).

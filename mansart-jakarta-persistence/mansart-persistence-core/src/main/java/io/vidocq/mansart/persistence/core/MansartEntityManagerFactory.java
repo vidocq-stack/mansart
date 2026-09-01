@@ -27,6 +27,8 @@ import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 
 import io.vidocq.mansart.persistence.core.metamodel.MetamodelImpl;
+import jakarta.transaction.TransactionManager;
+import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.DialectFactory;
@@ -58,10 +60,11 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     private final DataSource dataSource;
     private final Dialect dialect;
     private final Map<Class<?>, EntityModel<?>> entityModels;
+    TransactionManager transactionManager;
     private volatile boolean closed;
 
     MansartEntityManagerFactory(MetamodelImpl metamodel, String persistenceUnitName) {
-        this(metamodel, persistenceUnitName, null, null, Map.of());
+        this(metamodel, persistenceUnitName, null, null, Map.of(), null);
     }
 
     MansartEntityManagerFactory(MetamodelImpl metamodel) {
@@ -71,21 +74,26 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     /**
      * Construct a factory with database connectivity.
      *
-     * @param metamodel     the runtime metamodel
-     * @param persistenceUnitName the persistence unit name
-     * @param dataSource    the database source (may be {@code null} for no-DB mode)
-     * @param dialect       the SQL dialect (may be {@code null} for no-DB mode)
-     * @param entityModels  entity class → {@code EntityModel} mapping
+     * @param metamodel             the runtime metamodel
+     * @param persistenceUnitName   the persistence unit name
+     * @param dataSource            the database source (may be {@code null} for no-DB mode)
+     * @param dialect               the SQL dialect (may be {@code null} for no-DB mode)
+     * @param entityModels          entity class → {@code EntityModel} mapping
+     * @param transactionManager    the transaction manager (may be {@code null} for no-transaction mode)
      */
     MansartEntityManagerFactory(MetamodelImpl metamodel, String persistenceUnitName,
                                 DataSource dataSource, Dialect dialect,
-                                Map<Class<?>, EntityModel<?>> entityModels) {
+                                Map<Class<?>, EntityModel<?>> entityModels,
+                                TransactionManager transactionManager) {
         this.metamodel = metamodel;
         this.persistenceUnitName = persistenceUnitName;
         this.persistenceContext = new PersistenceContext();
         this.dataSource = dataSource;
         this.dialect = dialect;
         this.entityModels = new IdentityHashMap<>(entityModels);
+        if (this.transactionManager == null) {
+            this.transactionManager = new MansartTransactionManager();
+        }
     }
 
     @Override

@@ -31,7 +31,7 @@
  * CDI 4.1-compliant container) honours natively.
  */
 module io.vidocq.mansart.transactions.cdi {
-    requires transitive io.vidocq.mansart.transactions.core;
+    requires transitive io.vidocq.mansart.transactions;
     requires jakarta.cdi;
     requires jakarta.inject;
     requires jakarta.interceptor;

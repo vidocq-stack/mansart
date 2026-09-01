@@ -24,7 +24,7 @@
  * {@link jakarta.transaction.TransactionSynchronizationRegistry} bound to the current virtual
  * thread via {@link java.lang.ScopedValue}. 2PC + recovery come later.
  */
-module io.vidocq.mansart.transactions.core {
+module io.vidocq.mansart.transactions {
     requires transitive io.vidocq.mansart.transactions.api;
     // javax.transaction.xa.XAResource is on the Transaction interface — needed at compile time.
     requires java.transaction.xa;

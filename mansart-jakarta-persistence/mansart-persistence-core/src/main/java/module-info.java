@@ -9,6 +9,8 @@ module io.vidocq.mansart.persistence.core {
 
     requires transitive jakarta.persistence;
 
+    requires io.vidocq.mansart.transactions;
+
     requires java.xml;
 
     requires io.vidocq.mansart.persistence.spi;

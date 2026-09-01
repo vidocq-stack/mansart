@@ -131,6 +131,12 @@
 
             <dependency>
                 <groupId>io.vidocq.mansart</groupId>
+                <artifactId>mansart-transactions-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.vidocq.mansart</groupId>
                 <artifactId>mansart-data-dialect-spi</artifactId>
                 <version>${project.version}</version>
             </dependency>
