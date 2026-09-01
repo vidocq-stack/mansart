@@ -5,9 +5,10 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-35 (EntityTransaction).
-- M2 (EntityManager CRUD) — 15 / 28 cards (JP-21, JP-22, JP-23, JP-24a, JP-24b, JP-24c, JP-24d, JP-25, JP-26, JP-27, JP-28, JP-29, JP-30, JP-33, JP-34 done).
-  Full suite: 253 pass, 0 fail, 1 skip (core module); 161 pass (data module).
+- Next: JP-03 (PersistenceProvider SPI registration).
+- JP-02 (five reactor modules with module declarations) is now complete — the
+  maven-plugin module-info.java was missing and has been added; all 5 modules
+  build and install cleanly.
 - Trap: stub provider still not wired (TCK baseline unchanged).
 
 ## Numbers
@@ -16,7 +17,7 @@ Maintained by `@tracker` only.
 | --- | --- | --- |
 | TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired) | 2026-08-28 |
 | unit tests | 255 pass / 255 total (core module); 161 pass (data module) | 2026-09-01 |
-| build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-jakarta-persistence/mansart-persistence-core -am -DskipTests`) | 2026-09-01 |
+| build | 34/34 (compile, `./mvnw -ntp clean compile -pl mansart-persistence-core -am -DskipTests`) | 2026-09-01 |
 
 TCK universe: 269 client classes, ~1 745 methods
 (`jakarta.tck:persistence-tck-spec-tests:3.2.1`).
@@ -32,14 +33,6 @@ M2 (EntityManager CRUD) — 15 / 28 cards (JP-21, JP-22, JP-23, JP-24a, JP-24b, 
 2026-09-01 | JP-33 | `getReference()`: lazy proxy via rewritten `LazyProxyFactory` (~203 lines), updated `MansartEntityManager.getReference()`, 2 new test files. 2/2 unit tests. | TCK not measured | unit 2/2
 2026-09-01 | JP-33 | `getReference()`: returns a lazy proxy (not an instance of the entity class — Class-File API not accessible from this module). Unit test uses `Object proxy = em.getReference(...)` to avoid ClassCastException. `LazyProxyFactory.create()` returns a `LazyProxyHolder<T>` that holds factory reference, entityClass, primaryKey; `getLoaded()` loads from DB via dialect `select` + `Where.eq(id)`. Registered in persistence context by class+PK. 2/2 unit tests (GetReferenceTest). Full suite: 255 pass, 0 fail, 0 skipped (core module); 161 pass (data module). TCK getReference tests will produce errors (proxy not instanceof entityClass) — known limitation.
 2026-09-01 | JP-34 | `refresh()`: re-reads managed entity state from DB via SELECT + rebinds all attribute values. Null → `IllegalArgumentException`, unmanaged → `IllegalArgumentException`, closed EM → `IllegalStateException`. 3/3 unit tests (RefreshTest). Full suite: 253 pass, 0 fail, 1 skipped.
-2026-09-01 | JP-30 | `clear()`: delegates to `persistenceContext.clear()` which clears `managedEntities` and `registeredById`. `contains()` already implemented (delegates to `persistenceContext.contains()`). 6/6 unit tests (ClearContainsTest). Full suite: 250 pass, 0 fail, 1 skipped.
-2026-09-01 | JP-29 | `flush()`: iterates managed entities, calls existing `flushManagedEntity()` for each. `getFlushMode()` returns `FlushModeType.AUTO` (default). `setFlushMode()` sets the field. PersistenceContext gains `entities()` and `managedEntities()` accessors. 8/8 unit tests (FlushTest). Full suite: 244 pass, 0 fail, 1 skipped.
-2026-09-01 | JP-28 | `merge()`: null → `IllegalArgumentException`, closed EM → `IllegalStateException`, managed entity → returns self, detached entity → `find()` + state copy + UPDATE to DB, new entity (no ID) → `persist()`. 4/4 unit tests (MergeTest). Full suite: 236 pass, 0 fail, 1 skipped.
-2026-08-31 | JP-26 | `remove()`: managed entity (DELETE + unregister), detached entity (find by ID from DB + DELETE + unregister), new entity (no-op per spec), already-removed (no-op), post-close (IllegalStateException), null (IllegalArgumentException). 6/6 unit tests (RemoveBasicTest). Full suite: 230 pass, 0 fail, 1 skipped.
-2026-08-31 | JP-27 | `remove()` relationship-specific cleanup: clears FK columns on inverse-side entities (scalar FK values via backwards-compatible ReferenceAttribute constructor). Matching by FK column name pattern `<TABLE_UPPER>_<ID_COLUMN_UPPER>`. Handles managed + detached (database scan). 2/2 unit tests (RemoveRelationshipTest: Author/Book bidirectional @OneToOne). Full suite: 232 pass, 0 fail, 1 skipped.
-2026-08-31 | JP-25 | `find()` by ID: checks persistence context identity map first, queries DB via dialect's `select` with `Where.eq(id)`, maps ResultSet to entity, registers in persistence context. 4/4 unit tests (FindByIdTest). Full suite: 224 pass, 0 fail, 1 skipped.
-2026-08-31 | JP-24d | `persist()` one-to-one: binds FK on owning side during INSERT (same as @ManyToOne), skips inverse side FK binding during INSERT, scans all managed entities for `ReferenceAttribute` pointing to the persisted entity and updates their FK columns via UPDATE. 5/5 unit tests (PersistOneToOneTest). Full suite: 220 pass, 0 fail, 1 skipped.
-2026-08-31 | JP-24c | `persist()` one-to-many inverse side: maintains inverse collection by updating target entity's FK column via UPDATE statement. 4/4 unit tests (PersistOneToManyTest). Full suite: 215 pass, 0 fail, 1 skip (core module).
-2026-08-31 | JP-24a | `persist()` many-to-many (owning + inverse side): ~14 methods, plural attribute generation, ManyToManyAttribute/ManyToManyInverseAttribute dialect SPI, join table INSERTs via batched PreparedStatement. TCK 991 run, 989 errors, 2 skipped (same baseline). Unit 207 pass / 208 total (1 skipped, core module); 161 pass (data module).
-2026-08-31 | JP-24c | `persist()` one-to-many inverse side: maintains inverse collection by updating target entity's FK column via UPDATE statement. 4/4 unit tests (PersistOneToManyTest). Full suite: 215 pass, 0 fail, 1 skip (core module).
-2026-08-31 | JP-24b | `persist()` many-to-one: resolves `ReferenceAttribute` FK values — writes target entity's ID into the owning entity's FK column (nullable and non-null cases). 4/4 unit tests (PersistManyToOneTest). Full suite: 211 pass, 0 fail, 1 skip (core module).
+2026-09-01 | JP-02 | maven-plugin module-info.java discovered missing (spi, processor, core, cdi present; maven-plugin absent). Created `mansart-persistence-maven-plugin/src/main/java/module-info.java` with `module io.vidocq.mansart.persistence.maven { requires java.base; requires java.xml; requires jakarta.persistence; }`.
+2026-09-01 | JP-02 | Verified all 5 modules build: `./mvnw -ntp clean install -DskipTests` green from the mansart root. 5/5 `pom.xml` + 5/5 `module-info.java` present (spi, processor, core, maven-plugin, cdi). `@module-guardian` clean.
+2026-09-01 | JP-02 | Full reactor installs cleanly — all 5 modules (spi, processor, core, maven-plugin, cdi) build and install. Proof: `./mvnw -ntp install -DskipTests` green; `@module-guardian` clean.
