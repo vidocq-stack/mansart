@@ -61,6 +61,7 @@ import java.util.Map;
  * JP-28: {@code merge(Object)} is implemented.
  * JP-29: {@code flush()}, {@code getFlushMode()}, {@code setFlushMode()}
  * are implemented.
+ * JP-34: {@code refresh(Object)} is implemented.
  * All other CRUD/query methods
  * throw {@code IllegalStateException("EntityManager is closed")} after
  * {@code close()}; before close they throw
@@ -698,36 +699,133 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public void refresh(Object entity) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: refresh");
+        doRefresh(entity);
     }
 
     @Override
     public void refresh(Object entity, LockModeType lockMode) {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: refresh(LockModeType)");
+        doRefresh(entity);
     }
 
     @Override
     public void refresh(Object entity, Map<String, Object> properties) {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: refresh(Map)");
+        doRefresh(entity);
     }
 
     @Override
     public void refresh(Object entity, LockModeType lockMode,
                         Map<String, Object> properties) {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: refresh(LockModeType, Map)");
+        doRefresh(entity);
     }
 
     @Override
     public void refresh(Object entity, RefreshOption... options) {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: refresh(RefreshOption...)");
+        doRefresh(entity);
+    }
+
+    /**
+     * Core refresh logic: re-read entity state from the database.
+     *
+     * <p>Per the JPA spec, the entity must be managed. If it is not,
+     * an {@code IllegalArgumentException} is thrown. If the entity
+     * is not found in the database, the persistence context is unaffected.</p>
+     *
+     * @param entity the managed entity to refresh
+     * @throws IllegalArgumentException if entity is null or not managed
+     */
+    @SuppressWarnings("unchecked")
+    private void doRefresh(Object entity) {
+        if (entity == null) {
+            throw new IllegalArgumentException("entity must not be null");
+        }
+
+        // Per JPA spec: entity must be managed.
+        if (!persistenceContext.contains(entity)) {
+            throw new IllegalArgumentException(
+                    "refresh() can only be called on a managed entity");
+        }
+
+        Class<?> entityClass = entity.getClass();
+        EntityModel<?> model = factory.getEntityModel(entityClass);
+        if (model == null) {
+            throw new IllegalArgumentException(
+                    "not a managed type: " + entityClass.getName());
+        }
+
+        // Build SELECT for the entity's primary key.
+        String sql;
+        try {
+            Object id = model.id().getter().invoke(entity);
+            SqlFragment fragment = factory.getDialect().select(
+                    model, Where.eq(model.id()), OrderBy.NONE, Pagination.NONE);
+            sql = fragment.sql();
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "Failed to build SELECT for refresh of "
+                            + entity.getClass().getSimpleName(), t);
+        }
+
+        // Get the primary key from the managed entity.
+        Object primaryKey;
+        try {
+            primaryKey = model.id().getter().invoke(entity);
+        } catch (Throwable t) {
+            throw new RuntimeException(
+                    "Failed to get entity ID for refresh", t);
+        }
+
+        int paramCount = (sql.length() - sql.replace("?", "").length());
+
+        try (Connection conn = factory.getDataSource().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < paramCount; i++) {
+                stmt.setObject(i + 1, primaryKey);
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    // Entity no longer exists in the database —
+                    // per JPA spec, the persistence context is unaffected.
+                    return;
+                }
+                // Re-read all attribute values into the managed entity.
+                rebindEntityState(entity, model, rs);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Failed to refresh entity " + entity.getClass().getSimpleName(),
+                    e);
+        }
+    }
+
+    /**
+     * Rebind all attribute values from a {@code ResultSet} into a
+     * managed entity instance.
+     *
+     * @param entity the managed entity to update
+     * @param model  the entity model
+     * @param rs     the result set with fresh data
+     */
+    @SuppressWarnings("unchecked")
+    private void rebindEntityState(Object entity, EntityModel<?> model,
+                                   ResultSet rs) throws Exception {
+        for (io.vidocq.mansart.data.dialect.Attribute<?, ?> attr
+                : model.attributes()) {
+            Object value = rs.getObject(attr.columnName());
+            MethodHandle setter = findSetter(attr);
+            if (setter != null && value != null) {
+                try {
+                    setter.invoke(entity, value);
+                } catch (Throwable t) {
+                    throw new RuntimeException(
+                            "Failed to set attribute " + attr.name(), t);
+                }
+            }
+        }
     }
 
     @Override

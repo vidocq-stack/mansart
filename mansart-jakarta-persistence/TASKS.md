@@ -312,11 +312,13 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/apitests/Client` — `getReferenceTest()`, `getReferenceExceptionsTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/GetReferenceTest.java`
 notes:  Returns a lazy proxy (not a real entity). Throws on close() and not-found. Requires proxy generation (Class-File API, tier 1).
 
-### JP-34 — refresh(): re-read entity state from DB            [TODO]
+### JP-34 — refresh(): re-read entity state from DB            [DONE]
 deps:   JP-21
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (refresh)
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (refresh),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RefreshTest.java` (new),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RefreshTestEntity.java` (new)
 proof:  TCK `se/entityManager/Client` — `refreshAfterClose()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RefreshTest.java`
-notes:  1 method (post-close). Overwrites managed entity state with DB state.
+notes:  3 unit tests pass: refreshOverwritesManagedEntityStateFromDB, refreshAfterCloseThrowsIllegalStateException, refreshWithNullThrowsIllegalArgumentException. Full suite: 253 pass, 0 fail, 1 skipped.
 
 ### JP-35 — EntityTransaction: begin, commit, rollback, isActive, getRollbackOnly            [TODO]
 deps:   JP-21
