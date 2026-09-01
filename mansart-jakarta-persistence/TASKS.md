@@ -294,7 +294,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  Unit test `FlushTest` — 8/8 pass: flushAfterPersist, flushUpdatesExistingEntity, flushNewEntity, flushAfterClose, defaultFlushModeIsAuto, setFlushModeCommit, setFlushModeAuto, setFlushModeAfterClose.
 notes:  Added `flushMode` field (default AUTO), `flush()` iterates managed entities and calls existing `flushManagedEntity()` for each. `getFlushMode()` / `setFlushMode()` manage the field.
 
-### JP-30 — clear() + contains(): check managed state, post-close behavior            [TODO]
+### JP-30 — clear() + contains(): check managed state, post-close behavior            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (clear, contains)
 proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest4()` (clear / contains / lock), `se/entityManager/Client` — `clearAfterClose()`, `containsAfterClose()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ClearContainsTest.java`

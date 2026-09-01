@@ -1216,7 +1216,7 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public void clear() {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: clear");
+        persistenceContext.clear();
     }
 
     @Override
