@@ -141,4 +141,22 @@ final class PersistenceContext {
     java.util.Map<Class<?>, java.util.Map<Object, Object>> registeredById() {
         return registeredById;
     }
+
+    /**
+     * Return all managed entity instances (keys of the identity map).
+     *
+     * @return all managed entity instances
+     */
+    java.util.Set<Object> entities() {
+        return managedEntities.keySet();
+    }
+
+    /**
+     * Return the mapping of entity instance → entity class.
+     *
+     * @return the instance-to-class map
+     */
+    java.util.Map<Object, Class<?>> managedEntities() {
+        return managedEntities;
+    }
 }

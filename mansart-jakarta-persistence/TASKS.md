@@ -286,11 +286,13 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest1()`, `entityAPITest8()`, `entityAPITest17()` (merge scenarios); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/MergeTest.java`
 notes:  Merge copies state from detached entity to managed entity (or new entity). Also tested in apitests.Client entityAPITest1, entityAPITest8, entityAPITest17.
 
-### JP-29 — flush(): sync persistence context to DB, flush ordering (persist/merge/remove → flush)            [TODO]
+### JP-29 — flush(): sync persistence context to DB, flush mode management            [DONE]
 deps:   JP-23, JP-25, JP-26, JP-28
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (flush)
-proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest3()` (flush behavior); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FlushTest.java`
-notes:  Flush ordering is explicitly named in the milestone scope. Persist/merge/remove operations must auto-flush before query execution in correct order.
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (flush, getFlushMode, setFlushMode),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/PersistenceContext.java` (entities(), managedEntities()),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FlushTest.java` (new)
+proof:  Unit test `FlushTest` — 8/8 pass: flushAfterPersist, flushUpdatesExistingEntity, flushNewEntity, flushAfterClose, defaultFlushModeIsAuto, setFlushModeCommit, setFlushModeAuto, setFlushModeAfterClose.
+notes:  Added `flushMode` field (default AUTO), `flush()` iterates managed entities and calls existing `flushManagedEntity()` for each. `getFlushMode()` / `setFlushMode()` manage the field.
 
 ### JP-30 — clear() + contains(): check managed state, post-close behavior            [TODO]
 deps:   JP-21

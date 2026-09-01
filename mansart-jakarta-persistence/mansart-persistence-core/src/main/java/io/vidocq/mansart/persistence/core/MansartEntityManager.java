@@ -59,6 +59,8 @@ import java.util.Map;
  * JP-25: {@code find(Class, Object)} is implemented.
  * JP-26: {@code remove(Object)} is implemented.
  * JP-28: {@code merge(Object)} is implemented.
+ * JP-29: {@code flush()}, {@code getFlushMode()}, {@code setFlushMode()}
+ * are implemented.
  * All other CRUD/query methods
  * throw {@code IllegalStateException("EntityManager is closed")} after
  * {@code close()}; before close they throw
@@ -69,6 +71,7 @@ final class MansartEntityManager implements EntityManager {
     private final MansartEntityManagerFactory factory;
     private final PersistenceContext persistenceContext;
     private volatile boolean closed;
+    private FlushModeType flushMode;
 
     /**
      * Check that this EntityManager has not been closed.
@@ -85,6 +88,7 @@ final class MansartEntityManager implements EntityManager {
                          PersistenceContext persistenceContext) {
         this.factory = factory;
         this.persistenceContext = persistenceContext;
+        this.flushMode = FlushModeType.AUTO;
     }
 
     // -- Entity lifecycle ---------------------------------------------------
@@ -1069,19 +1073,29 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public void flush() {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: flush");
+        // Iterate over all managed entities and flush each one.
+        for (Object entity : persistenceContext.entities()) {
+            Class<?> entityClass = persistenceContext.managedEntities()
+                    .get(entity);
+            if (entityClass != null) {
+                EntityModel<?> model = factory.getEntityModel(entityClass);
+                if (model != null) {
+                    flushManagedEntity(entity, model);
+                }
+            }
+        }
     }
 
     @Override
     public FlushModeType getFlushMode() {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: getFlushMode");
+        return flushMode;
     }
 
     @Override
     public void setFlushMode(FlushModeType flushMode) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: setFlushMode");
+        this.flushMode = flushMode;
     }
 
     @Override
