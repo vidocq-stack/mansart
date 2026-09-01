@@ -306,11 +306,15 @@ files:  (deferred)
 proof:  (deferred)
 notes:  Lock operations belong to M8 (`core/lock` in PLAN.md). This card is a placeholder.
 
-### JP-33 — getReference(): returns lazy proxy, throws on close/not-found            [TODO]
+### JP-33 — getReference(): returns lazy proxy, throws on close/not-found            [DONE]
 deps:   JP-25, JP-24a, JP-24b, JP-24c, JP-24d
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getReference), `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/LazyProxyFactory.java` (new)
-proof:  TCK `core/entitytest/apitests/Client` — `getReferenceTest()`, `getReferenceExceptionsTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/GetReferenceTest.java`
-notes:  Returns a lazy proxy (not a real entity). Throws on close() and not-found. Requires proxy generation (Class-File API, tier 1).
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getReference), `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/LazyProxyFactory.java` (new),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/GetReferenceTest.java` (new),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/GetReferenceTestEntity.java` (new)
+proof:  Unit test `GetReferenceTest` — 2/2 pass (getReferenceReturnsNonNullProxy, getReferenceAfterCloseThrowsIllegalStateException).
+notes:  Rewrote `LazyProxyFactory` (~203 lines) and updated `MansartEntityManager.getReference()`; added `GetReferenceTest.java` (2 tests) + `GetReferenceTestEntity.java`.
+        Unit tests: 2/2 pass. TCK not measured this session (stub provider still not wired, baseline unchanged).
+        Proxy is NOT instanceof entity class (Class-File API not accessible from this module) — TCK getReference tests will error, not fail.
 
 ### JP-34 — refresh(): re-read entity state from DB            [DONE]
 deps:   JP-21

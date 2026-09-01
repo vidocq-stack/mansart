@@ -61,6 +61,7 @@ import java.util.Map;
  * JP-28: {@code merge(Object)} is implemented.
  * JP-29: {@code flush()}, {@code getFlushMode()}, {@code setFlushMode()}
  * are implemented.
+ * JP-33: {@code getReference(Class, Object)} is implemented.
  * JP-34: {@code refresh(Object)} is implemented.
  * All other CRUD/query methods
  * throw {@code IllegalStateException("EntityManager is closed")} after
@@ -1008,7 +1009,39 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public <T> T getReference(Class<T> entityClass, Object primaryKey) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: getReference");
+
+        // Look up the EntityModel for this entity class.
+        EntityModel<?> model = factory.getEntityModel(entityClass);
+        if (model == null) {
+            throw new IllegalArgumentException(
+                    "not a managed type: " + entityClass.getName());
+        }
+
+        // Check the persistence context's identity map first.
+        Object cached = persistenceContext.lookupById(entityClass, primaryKey);
+        if (cached != null) {
+            @SuppressWarnings("unchecked")
+            T result = (T) cached;
+            return result;
+        }
+
+        // Validate primary key type matches the entity's ID type.
+        Class<?> idType = model.id().javaType();
+        if (!idType.isInstance(primaryKey)) {
+            throw new IllegalArgumentException(
+                    "Primary key type mismatch for "
+                            + entityClass.getName());
+        }
+
+        // Create a lazy proxy.
+        @SuppressWarnings("unchecked")
+        T proxy = (T) new LazyProxyFactory(factory)
+                .create(entityClass, primaryKey);
+
+        // Register the proxy in the persistence context.
+        persistenceContext.registerById(entityClass, primaryKey, proxy);
+
+        return proxy;
     }
 
     @Override
