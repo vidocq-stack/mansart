@@ -5,7 +5,7 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- JP-36 (ProviderUtil) is done. Next: JP-37 (EntityManagerFactory.generateSchema).
+- JP-36 (ProviderUtil) is done. JP-37 (module wiring) is done (already wired, compiles). No next card in M2/M3 scope — generateSchema belongs in M8.
 - JP-02 (five reactor modules with module declarations) is now complete — the
   maven-plugin module-info.java was missing and has been added; all 5 modules
   build and install cleanly.
@@ -30,6 +30,7 @@ M2 (EntityManager CRUD) — 18 / 28 cards (JP-21…JP-30, JP-33, JP-34, JP-35, *
 
 ## Session log
 
+2026-09-02 | JP-37 | Module wiring (transactions-core dependency + module-info.java requires) — already wired in codebase, compilation verified. Marked DONE. Build: compile green. Unit tests: not measured. TCK: not measured.
 2026-09-01 | JP-33 | `getReference()`: lazy proxy via rewritten `LazyProxyFactory` (~203 lines), updated `MansartEntityManager.getReference()`, 2 new test files. 2/2 unit tests. | TCK not measured | unit 2/2
 2026-09-01 | JP-33 | `getReference()`: returns a lazy proxy (not an instance of the entity class — Class-File API not accessible from this module). Unit test uses `Object proxy = em.getReference(...)` to avoid ClassCastException. `LazyProxyFactory.create()` returns a `LazyProxyHolder<T>` that holds factory reference, entityClass, primaryKey; `getLoaded()` loads from DB via dialect `select` + `Where.eq(id)`. Registered in persistence context by class+PK. 2/2 unit tests (GetReferenceTest). Full suite: 255 pass, 0 fail, 0 skipped (core module); 161 pass (data module). TCK getReference tests will produce errors (proxy not instanceof entityClass) — known limitation.
 2026-09-01 | JP-34 | `refresh()`: re-reads managed entity state from DB via SELECT + rebinds all attribute values. Null → `IllegalArgumentException`, unmanaged → `IllegalArgumentException`, closed EM → `IllegalStateException`. 3/3 unit tests (RefreshTest). Full suite: 253 pass, 0 fail, 1 skipped.

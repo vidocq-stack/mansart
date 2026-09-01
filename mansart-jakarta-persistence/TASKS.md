@@ -326,7 +326,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `se/pluggability/contracts/resource_local/Client` — `getProviderUtil()`, `isLoaded()` (2 of 15 tests; 13 pass via existing PersistenceUnitInfoImpl); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`
 notes:  13 of 15 resource_local tests already pass (PersistenceUnitInfoImpl getters are complete). Only ProviderUtil.getPersistenceUtil() and PersistenceUtil.isLoaded() remain. Unit test in `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`.
 
-### JP-37 — Module wiring: add mansart-transactions-core dependency to persistence-core            [TODO]
+### JP-37 — Module wiring: add mansart-transactions-core dependency to persistence-core            [DONE]
 deps:   JP-35, JP-36
 files:  `mansart-persistence-core/pom.xml` (add mansart-transactions-core),
         `mansart-persistence-core/src/main/java/module-info.java` (requires io.vidocq.mansart.transactions.core)
