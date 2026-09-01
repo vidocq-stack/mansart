@@ -39,6 +39,7 @@ import java.util.ServiceLoader;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.IdentityHashMap;
+import java.util.Set;
 import javax.sql.DataSource;
 
 /**
@@ -120,6 +121,15 @@ final class MansartEntityManagerFactory implements EntityManagerFactory {
     @SuppressWarnings("unchecked")
     <E> EntityModel<E> getEntityModel(Class<E> entityClass) {
         return (EntityModel<E>) entityModels.get(entityClass);
+    }
+
+    /**
+     * Return the set of entity model classes registered with this factory.
+     *
+     * @return the set of entity classes
+     */
+    Set<Class<?>> getEntityModelClassSet() {
+        return entityModels.keySet();
     }
 
     @Override
