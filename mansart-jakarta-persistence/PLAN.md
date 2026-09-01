@@ -56,8 +56,8 @@ milestone is not done because the code compiles.
 | --- | --- | --- | --- |
 | **M0** | reactor skeleton, module declarations, `PersistenceProvider` discovery, out-of-reactor TCK runner, official DDL bootstrap | harness runs; signature test subset | — |
 | **M1** | metadata: APT reads `@Entity/@Id/@Column/@Table/@Embeddable`, emits `_Entity`, `EntityDescriptor`, accessors | `core/metamodelapi` | 16 |
-| **M2** | `EntityManager` CRUD: persist, find, remove, merge, identity map, flush ordering, `EntityTransaction` | `core/entitytest`, `se/entityManager` | 21 |
-| **M3** | transactions: bind `mansart-transactions`, resource-local + JTA, `@PersistenceContext` through CDI | `jpa22/se`, `se/pluggability` | 3 |
+| **M2** | `EntityManager` CRUD: persist, find, remove, merge, identity map, flush ordering | `core/entitytest`, `se/entityManager` | 21 |
+| **M3** | transactions: bind `mansart-transactions`, resource-local + JTA, `@PersistenceContext` through CDI | `jpa22/se`, `se/pluggability`, `core/entityTransaction` | 8 |
 | **M4** | JPQL: parser → dialect AST → SQL; named and dynamic queries; parameters; result mapping | `jpa22/query`, `core/query` | 2+ |
 | **M5** | relationships: `@OneToMany/@ManyToOne/@ManyToMany/@OneToOne`, owning side, cascade, derived ids, lazy proxies (Class-File API) | `core/relationship`, `core/derivedid` | 23 |
 | **M6** | inheritance, attribute overrides, lifecycle callbacks, listeners | `core/inheritance`, `core/override`, `core/callback` | 20 |

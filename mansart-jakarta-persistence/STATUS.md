@@ -5,7 +5,7 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- Next: JP-03 (PersistenceProvider SPI registration).
+- Next: JP-35 (EntityTransaction lifecycle).
 - JP-02 (five reactor modules with module declarations) is now complete — the
   maven-plugin module-info.java was missing and has been added; all 5 modules
   build and install cleanly.
@@ -26,7 +26,7 @@ TCK universe: 269 client classes, ~1 745 methods
 
 M0 (skeleton and harness) — 8 / 8 cards done.
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
-M2 (EntityManager CRUD) — 15 / 28 cards (JP-21, JP-22, JP-23, JP-24a, JP-24b, JP-24c, JP-24d, JP-25, JP-26, JP-27, JP-28, JP-29, JP-30, JP-33, JP-34 done).
+M2 (EntityManager CRUD) — 15 / 28 cards (JP-21…JP-30, JP-33, JP-34 done; JP-32 deferred to M8).
 
 ## Session log
 
@@ -36,3 +36,4 @@ M2 (EntityManager CRUD) — 15 / 28 cards (JP-21, JP-22, JP-23, JP-24a, JP-24b, 
 2026-09-01 | JP-02 | maven-plugin module-info.java discovered missing (spi, processor, core, cdi present; maven-plugin absent). Created `mansart-persistence-maven-plugin/src/main/java/module-info.java` with `module io.vidocq.mansart.persistence.maven { requires java.base; requires java.xml; requires jakarta.persistence; }`.
 2026-09-01 | JP-02 | Verified all 5 modules build: `./mvnw -ntp clean install -DskipTests` green from the mansart root. 5/5 `pom.xml` + 5/5 `module-info.java` present (spi, processor, core, maven-plugin, cdi). `@module-guardian` clean.
 2026-09-01 | JP-02 | Full reactor installs cleanly — all 5 modules (spi, processor, core, maven-plugin, cdi) build and install. Proof: `./mvnw -ntp install -DskipTests` green; `@module-guardian` clean.
+2026-09-01 | audit M3 | Planning audit of M3 cards (JP-35, JP-36, JP-37): fixed JP-36 dependency (JP-35→JP-21), JP-36 proof (added unit test path), PLAN.md M2 scope (removed "EntityTransaction"), PLAN.md M3 gate (added `core/entityTransaction`). No code written. Build: not measured. Unit tests: not measured. TCK: not measured.
