@@ -274,13 +274,13 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/entitytest/remove/basic/Client` — `removeBasicTest1()` through `removeBasicTest5()`, `removeMergeBasicTest()`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveBasicTest.java`
 notes:  6 methods. Basic remove: new entity (no-op), managed entity (DELETE + unregister), detached entity (find by ID from DB + DELETE + unregister), already-removed entity (no-op), post-close (IllegalStateException), null (IllegalArgumentException).
 
-### JP-27 — remove(): relationship-specific (one-to-many, one-to-one)            [TODO]
+### JP-27 — remove(): relationship-specific (one-to-many, one-to-one)            [DONE]
 deps:   JP-26
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (remove + relationship handling)
 proof:  TCK `core/entitytest/remove/oneXmany/Client`, `remove/oneXone/Client`; unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/RemoveRelationshipTest.java`
 notes:  13 methods across 2 relationship types. Same behavior applied to each.
 
-### JP-28 — merge(): detached entity state re-attached to persistence context            [TODO]
+### JP-28 — merge(): detached entity state re-attached to persistence context            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (merge)
 proof:  TCK `core/entitytest/apitests/Client` — `entityAPITest1()`, `entityAPITest8()`, `entityAPITest17()` (merge scenarios); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/MergeTest.java`

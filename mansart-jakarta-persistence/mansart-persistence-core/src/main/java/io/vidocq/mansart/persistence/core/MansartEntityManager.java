@@ -58,6 +58,7 @@ import java.util.Map;
  * JP-23: {@code persist(Object)} is implemented.
  * JP-25: {@code find(Class, Object)} is implemented.
  * JP-26: {@code remove(Object)} is implemented.
+ * JP-28: {@code merge(Object)} is implemented.
  * All other CRUD/query methods
  * throw {@code IllegalStateException("EntityManager is closed")} after
  * {@code close()}; before close they throw
@@ -405,9 +406,116 @@ final class MansartEntityManager implements EntityManager {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> T merge(T entity) {
         checkClosed();
-        throw new UnsupportedOperationException("not implemented: merge");
+
+        if (entity == null) {
+            throw new IllegalArgumentException("entity must not be null");
+        }
+
+        var entityClass = entity.getClass();
+        EntityModel<?> model = factory.getEntityModel(entityClass);
+        if (model == null) {
+            throw new IllegalArgumentException("not a managed type: " + entityClass.getName());
+        }
+
+        // If already managed, return it (spec: "it is itself ignored").
+        if (persistenceContext.contains(entity)) {
+            return (T) entity;
+        }
+
+        // Get the ID of the detached entity.
+        Object idValue;
+        try {
+            idValue = model.id().getter().invoke(entity);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to get ID from entity", t);
+        }
+
+        // Check if there's already a managed entity with the same ID in the persistence context.
+        Object managed = persistenceContext.lookupById(entityClass, idValue);
+        if (managed != null) {
+            // Copy state from detached entity to the managed entity.
+            copyState(entity, managed, model);
+            return (T) managed;
+        }
+
+        // Detached entity: find it from DB, copy state, register in persistence context.
+        @SuppressWarnings("unchecked")
+        T managedEntity = (T) find(entityClass, idValue);
+        if (managedEntity != null) {
+            // Copy state from the detached entity onto the managed copy.
+            copyState(entity, managedEntity, model);
+            // Flush the updated state to the database.
+            flushManagedEntity(managedEntity, model);
+            return managedEntity;
+        }
+
+        // Entity not in DB — treat as new: persist it.
+        persist(entity);
+        return (T) entity;
+    }
+
+    /**
+     * Copy attribute state from a source entity to a target entity.
+     *
+     * @param source the detached (source) entity
+     * @param target the managed (target) entity
+     * @param model  the entity model
+     */
+    private void copyState(Object source, Object target, EntityModel<?> model) {
+        for (Attribute<?, ?> attr : model.attributes()) {
+            try {
+                MethodHandle getter = attr.getter();
+                MethodHandle setter = attr.setter();
+                Object value = getter.invoke(source);
+                setter.invoke(target, value);
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to copy attribute " + attr.name(), t);
+            }
+        }
+    }
+
+    /**
+     * Flush a managed entity's state to the database via an UPDATE statement.
+     *
+     * @param entity the managed entity
+     * @param model  the entity model
+     */
+    private void flushManagedEntity(Object entity, EntityModel<?> model) {
+        SqlFragment sql;
+        try {
+            sql = factory.getDialect().update(model, Where.eq(model.id()));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build UPDATE for " + model.entityClass().getSimpleName(), e);
+        }
+
+        try (Connection conn = factory.getDataSource().getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql.sql())) {
+            int bindIndex = 1;
+            // Bind non-ID attributes for the SET clause.
+            for (Attribute<?, ?> attr : model.attributes()) {
+                if (attr == model.id()) continue;
+                try {
+                    MethodHandle getter = attr.getter();
+                    Object value = getter.invoke(entity);
+                    stmt.setObject(bindIndex++, value);
+                } catch (Throwable t) {
+                    throw new RuntimeException("Failed to bind attribute " + attr.name(), t);
+                }
+            }
+            // Bind WHERE parameters.
+            try {
+                factory.getDialect().bind(stmt, bindIndex,
+                        model.id().getter().invoke(entity), model.id().javaType());
+            } catch (Throwable t) {
+                throw new RuntimeException("Failed to bind WHERE clause", t);
+            }
+            stmt.executeUpdate();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to flush entity " + model.entityClass().getSimpleName(), e);
+        }
     }
 
     @Override
@@ -424,15 +532,6 @@ final class MansartEntityManager implements EntityManager {
             throw new IllegalArgumentException("not a managed type: " + entity.getClass().getName());
         }
 
-        // Case 1: managed entity — DELETE and unregister.
-        if (persistenceContext.contains(entity)) {
-            executeDelete(model, entity);
-            persistenceContext.unregister(entity);
-            return;
-        }
-
-        // Case 2: detached entity — look up by ID in the persistence context,
-        // then in the database, DELETE and unregister if found.
         Object id;
         try {
             id = model.id().getter().invoke(entity);
@@ -440,22 +539,114 @@ final class MansartEntityManager implements EntityManager {
             throw new RuntimeException("Failed to get entity ID", t);
         }
 
-        // Check the persistence context's identity map first (by ID).
-        Object cached = persistenceContext.lookupById(entity.getClass(), id);
-        if (cached != null) {
-            executeDelete(model, cached);
-            persistenceContext.unregister(cached);
-            return;
+        Object removedEntity = null;
+
+        // Case 1: managed entity — DELETE and unregister.
+        if (persistenceContext.contains(entity)) {
+            executeDelete(model, entity);
+            persistenceContext.unregister(entity);
+            removedEntity = entity;
+        } else {
+            // Case 2: detached entity — look up by ID in the persistence context,
+            // then in the database, DELETE and unregister if found.
+            // Check the persistence context's identity map first (by ID).
+            Object cached = persistenceContext.lookupById(entity.getClass(), id);
+            if (cached != null) {
+                executeDelete(model, cached);
+                persistenceContext.unregister(cached);
+                removedEntity = cached;
+            } else {
+                // Not in persistence context: try to find from DB (detached entity).
+                @SuppressWarnings("unchecked")
+                Object found = find((Class<Object>) entity.getClass(), id);
+                if (found != null) {
+                    executeDelete(model, found);
+                    persistenceContext.unregister(found);
+                    removedEntity = found;
+                }
+                // If found == null: new or already-removed entity — no-op (per spec).
+            }
         }
 
-        // Not in persistence context: try to find from DB (detached entity).
-        @SuppressWarnings("unchecked")
-        Object found = find((Class<Object>) entity.getClass(), id);
-        if (found != null) {
-            executeDelete(model, found);
-            persistenceContext.unregister(found);
+        // Relationship-specific cleanup: clear FK columns on inverse-side relationships.
+        if (removedEntity != null) {
+            clearInverseSideFk(removedEntity, model, entity.getClass());
         }
-        // If found == null: new or already-removed entity — no-op (per spec).
+        // If removedEntity == null: new or already-removed entity — no-op (per spec).
+    }
+
+    /**
+     * Clear FK columns on inverse-side relationships pointing to the removed entity.
+     *
+     * <p>After deleting an entity, this method scans all managed entities for
+     * {@code ReferenceAttribute} instances that point to the removed entity's class,
+     * and sets their FK columns to NULL. It also scans the database for entities
+     * that are not in the persistence context but have FKs pointing to the removed entity.</p>
+     *
+     * <p>Matching is done by FK column name pattern: the FK column name is expected
+     * to follow the convention {@code <TARGET_TABLE_UPPER>_&lt;TARGET_ID_COLUMN_UPPER&gt;}.</p>
+     */
+    private void clearInverseSideFk(Object removedEntity, EntityModel<?> removedModel,
+                                     Class<?> removedClass) {
+        Object removedId;
+        try {
+            removedId = removedModel.id().getter().invoke(removedEntity);
+        } catch (Throwable t) {
+            throw new RuntimeException("Failed to get removed entity ID", t);
+        }
+
+        String removedTable = removedModel.tableName().toUpperCase();
+        String removedIdCol = removedModel.id().name().toUpperCase();
+        String fkPattern = removedTable + "_" + removedIdCol;
+
+        try (Connection conn = factory.getDataSource().getConnection()) {
+            // Scan all managed entities for ReferenceAttribute pointing to the removed entity.
+            for (java.util.Map.Entry<Class<?>, java.util.Map<Object, Object>> entry
+                    : persistenceContext.registeredById().entrySet()) {
+                Class<?> targetClass = entry.getKey();
+                if (targetClass == removedClass) continue;
+
+                EntityModel<?> targetModel = factory.getEntityModel(targetClass);
+
+                for (Attribute<?, ?> targetAttr : targetModel.attributes()) {
+                    if (targetAttr instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> targetRef) {
+                        String fkCol = targetRef.columnName().toUpperCase();
+                        if (fkCol.equals(fkPattern)) {
+                            String updateSql = "UPDATE " + targetModel.tableName()
+                                    + " SET " + targetRef.columnName()
+                                    + " = NULL WHERE " + targetModel.id().name() + " = ?";
+                            try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+                                stmt.setObject(1, removedId);
+                                stmt.executeUpdate();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Also scan the database for entities that are not in the persistence context.
+            for (Class<?> targetClass : factory.getEntityModelClassSet()) {
+                if (targetClass == removedClass) continue;
+
+                EntityModel<?> targetModel = factory.getEntityModel(targetClass);
+                for (Attribute<?, ?> targetAttr : targetModel.attributes()) {
+                    if (targetAttr instanceof io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute<?, ?> targetRef) {
+                        String fkCol = targetRef.columnName().toUpperCase();
+                        if (fkCol.equals(fkPattern)) {
+                            String updateSql = "UPDATE " + targetModel.tableName()
+                                    + " SET " + targetRef.columnName()
+                                    + " = NULL WHERE " + targetRef.columnName() + " = ?";
+                            try (PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+                                stmt.setObject(1, removedId);
+                                stmt.executeUpdate();
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[WARN] Inverse side FK cleanup failed: " + e.getMessage());
+        }
     }
 
     /**
@@ -641,7 +832,7 @@ final class MansartEntityManager implements EntityManager {
 
         // Bind each attribute from the result set.
         for (io.vidocq.mansart.data.dialect.Attribute<?, ?> attr : model.attributes()) {
-            Object value = rs.getObject(attr.name());
+            Object value = rs.getObject(attr.columnName());
             MethodHandle setter = findSetter(attr);
             if (setter != null && value != null) {
                 try {
