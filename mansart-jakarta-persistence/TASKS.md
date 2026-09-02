@@ -390,6 +390,45 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/query/language/Client2` — test_groupByHaving, test_concatHavingClause, test_lowerHavingClause, test_upperHavingClause, test_lengthHavingClause, test_locateHavingClause, test_subquery_in; `core/query/language/Client3` — test_upperStringExpression, test_lowerStringExpression, test_substringHavingClause, test_leftStringExpression, test_rightStringExpression, test_concatStringOperator, test_castExpression, test_unionOperator, test_intersectOperator, test_exceptOperator; `core/query/language/Client4` — test_betweenDates, test_notBetweenDates
 notes:  3/20 methods implemented (UPPER, LOWER, LENGTH as Where.Func). Remaining: LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT, REPLACE, ABS, SQRT, date functions, set ops, CAST, IN subquery.
 
+### JP-41a — JPQL string functions (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT)            [TODO]
+deps:   JP-38, JP-41
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (function calls — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlFunctionRegistry.java` (new mappings),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlStringFunctionsTest.java` (new)
+proof:  TCK `core/query/language/Client2` — test_locateHavingClause, test_concatHavingClause; `core/query/language/Client3` — test_substringHavingClause, test_leftStringExpression, test_rightStringExpression, test_concatStringOperator
+notes:  6 methods. REPLACE excluded (Derby-only test). Functions map to raw SQL fragments (not Where.Func). Parser must handle multi-arg calls.
+
+### JP-41b — JPQL numeric functions (ABS, SQRT)            [TODO]
+deps:   JP-38, JP-41
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlFunctionRegistry.java` (ABS, SQRT mappings),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlNumericFunctionsTest.java` (new)
+proof:  TCK `core/query/language/Client3` — test_absExpression, test_sqrtExpression (if present in TCK)
+notes:  2 methods. Already mapped in JpqlFunctionRegistry; tests verify WHERE clause wrapping.
+
+### JP-41c — JPQL date functions (BETWEEN/NOT BETWEEN with datetime)            [TODO]
+deps:   JP-38, JP-41
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (BETWEEN/NOT BETWEEN — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlToSqlTranslator.java` (date literals — extended),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlDateFunctionsTest.java` (new)
+proof:  TCK `core/query/language/Client4` — test_betweenDates, test_notBetweenDates
+notes:  2 methods. Generates BETWEEN/NOT BETWEEN SQL clauses with datetime literals.
+
+### JP-41d — JPQL set operations (UNION, INTERSECT, EXCEPT)            [TODO]
+deps:   JP-38, JP-41
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (set operations — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlToSqlTranslator.java` (set operations — extended),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlSetOperationsTest.java` (new)
+proof:  TCK `core/query/language/Client3` — test_unionOperator, test_intersectOperator, test_exceptOperator
+notes:  3 methods. Generates UNION/INTERSECT/EXCEPT SQL. Requires two subqueries.
+
+### JP-41e — JPQL CAST and IN subquery            [TODO]
+deps:   JP-38, JP-41
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (CAST/IN — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlToSqlTranslator.java` (CAST/IN — extended),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlCastInTest.java` (new)
+proof:  TCK `core/query/language/Client3` — test_castExpression; `core/query/language/Client2` — test_subquery_in
+notes:  2 methods. CAST converts types; IN wraps subquery SELECT.
+
 ### JP-42 — JPQL JOIN semantics (INNER, LEFT OUTER, FETCH)            [TODO]
 deps:   JP-38, JP-24a, JP-24b, JP-24c, JP-24d (relationship metadata for JOIN clause generation)
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (JOIN clause parsing — extended),

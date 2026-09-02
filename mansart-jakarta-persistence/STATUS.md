@@ -6,7 +6,8 @@ Maintained by `@tracker` only.
 ## Current focus
 
 - JP-38 (JPQL SELECT: parser, translator, createQuery) + JP-39 (positional params
-  + TypedQuery) + **JP-40 (pagination)** are done. Next: **JP-41** (scalar functions).
+  + TypedQuery) + **JP-40 (pagination)** are done. Next: **JP-41** (scalar functions
+  split into JP-41a–e: string, numeric, date, set ops, CAST/IN).
 - Trap: JP-39 only covers positional params (`?1`, `?2`) and TypedQuery wiring.
   Named parameters (`:name`), `getParameter()`, `isBound()`, `getParameterValue()`
   remain in JP-39's original scope (TCK clients `core/query/parameter/Client1`).
