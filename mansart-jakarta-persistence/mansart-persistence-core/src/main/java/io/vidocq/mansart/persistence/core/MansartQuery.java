@@ -30,6 +30,7 @@ import jakarta.persistence.TemporalType;
 
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
+import io.vidocq.mansart.data.dialect.Pagination;
 import io.vidocq.mansart.data.dialect.SqlFragment;
 
 /**
@@ -49,6 +50,8 @@ final class MansartQuery implements jakarta.persistence.Query,
     private final JpqlQuery jpqlQuery;
     private final List<String> literalValues;
     private final java.util.Map<Integer, Object> parameterValues;
+    private int firstResult;
+    private int maxResults = Integer.MAX_VALUE;
 
     /**
      * Creates a query from a parsed JPQL AST.
@@ -76,9 +79,15 @@ final class MansartQuery implements jakarta.persistence.Query,
     public List<Object> getResultList() {
         entityManager.checkClosed();
 
-        // Build the SQL.
+        // Build the SQL with pagination.
+        Pagination pagination;
+        if (firstResult == 0 && maxResults == Integer.MAX_VALUE) {
+            pagination = Pagination.NONE;
+        } else {
+            pagination = new Pagination.Offset(firstResult, maxResults);
+        }
         SqlFragment fragment = new JpqlToSqlTranslator(
-                jpqlQuery, entityModel, dialect).translate();
+                jpqlQuery, entityModel, dialect).translate(pagination);
         String sql = fragment.sql();
 
         Connection conn = entityManager.getConnectionForSql();
@@ -185,14 +194,20 @@ final class MansartQuery implements jakarta.persistence.Query,
 
     @Override
     public MansartQuery setMaxResults(int maxResult) {
-        throw new UnsupportedOperationException(
-                "setMaxResults not implemented");
+        if (maxResult < 0) {
+            throw new IllegalArgumentException("maxResults must be >= 0: " + maxResult);
+        }
+        this.maxResults = maxResult;
+        return this;
     }
 
     @Override
     public MansartQuery setFirstResult(int startResult) {
-        throw new UnsupportedOperationException(
-                "setFirstResult not implemented");
+        if (startResult < 0) {
+            throw new IllegalArgumentException("firstResult must be >= 0: " + startResult);
+        }
+        this.firstResult = startResult;
+        return this;
     }
 
     @Override
@@ -330,7 +345,7 @@ final class MansartQuery implements jakarta.persistence.Query,
 
     @Override
     public int getMaxResults() {
-        throw new UnsupportedOperationException("getMaxResults not implemented");
+        return maxResults;
     }
 
     @Override
@@ -386,6 +401,6 @@ final class MansartQuery implements jakarta.persistence.Query,
 
     @Override
     public int getFirstResult() {
-        throw new UnsupportedOperationException("getFirstResult not implemented");
+        return firstResult;
     }
 }

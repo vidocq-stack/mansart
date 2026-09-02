@@ -71,12 +71,13 @@ final class JpqlToSqlTranslator {
     /**
      * Executes the translated query and returns the SQL fragment.
      *
+     * @param pagination the pagination settings (offset, limit)
      * @return the SQL fragment with bind sites
      */
-    SqlFragment translate() {
+    SqlFragment translate(Pagination pagination) {
         Where where = buildWhere();
         OrderBy orderBy = buildOrderBy();
-        return dialect.select(entityModel, where, orderBy, Pagination.NONE);
+        return dialect.select(entityModel, where, orderBy, pagination);
     }
 
     private Where buildWhere() {

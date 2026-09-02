@@ -357,7 +357,7 @@ notes:  Adds `io.vidocq.mansart:mansart-transactions-core` as dependency. Change
 
 ## M4 — JPQL
 
-### JP-38 — JPQL SELECT execution (FROM, WHERE, literals, ORDER BY)            [TODO]
+### JP-38 — JPQL SELECT execution (FROM, WHERE, literals, ORDER BY)            [DONE]
 deps:   JP-21
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (new — SELECT/FROM/WHERE/ORDER BY/GROUP BY/HAVING parser),
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlToSqlTranslator.java` (new — JPQL AST → SQL),
@@ -375,7 +375,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  8 JPQL SELECT unit tests (selectFromTest, selectOrderByDescTest, selectOrderByNumericTest, selectWhereAndOrderByTest, selectWhereLiteralTest, selectOrderByAscTest, selectWherePositionalParamTest, typedQuerySelectTest)
 notes:  Implemented `setParameter(int, Object)` and `setParameter(String, Object)` in MansartQuery. Made MansartQuery implement `TypedQuery<Object>`. Fixed all setter return types. Implemented `createQuery(String, Class<T>)` in MansartEntityManager. Added `instantiateEntity(ResultSet)`. JpqlParser handles `?1`, `?2` markers. JpqlToSqlTranslator skips positional params from literal binding. Full unit suite: 292 pass, 0 fail, 1 skipped. TCK: not measured.
 
-### JP-40 — JPQL pagination (setFirstResult, setMaxResults)            [TODO]
+### JP-40 — JPQL pagination (setFirstResult, setMaxResults)            [DONE]
 deps:   JP-38
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setFirstResult, setMaxResults, getFirstResult, getMaxResults),
         `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlPaginationTest.java` (new)
