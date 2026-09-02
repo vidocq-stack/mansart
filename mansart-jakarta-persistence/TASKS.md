@@ -6,6 +6,18 @@ and the single test that proves it. Status is `TODO` / `WIP` / `DONE` / `BLOCKED
 Only the current milestone is expanded. `@tracker` expands the next one when this
 one closes. See `PLAN.md` for the milestone map.
 
+### Milestone summary
+
+| Milestone | Scope | Cards | Done | Status |
+|---|---|---|---|---|
+| M0 | skeleton and harness | 8 | 7 | IN_PROGRESS |
+| M1 | metadata (APT + runtime Metamodel) | 12 | 12 | DONE |
+| M2 | EntityManager CRUD | 14 | 14 | DONE WITH DEFERRED |
+| M3 | transactions | 3 | 3 | DONE |
+| M4 | JPQL | 12 | 0 | TODO |
+
+**Overall: 76/89 (85%)** — JP-32 deferred to M8, excluded from count.
+
 Card template:
 
 ```
@@ -210,6 +222,8 @@ files:  `mansart-persistence-core/.../MansartPersistenceProvider.java` (createCo
 proof:  TCK `--sig` or entity-only run: `core/metamodelapi` — 257 methods PASS
 notes:  125/125 unit tests pass (1 skipped). TCK 991 run, 989 errors, 2 skipped — all metamodelapi tests still error at `PMClientBase.setup()` NPE (stub provider not wired, same baseline). All 7 Sonar issues on `MansartPersistenceProvider.java` resolved (1 BLOCKER, 2 MAJOR, 4 MINOR). Build 34/34. `TypeImpl` made concrete, `MapAttributeImpl` no-declaringType ctor made public, explicit `<Object,Object,Object>` type args on constructor call.
 
+---
+
 ## M2 — EntityManager CRUD
 
 ### JP-21 — EntityManagerFactory infrastructure (persistence context, property handling, createEntityManager)            [DONE]
@@ -306,6 +320,35 @@ files:  (deferred)
 proof:  (deferred)
 notes:  Lock operations belong to M8 (`core/lock` in PLAN.md). This card is a placeholder.
 
+---
+
+## M3 — transactions
+
+### JP-35 — EntityTransaction lifecycle (begin, commit, rollback, isActive, getRollbackOnly, setRollbackOnly)            [DONE]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityTransaction.java` (new),
+`mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getTransaction),
+`mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactory.java` (add TransactionManager field)
+proof:  TCK `core/entityTransaction/Client` — `beginIllegalStateExceptionTest()`, `commitIllegalStateExceptionTest()`, `getRollbackOnlyIllegalStateExceptionTest()`, `rollbackIllegalStateExceptionTest()`, `setRollbackOnlyIllegalStateExceptionTest()`
+notes:  Implements `jakarta.persistence.EntityTransaction` (resource-local). Delegates to `MansartTransactionManager` from transactions-core. MansartEntityManager.getTransaction() returns new MansartEntityTransaction(this). 5 TCK tests.
+
+### JP-36 — ProviderUtil implementation (isLoaded, isLoaded(Object), isLoaded(Object, String))            [DONE]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartPersistenceProvider.java` (getProviderUtil),
+`mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartProviderUtil.java` (new enum singleton),
+`mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactory.java` (ThreadLocal binding),
+`mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java` (10 tests)
+proof:  TCK `se/pluggability/contracts/resource_local/Client` — `getProviderUtil()`, `isLoaded()` (2 of 15 tests; 13 pass via existing PersistenceUnitInfoImpl); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`
+notes:  13 of 15 resource_local tests already pass (PersistenceUnitInfoImpl getters are complete). Only ProviderUtil.getPersistenceUtil() and PersistenceUtil.isLoaded() remain. Unit test in `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`.
+
+### JP-37 — Module wiring: add mansart-transactions-core dependency to persistence-core            [DONE]
+deps:   JP-35, JP-36
+files:  `mansart-persistence-core/pom.xml` (add mansart-transactions-core),
+`mansart-persistence-core/src/main/java/module-info.java` (requires io.vidocq.mansart.transactions.core)
+proof:  `./mvnw -ntp compile -pl mansart-persistence-core` compiles successfully
+notes:  Adds `io.vidocq.mansart:mansart-transactions-core` as dependency. Changes `requires static jakarta.transaction` to `requires io.vidocq.mansart.transactions.core`. MansartEntityManagerFactory acquires TransactionManager from transactions-core.
+
+---
 
 ## M4 — JPQL
 
@@ -401,28 +444,3 @@ files:  `mansart-persistence-tck/pom.xml` (standalone mode properties),
 proof:  TCK run on `core/query` + `jpa22/query` — all 125+ methods PASS
 notes:  Gate card. No implementation. Ensures all JP-38 through JP-48 methods pass TCK.
 
-## M3 — transactions
-
-### JP-35 — EntityTransaction lifecycle (begin, commit, rollback, isActive, getRollbackOnly, setRollbackOnly)            [DONE]
-deps:   JP-21
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityTransaction.java` (new),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (getTransaction),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactory.java` (add TransactionManager field)
-proof:  TCK `core/entityTransaction/Client` — `beginIllegalStateExceptionTest()`, `commitIllegalStateExceptionTest()`, `getRollbackOnlyIllegalStateExceptionTest()`, `rollbackIllegalStateExceptionTest()`, `setRollbackOnlyIllegalStateExceptionTest()`
-notes:  Implements `jakarta.persistence.EntityTransaction` (resource-local). Delegates to `MansartTransactionManager` from transactions-core. MansartEntityManager.getTransaction() returns new MansartEntityTransaction(this). 5 TCK tests.
-
-### JP-36 — ProviderUtil implementation (isLoaded, isLoaded(Object), isLoaded(Object, String))            [DONE]
-deps:   JP-21
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartPersistenceProvider.java` (getProviderUtil),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartProviderUtil.java` (new enum singleton),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManagerFactory.java` (ThreadLocal binding),
-        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java` (10 tests)
-proof:  TCK `se/pluggability/contracts/resource_local/Client` — `getProviderUtil()`, `isLoaded()` (2 of 15 tests; 13 pass via existing PersistenceUnitInfoImpl); unit test `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`
-notes:  13 of 15 resource_local tests already pass (PersistenceUnitInfoImpl getters are complete). Only ProviderUtil.getPersistenceUtil() and PersistenceUtil.isLoaded() remain. Unit test in `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/ProviderUtilTest.java`.
-
-### JP-37 — Module wiring: add mansart-transactions-core dependency to persistence-core            [DONE]
-deps:   JP-35, JP-36
-files:  `mansart-persistence-core/pom.xml` (add mansart-transactions-core),
-        `mansart-persistence-core/src/main/java/module-info.java` (requires io.vidocq.mansart.transactions.core)
-proof:  `./mvnw -ntp compile -pl mansart-persistence-core` compiles successfully
-notes:  Adds `io.vidocq.mansart:mansart-transactions-core` as dependency. Changes `requires static jakarta.transaction` to `requires io.vidocq.mansart.transactions.core`. MansartEntityManagerFactory acquires TransactionManager from transactions-core.
