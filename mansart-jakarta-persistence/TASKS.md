@@ -10,13 +10,13 @@ one closes. See `PLAN.md` for the milestone map.
 
 | Milestone | Scope | Cards | Done | Status |
 |---|---|---|---|---|
-| M0 | skeleton and harness | 8 | 7 | IN_PROGRESS |
+| M0 | skeleton and harness | 8 | 8 | DONE |
 | M1 | metadata (APT + runtime Metamodel) | 12 | 12 | DONE |
 | M2 | EntityManager CRUD | 14 | 14 | DONE WITH DEFERRED |
 | M3 | transactions | 3 | 3 | DONE |
 | M4 | JPQL | 12 | 0 | TODO |
 
-**Overall: 76/89 (85%)** — JP-32 deferred to M8, excluded from count.
+**Overall: 77/90 (86%)** — JP-32 deferred to M8, excluded from count.
 
 Card template:
 
@@ -39,7 +39,7 @@ proof:  `./mvnw -ntp install -DskipTests` green from the mansart root
 notes:  Copy the POM shape of `mansart-jakarta-data/pom.xml`. Add the new module
         to the root `<modules>`. No Java yet. Version `0.3.0-SNAPSHOT`.
 
-### JP-01b — the quality loop runs end to end on an empty reactor       [TODO]
+### JP-01b — the quality loop runs end to end on an empty reactor       [DONE]
 deps:   JP-01
 files:  `mansart-jakarta-persistence/pom.xml` (already wired), `STATUS.md`
 proof:  `/sonar` returns a real `SONAR:` block with a gate status read from the API

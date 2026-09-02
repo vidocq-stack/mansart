@@ -24,7 +24,7 @@ TCK universe: 269 client classes, ~1 745 methods
 
 ## Milestone
 
-M0 (skeleton and harness) — 8 / 8 cards done.
+M0 (skeleton and harness) — 8 / 8 cards done (JP-01b quality loop verified: docker start → UP → build → sonar analysis → gate query, gate ERROR as expected for baseline).
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
 M2 (EntityManager CRUD) — 18 / 28 cards (JP-21…JP-30, JP-33, JP-34, JP-35, **JP-36** done; JP-32 deferred to M8).
 M4 (JPQL) — 0 / 12 cards (JP-38…JP-49).
@@ -32,6 +32,7 @@ M4 (JPQL) — 0 / 12 cards (JP-38…JP-49).
 ## Session log
 
 2026-09-02 | JP-37 | Module wiring (transactions-core dependency + module-info.java requires) — already wired in codebase, compilation verified. Marked DONE. Build: compile green. Unit tests: not measured. TCK: not measured.
+2026-09-02 | JP-01b | Quality loop end to end: docker start vidocq-sonar → /api/system/status = UP → -Pquality verify sonar:sonar (25 source files) → gate query from API = ERROR (expected baseline: 293 violations, 52.4% coverage). No code written. Build: green. Unit tests: not measured. TCK: not measured.
 2026-09-01 | JP-33 | `getReference()`: lazy proxy via rewritten `LazyProxyFactory` (~203 lines), updated `MansartEntityManager.getReference()`, 2 new test files. 2/2 unit tests. | TCK not measured | unit 2/2
 2026-09-01 | JP-33 | `getReference()`: returns a lazy proxy (not an instance of the entity class — Class-File API not accessible from this module). Unit test uses `Object proxy = em.getReference(...)` to avoid ClassCastException. `LazyProxyFactory.create()` returns a `LazyProxyHolder<T>` that holds factory reference, entityClass, primaryKey; `getLoaded()` loads from DB via dialect `select` + `Where.eq(id)`. Registered in persistence context by class+PK. 2/2 unit tests (GetReferenceTest). Full suite: 255 pass, 0 fail, 0 skipped (core module); 161 pass (data module). TCK getReference tests will produce errors (proxy not instanceof entityClass) — known limitation.
 2026-09-01 | JP-34 | `refresh()`: re-reads managed entity state from DB via SELECT + rebinds all attribute values. Null → `IllegalArgumentException`, unmanaged → `IllegalArgumentException`, closed EM → `IllegalStateException`. 3/3 unit tests (RefreshTest). Full suite: 253 pass, 0 fail, 1 skipped.
