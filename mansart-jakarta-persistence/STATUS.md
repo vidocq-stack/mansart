@@ -27,6 +27,7 @@ TCK universe: 269 client classes, ~1 745 methods
 M0 (skeleton and harness) — 8 / 8 cards done.
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
 M2 (EntityManager CRUD) — 18 / 28 cards (JP-21…JP-30, JP-33, JP-34, JP-35, **JP-36** done; JP-32 deferred to M8).
+M4 (JPQL) — 0 / 12 cards (JP-38…JP-49).
 
 ## Session log
 

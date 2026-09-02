@@ -307,6 +307,100 @@ proof:  (deferred)
 notes:  Lock operations belong to M8 (`core/lock` in PLAN.md). This card is a placeholder.
 
 
+## M4 — JPQL
+
+### JP-38 — JPQL SELECT execution (FROM, WHERE, literals, ORDER BY)            [TODO]
+deps:   JP-21
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (new — SELECT/FROM/WHERE/ORDER BY/GROUP BY/HAVING parser),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlToSqlTranslator.java` (new — JPQL AST → SQL),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (createQuery, getResultList),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlSelectExecutionTest.java` (new)
+proof:  TCK `core/query/language/Client1` — test_leftouterjoin_Mx1, test_innerjoin_1xM, test_fetchjoin_1xM, test_fetchjoin_Mx1, test_fetchjoin_Mx1_1, test_ANDconditionTT, test_ANDconditionTF, test_ANDconditionFT, test_ANDconditionFF, test_ORconditionTT, test_ORconditionTF, test_ORconditionFT, test_ORconditionFF, test_groupBy_1, test_groupByWhereClause, test_subquery_exists_01, test_subquery_exists_02, test_subquery_like, test_subquery_between, test_subquery_join, test_subquery_ALL_GT, test_subquery_ALL_LT, test_subquery_ALL_EQ, test_subquery_ALL_LTEQ, test_subquery_ALL_GTEQ, test_subquery_ALL_NOTEQ, test_subquery_ANY_GT, test_subquery_ANY_LT, test_subquery_ANY_EQ, test_subquery_SOME_LTEQ, test_subquery_SOME_GTEQ, test_selectID, test_selectWhereID, test_selectVERSION, test_orderByNullsFirst, test_orderByNullsLast; `core/query/language/Client2` — test_leftouterjoin_1xM, test_innerjoin_1xM, test_innerjoin_1x1, test_groupBy, test_leftouterjoin_1x1, test_groupBy; `core/query/language/Client3` — test_selectID, test_selectWhereID, test_selectVERSION, test_orderByNullsFirst, test_orderByNullsLast
+notes:  ~30 methods. Foundation card. Parser handles SELECT/FROM/WHERE/ORDER BY/GROUP BY/HAVING. ORDER BY NULLS FIRST/LAST. Literal handling (strings, numbers, booleans). Does NOT handle JOIN FETCH (that's JP-42). Does NOT handle relationship metadata (that's M5).
+
+### JP-39 — JPQL named and positional parameters (setParameter, getParameter, isBound, getParameterValue)            [TODO]
+deps:   JP-38
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (parameter extraction — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParameter.java` (new — ParameterModel),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setParameter, getParameter, isBound, getParameterValue),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlParameterTest.java` (new)
+proof:  TCK `core/query/parameter/Client1` — parameterTest1, parameterTestTQ1, parameterTest2, parameterTQTest2, parameterTest4, parameterTest5, getParametersTest, getParametersTQTest; `core/query/apitests/Client1` — getParameterTest, getParameterIllegalArgumentExceptionTest, getParameterIllegalArgumentException2Test, getParameterIntClassTest, getParameterIntIllegalArgumentExceptionTest, getParameterValueParameterTest, getParameterValueParameterIllegalArgumentExceptionTest, getParameterValueParameterIllegalStateExceptionTest, getParameterValueStringTest, getParameterValueStringIllegalArgumentExceptionTest, getParameterValueStringIllegalStateExceptionTest, getParameterValueIntTest, getParameterValueIntIllegalArgumentExceptionTest, getParameterValueIntIllegalStateExceptionTest, isBoundTest
+notes:  ~29 methods. Named (:name) and positional (?1, ?2) parameters. getParameter(String/Class), getParameter(int, Class), getParameterValue, isBound, getParameters. Temporal types (Date, Calendar) deferred to JP-45.
+
+### JP-40 — JPQL pagination (setFirstResult, setMaxResults)            [TODO]
+deps:   JP-38
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setFirstResult, setMaxResults, getFirstResult, getMaxResults),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlPaginationTest.java` (new)
+proof:  TCK `core/query/apitests/Client1` — setFirstResultTest, setFirstResultIllegalArgumentExceptionTest, setGetMaxResultsTest, setMaxResultsIllegalArgumentExceptionTest
+notes:  4 methods. SQL LIMIT/OFFSET. Negative values → IllegalArgumentException.
+
+### JP-41 — JPQL scalar functions (string, numeric, date, set ops, CAST)            [TODO]
+deps:   JP-38
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (function calls — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlFunctionRegistry.java` (new — maps JPQL function → SQL function),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlScalarFunctionsTest.java` (new)
+proof:  TCK `core/query/language/Client2` — test_groupByHaving, test_concatHavingClause, test_lowerHavingClause, test_upperHavingClause, test_lengthHavingClause, test_locateHavingClause, test_subquery_in; `core/query/language/Client3` — test_upperStringExpression, test_lowerStringExpression, test_substringHavingClause, test_leftStringExpression, test_rightStringExpression, test_concatStringOperator, test_castExpression, test_unionOperator, test_intersectOperator, test_exceptOperator; `core/query/language/Client4` — test_betweenDates, test_notBetweenDates
+notes:  ~20 methods. String: UPPER, LOWER, LENGTH, LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT, REPLACE (test excluded — Derby-only). Numeric: ABS, SQRT. Date: BETWEEN/NOT BETWEEN with datetime. Set ops: UNION, INTERSECT, EXCEPT. CAST. IN subquery.
+
+### JP-42 — JPQL JOIN semantics (INNER, LEFT OUTER, FETCH)            [TODO]
+deps:   JP-38, JP-24a, JP-24b, JP-24c, JP-24d (relationship metadata for JOIN clause generation)
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (JOIN clause parsing — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (createQuery with JOIN — extended),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlJoinTest.java` (new)
+proof:  TCK `core/query/language/Client1` — test_leftouterjoin_Mx1, test_innerjoin_1xM, test_fetchjoin_1xM, test_fetchjoin_Mx1, test_fetchjoin_Mx1_1; `core/query/language/Client2` — test_leftouterjoin_1xM, test_fetchjoin_1x1, test_innerjoin_1x1; `core/query/language/Client3` — test_leftouterjoin_MxM, test_innerjoin_MxM, test_fetchjoin_MxM
+notes:  ~12 methods. Generates correct SQL JOIN clauses. JPQL JOIN FETCH is a query hint (loads eagerly within the query), NOT lazy loading — it does NOT implement lazy proxy loading (M5). Does NOT implement relationship cascade (M5).
+
+### JP-43 — JPQL subqueries (EXISTS, IN, ALL, ANY, SOME)            [TODO]
+deps:   JP-38
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (subquery expression — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlSubquery.java` (new — SubqueryModel),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlSubqueryTest.java` (new)
+proof:  TCK `core/query/language/Client1` — test_subquery_exists_01, test_subquery_exists_02, test_subquery_like, test_subquery_between, test_subquery_join, test_subquery_ALL_GT, test_subquery_ALL_LT, test_subquery_ALL_EQ, test_subquery_ALL_LTEQ, test_subquery_ALL_GTEQ, test_subquery_ALL_NOTEQ, test_subquery_ANY_GT, test_subquery_ANY_LT, test_subquery_ANY_EQ, test_subquery_SOME_LTEQ, test_subquery_SOME_GTEQ, test_subquery_in
+notes:  ~16 methods. EXISTS, IN, ALL, ANY, SOME quantifiers. Subqueries in SELECT, WHERE, HAVING.
+
+### JP-44 — JPQL bulk UPDATE and DELETE (executeUpdate)            [TODO]
+deps:   JP-38
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (executeUpdate),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlBulkOperationTest.java` (new)
+proof:  TCK `core/query/apitests/Client1` — queryAPITest22 (Update Query), queryAPITest23 (Delete Query), queryAPITest24 (Bulk Update Query), queryAPITest25 (Bulk Delete Query), queryAPITest16 (getResultList on UPDATE → IllegalStateException), queryAPITest17 (getResultList on DELETE → IllegalStateException), executeUpdateTransactionRequiredExceptionTest
+notes:  7 methods. UPDATE/DELETE statements. getResultList on UPDATE/DELETE → IllegalStateException. executeUpdate returns affected row count. TransactionRequiredException when no transaction active.
+
+### JP-45 — JPQL temporal parameters (Date/Calendar with TemporalType) + Date literals            [TODO]
+deps:   JP-39
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (temporal literal parsing — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setParameter with TemporalType — extended),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlTemporalTest.java` (new)
+proof:  TCK `core/query/apitests/Client1` — setParameterStringDateTemporalTypeTest, setParameterStringDateTemporalTypeIllegalArgumentExceptionTest, setParameterStringCalendarTemporalTypeTest, setParameterStringCalendarTemporalTypeTestIllegalArgumentExceptionTest, setParameterIntDateTemporalTypeTest, setParameterIntDateTemporalTypeIllegalArgumentException1Test, setParameterIntCalendarTemporalTypeTest, setParameterIntCalendarTemporalTypeIllegalArgumentExceptionTest, queryAPITest27 (Date literals); `core/query/apitests/Client3` — queryAPITest28 (Time literal), queryAPITest29 (Timestamp literal)
+notes:  ~11 methods. TemporalType.DATE, TIME, TIMESTAMP. Date/Calendar parameter binding.
+
+### JP-46 — JPQL streaming results (getResultStream, getTypedResultStream)            [TODO]
+deps:   JP-38
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (getResultStream, getTypedResultStream),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlStreamTest.java` (new)
+proof:  TCK `jpa22/query/stream/Client` — getResultStreamTest, getTypedResultStreamTest
+notes:  2 methods. Returns java.util.stream.Stream<T>. Virtual thread friendly.
+
+### JP-47 — JPQL flush mode on queries (setFlushMode, getFlushMode) + single result            [TODO]
+deps:   JP-38, JP-29
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setFlushMode, getFlushMode),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlFlushModeTest.java` (new)
+proof:  TCK `core/query/flushmode/Client1` — flushModeTest1; `core/query/flushmode/Client2` — flushModeTest2, flushModeTest3, flushModeTest4, flushModeTest5, flushModeTest6, flushModeTest7; `core/query/flushmode/Client3` — secondaryTablesValueTest; `core/query/apitests/Client3` — queryAPIGetSingleResultOrNullWithValueTest, queryAPIGetSingleResultOrNullNullValueTest, typedQueryAPIGetSingleResultOrNullWithValueTest, typedQueryAPIGetSingleResultOrNullNullValueTest; `core/query/apitests/Client4` — noTransactionLockModeTypeNoneTest
+notes:  ~12 methods. Query-level flush mode (AUTO/COMMIT). getSingleResult/getSingleResultOrNull. Lock mode NONE (no transaction).
+
+### JP-48 — JPQL exception handling (IllegalArgumentException, NoResultException, NonUniqueResultException, IllegalStateException)            [TODO]
+deps:   JP-38, JP-39
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (exception paths — extended),
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlExceptionTest.java` (new)
+proof:  TCK `core/query/apitests/Client1` — getSingleResultNoResultExceptionTest, getSingleResultNonUniqueResultExceptionTest, getSingleResultTest, getParameterIllegalArgumentExceptionTest, getParameterIllegalArgumentException2Test, getParameterIntIllegalArgumentExceptionTest, setParameterStringObject1IllegalArgumentExceptionTest, setParameterStringObject2IllegalArgumentExceptionTest, setParameterStringDateTemporalTypeIllegalArgumentExceptionTest, setParameterStringCalendarTemporalTypeTestIllegalArgumentExceptionTest, setParameterIntObjectIllegalArgumentExceptionTest, setParameterIntDateTemporalTypeIllegalArgumentException1Test, setParameterIntCalendarTemporalTypeIllegalArgumentExceptionTest, queryAPITest11, queryAPITest12, queryAPITest16, queryAPITest17
+notes:  ~17 methods. Various IllegalArgumentException paths (wrong param type, non-existent param name), NoResultException, NonUniqueResultException, IllegalStateException (getResultList on UPDATE/DELETE).
+
+### JP-49 — M4 gate: core/query + jpa22/query TCK suite passes            [TODO]
+deps:   JP-38, JP-39, JP-40, JP-41, JP-42, JP-43, JP-44, JP-45, JP-46, JP-47, JP-48
+files:  `mansart-persistence-tck/pom.xml` (standalone mode properties),
+        `mansart-persistence-tck/run-official-tck-persistence-3.2.sh` (client selection)
+proof:  TCK run on `core/query` + `jpa22/query` — all 125+ methods PASS
+notes:  Gate card. No implementation. Ensures all JP-38 through JP-48 methods pass TCK.
+
 ## M3 — transactions
 
 ### JP-35 — EntityTransaction lifecycle (begin, commit, rollback, isActive, getRollbackOnly, setRollbackOnly)            [DONE]
