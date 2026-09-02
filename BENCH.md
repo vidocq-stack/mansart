@@ -392,3 +392,57 @@ is strictly dominated here.
 
 Caveats: single run; the `terse` length-overflow is the same unbounded-reasoning config
 as the IQ4_NL entry; the `getReference` miss was a 1024-token over-reasoned wrong answer.
+
+### 2026-09-02 — Three oMLX models head to head: A3B vs Qwen3-Coder-Next vs Mistral-119B
+
+Compared `Qwen3.6-35B-A3B-MTPLX`, `Qwen3-Coder-Next-mxfp4-mlx` and
+`Mistral-Small-4-119B-2603-4bit`, all served by oMLX on the M5 Max: prefill + decode
+at 20k/50k/100k, plus the 08-26 quality batteries. Two protocol notes below matter.
+
+**Throughput (prefill cold gen=1; decode isolated from two WARM calls, gen=8→208):**
+
+| model | ctx | prefill tok/s | decode tok/s |
+| --- | --- | --- | --- |
+| Qwen3.6-A3B | 20k / 50k / 100k | 3033 / 2493 / 1268 | 119 / 94 / 69 |
+| Qwen3-Coder-Next | 20k / 50k / 100k | 1226 / 1827 / 1442 | **256 / 210 / 175** |
+| Mistral-119B | 4k | 1524 | 225 |
+| Mistral-119B | ≥ 8k | — | HTTP 400 (context ceiling, no config) |
+
+Two findings. **Qwen3-Coder-Next decodes ~2× faster than the A3B** (256 vs 119 at 20k)
+and still holds 175 tok/s at 100k. And **Mistral-119B at 225 tok/s on 4k is not a dense
+119B — it is a MoE** (only a fraction of params active per token); a true dense 119B
+would crawl. But it 400s past ~4-8k because it has **no entry in
+`~/.omlx/model_settings.json`** (only the A3B and the VLM are configured), so it runs on
+a small default context window — unusable for this workflow's 20k+ contexts until given
+a config with a raised `max_context_window`.
+
+**Quality (same probes as 08-26; B/C needs ctx~20k, so the 119B could not run it):**
+
+| | Qwen3.6-A3B | Qwen3-Coder-Next | Mistral-119B |
+| --- | --- | --- | --- |
+| tool calls well-formed | 7/8 | **8/8** | n/a (400 at 20k) |
+| **arguments exact** | **7/8** | 4/8 | n/a |
+| API correctness (E) | 7/8 | 7/8 | **8/8** |
+| chain (F) | correct | correct | correct |
+| median out tok | 327 | 99 | tiny (API 1-15 tok) |
+
+**Verdict for this workflow: keep Qwen3.6-A3B.**
+- **Qwen3-Coder-Next** is the speed king and wonderfully terse, but its failure is
+  disqualifying for a code-editing agent: 8/8 well-formed calls yet only **4/8 exact
+  arguments** — it emits the call but with the wrong file/line. Fast and wrong is worse
+  than slow and right.
+- **Mistral-119B** has the best API knowledge (8/8, the only one) and is a fast MoE, but
+  is context-capped without a config, so it cannot serve the 20k+ contexts the workflow
+  needs. Worth a re-test *if* debridled (add a `model_settings.json` entry with a large
+  `max_context_window`) — the open question is whether its knowledge edge survives at
+  100k and justifies its 26 s cold load.
+- **Qwen3.6-A3B** is slower in raw decode but the **most accurate** (7/8 exact args, 7/8
+  API), runs cleanly to 100k, and has the best prefill. Correctness on arguments is what
+  an agent that edits real files lives or dies by.
+
+**Caveats:** single run, noisy per-probe medians. First throughput pass reported `nan`
+decode — the method compared a cold call against a warm one (oMLX's SSD prefix cache
+made the warm gen=408 finish *before* the cold gen=1); fixed by warming first, then
+timing two warm calls. Prefill figures are cold (first, cache-sensitive) and indicative,
+not steady-state. The 119B's `A3B`-less name hides that it is a MoE — confirmed only by
+its decode speed, not by its card.
