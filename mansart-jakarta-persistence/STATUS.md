@@ -29,10 +29,11 @@ TCK universe: 269 client classes, ~1 745 methods
 M0 (skeleton and harness) — 8 / 8 cards done (JP-01b quality loop verified: docker start → UP → build → sonar analysis → gate query, gate ERROR as expected for baseline).
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
 M2 (EntityManager CRUD) — 18 / 28 cards (JP-21…JP-30, JP-33, JP-34, JP-35, **JP-36** done; JP-32 deferred to M8).
-M4 (JPQL) — 3 / 12 cards (JP-38, **JP-39**, **JP-40** done).
+M4 (JPQL) — 3 / 17 cards (JP-38, **JP-39**, **JP-40** done).
 
 ## Session log
 
+2026-09-02 | JP-41 | Administrative: split JP-41 into 5 sub-cards (41a string, 41b numeric, 41c date, 41d set ops, 41e CAST/IN). M4 card count updated 12→17, overall 77/90→77/95. No code written. | unit 301/301 + 1 skipped (unchanged)
 2026-09-02 | JP-39 | Positional parameters + TypedQuery: `setParameter(int, Object)` and `setParameter(String, Object)` in MansartQuery, MansartQuery implements `TypedQuery<Object>`, `createQuery(String, Class<T>)` in MansartEntityManager, `instantiateEntity(ResultSet)`, JpqlParser handles `?1`/`?2` markers, JpqlToSqlTranslator skips positional from literal binding. 8 JPQL SELECT unit tests pass. | TCK not measured | unit 292/292
 2026-09-02 | JP-38 | JPQL SELECT foundation: `JpqlParser` (SELECT/DISTINCT/FROM/WHERE/ORDER BY, AND/OR, positional params, string/numeric literals), `JpqlToSqlTranslator` (→ Dialect SELECT with Where/OrderBy), `MansartEntityManager.createQuery(String)` + `(String, Class<T>)`, `MansartQuery.getResultList()` + `getSingleResult()` + `setParameter(int, Object)`. 8/8 unit tests (JpqlSelectExecutionTest). TCK baseline: 408 errors (all setup failures, expected). | unit 292/292 + 1 skipped
 2026-09-02 | JP-40 | JPQL pagination: `MansartQuery` implements `setMaxResults(int)` / `setFirstResult(int)` / `getMaxResults()` / `getFirstResult()` (non-negative validation, default maxResults=Integer.MAX_VALUE), `JpqlToSqlTranslator.translate(Pagination)` passes `Pagination.Offset` to dialect. 6/6 unit tests (JpqlPaginationTest). | unit 298/298 + 1 skipped
