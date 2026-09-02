@@ -475,3 +475,25 @@ The trustworthy figures stay the first fresh pass: A3B decode 110/94/78 and Code
 **Verdict, reinforced: keep Qwen3.6-A3B.** The Coder is faster but hallucinates file/line
 refs under context; the 119B is a memory trap that cannot co-reside with the working
 model. Argument accuracy is what an editing agent lives on, and only the A3B holds 8/8.
+
+### 2026-09-02 (solo) — Mistral-119B alone: capped by RAM, not by quality
+
+User restarted oMLX with only the 119B loaded (71 GB, system at 127/128 GB). Even alone:
+- **20k works; 50k and 100k both 400.** With 71 GB of weights resident, only ~22 GB is
+  left for KV, and a 50k+ context's KV for a 119B does not fit. The model tops out around
+  20-40k of context on this 128 GB box — a hard **RAM wall, not a config one**. It cannot
+  serve the workflow's 100k contexts. (decode read `nan` again — the unique-prefix trick
+  still hit oMLX's KV cache; moot, the RAM wall settles it.)
+
+Quality with args logged: **7/8 exact** — the one miss is `terse`, where it too swapped
+the asked `H.java` for a real context file (`JtaTransactionBridge.java`), keeping line 9.
+Better than the Coder (6/8, hallucinates on `nested` AND `terse`), below the A3B (8/8).
+API 7/8 this pass (missed `flush-no-tx`; run-to-run variance).
+
+Across all three, only **Qwen3.6-A3B is fully robust to the context** (8/8 exact args);
+the Coder and the 119B both get pulled toward real files under a 20k codebase on the most
+elliptical probes. Final answer on the "strange args": the effect is real, model-side,
+and the A3B is the only one immune.
+
+**Definitive verdict: Qwen3.6-A3B.** The 119B is disqualified not on knowledge (7-8/8)
+but on physics — 71 GB of weights leave no room for large-context KV on a 128 GB machine.
