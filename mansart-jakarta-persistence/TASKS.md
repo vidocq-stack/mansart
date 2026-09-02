@@ -14,14 +14,14 @@ one closes. See `PLAN.md` for the milestone map.
 | M1 | metadata (APT + runtime Metamodel) | 12 | 12 | DONE |
 | M2 | EntityManager CRUD | 14 | 14 | DONE WITH DEFERRED |
 | M3 | transactions | 3 | 3 | DONE |
-| M4 | JPQL | 12 | 1 | TODO |
+| M4 | JPQL | 17 | 1 | TODO |
 | M5 | relationships (cascade, lazy proxies, derived ids) | — | — | TO_DEFINE |
 | M6 | inheritance, overrides, lifecycle callbacks | — | — | TO_DEFINE |
 | M7 | Criteria API | — | — | TO_DEFINE |
 | M8 | schema generation, locking, versioning, cache, types | — | — | TO_DEFINE |
 | M9 | annotation sweep, StoredProcedureQuery, PersistenceUtil, full-suite | — | — | TO_DEFINE |
 
-**Overall: 77/90 (86%)** — JP-32 deferred to M8, excluded from count.
+**Overall: 77/95 (81%)** — JP-32 deferred to M8, excluded from count.
 
 Card template:
 
