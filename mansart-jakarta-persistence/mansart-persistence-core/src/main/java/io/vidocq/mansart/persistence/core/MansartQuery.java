@@ -89,6 +89,7 @@ final class MansartQuery implements jakarta.persistence.Query,
         SqlFragment fragment = new JpqlToSqlTranslator(
                 jpqlQuery, entityModel, dialect).translate(pagination);
         String sql = fragment.sql();
+        System.out.println("DEBUG SQL: " + sql);
 
         Connection conn = entityManager.getConnectionForSql();
         try {

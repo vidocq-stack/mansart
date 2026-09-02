@@ -99,14 +99,16 @@ final class JpqlParser {
     private void parsePredicate(List<JpqlPredicate> predicates) {
         skipWhitespace();
         
-        // Check for scalar function call: FUNC_NAME(field)
-        FunctionInfo funcInfo = parseFunctionCall();
+        // Check for scalar function call: FUNC_NAME(args...)
+        FuncInfo funcInfo = parseFunctionCall();
         String function = funcInfo != null ? funcInfo.function() : null;
-        String fieldName = funcInfo != null ? funcInfo.fieldName() : null;
+        String firstArg = funcInfo != null ? funcInfo.firstArg() : null;
+        List<String> args = funcInfo != null ? funcInfo.allArgs() : List.of();
         
-        // If we parsed a function, the field name is already extracted
+        // If we parsed a function, the first argument is already extracted
         // Otherwise, parse the field name normally
-        if (fieldName == null) {
+        String fieldName;
+        if (firstArg == null) {
             skipWhitespace();
             String alias = null;
             if (pos < query.length() && (Character.isLetter(query.charAt(pos))
@@ -133,6 +135,8 @@ final class JpqlParser {
             } else {
                 fieldName = parseIdentifier();
             }
+        } else {
+            fieldName = firstArg;
         }
 
         skipWhitespace();
@@ -141,29 +145,45 @@ final class JpqlParser {
             op = "=";
         } else if (match("<>")) {
             op = "<>";
+        } else if (match(">=")) {
+            op = ">=";
+        } else if (match("<=")) {
+            op = "<=";
+        } else if (match(">")) {
+            op = ">";
+        } else if (match("<")) {
+            op = "<";
         } else {
             throw new IllegalArgumentException("Unsupported WHERE operator at position " + pos);
         }
 
         skipWhitespace();
         String value = parseLiteral();
-        predicates.add(new JpqlPredicate(fieldName, op, value, function));
+        predicates.add(new JpqlPredicate(fieldName, op, value, function, args));
     }
 
     /**
-     * Holds a parsed function name and its extracted field name.
+     * Holds a parsed function name, its first field name, and all arguments.
      */
-    private record FunctionInfo(String function, String fieldName) {}
+    private record FuncInfo(String function, String firstArg, List<String> allArgs) {
+
+        /**
+         * Convenience constructor with no arguments.
+         */
+        FuncInfo(String function, String firstArg) {
+            this(function, firstArg, List.of());
+        }
+    }
 
     /**
      * Attempts to parse a scalar function call at the current position.
      *
-     * <p>Returns a {@link FunctionInfo} with the function name (uppercased)
-     * and the extracted field name (e.g. {@code "UPPER", "e.name"} from
-     * {@code UPPER(e.name)}), or {@code null} if not a recognized function
-     * call, leaving the position unchanged.</p>
+     * <p>For unary functions (UPPER, LOWER, LENGTH), returns the function name
+     * and the first (field) argument. For multi-argument functions
+     * (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT), returns the function name,
+     * the first argument, and a list of all arguments.</p>
      */
-    private FunctionInfo parseFunctionCall() {
+    private FuncInfo parseFunctionCall() {
         skipWhitespace();
         int savePos = pos;
         
@@ -179,18 +199,20 @@ final class JpqlParser {
             return null;
         }
         
-        // Only register as a function if it's a known scalar function
-        if (!JpqlFunctionRegistry.isFuncFunction(funcName)) {
-            // Not a recognized function — restore position
-            pos = savePos;
-            return null;
+        // Extract all arguments from the function call
+        List<String> args = new ArrayList<>();
+        String firstArg = parseFunctionArg();
+        args.add(firstArg);
+        
+        // Extract remaining arguments (comma-separated)
+        skipWhitespace();
+        while (match(",")) {
+            skipWhitespace();
+            args.add(parseFunctionArg());
+            skipWhitespace();
         }
         
-        // Extract the field name from within the function call.
-        // For Where.Func functions, the first argument is the column.
-        String fieldName = extractFieldNameFromFuncArgs();
-        
-        // Skip to closing paren (consume remaining args)
+        // Skip to closing paren (consume remaining depth)
         int depth = 1;
         while (pos < query.length() && depth > 0) {
             char c = query.charAt(pos);
@@ -202,18 +224,85 @@ final class JpqlParser {
             pos++;
         }
         
-        return new FunctionInfo(funcName.toUpperCase(), fieldName);
+        // Only register as a function if it's a known scalar function
+        // (unary functions map to Where.Func; multi-arg functions
+        // are handled as raw SQL fragments via the arguments list)
+        if (JpqlFunctionRegistry.isFuncFunction(funcName)) {
+            return new FuncInfo(funcName.toUpperCase(), firstArg);
+        }
+        
+        // Multi-argument function — store all arguments
+        return new FuncInfo(funcName.toUpperCase(), firstArg, args);
     }
 
     /**
-     * Extracts the field name from the first argument of a function call.
-     * Handles alias.fieldName patterns and nested function calls.
-     * Returns only the field name (not the alias), since the translator
-     * looks up attributes by name.
+     * Parses a single function argument: a field reference (alias.field)
+     * or a literal (string, number, or positional parameter).
      */
-    private String extractFieldNameFromFuncArgs() {
+    private String parseFunctionArg() {
         skipWhitespace();
         
+        // String literal
+        if (pos < query.length() && query.charAt(pos) == '\'') {
+            return parseStringLiteral();
+        }
+        
+        // Positional parameter ?N
+        if (pos < query.length() && query.charAt(pos) == '?') {
+            return parsePositionalParam();
+        }
+        
+        // Numeric literal
+        if (pos < query.length() && Character.isDigit(query.charAt(pos))) {
+            return parseNumericLiteral();
+        }
+        
+        // Field reference: alias.fieldName or fieldName
+        if (pos < query.length() && (Character.isLetter(query.charAt(pos))
+                || query.charAt(pos) == '_')) {
+            return parseFieldRef();
+        }
+        
+        // Fallback: return empty string (will fail in translator)
+        return "";
+    }
+
+    private String parseStringLiteral() {
+        pos++; // skip opening quote
+        int start = pos;
+        while (pos < query.length() && query.charAt(pos) != '\'') {
+            pos++;
+        }
+        String literal = query.substring(start, pos);
+        if (pos < query.length()) {
+            pos++; // skip closing quote
+        }
+        return literal;
+    }
+
+    private String parsePositionalParam() {
+        pos++; // skip ?
+        int start = pos;
+        while (pos < query.length() && Character.isDigit(query.charAt(pos))) {
+            pos++;
+        }
+        if (pos > start) {
+            return "?".concat(query.substring(start, pos));
+        }
+        return "?";
+    }
+
+    private String parseNumericLiteral() {
+        int start = pos;
+        while (pos < query.length() && (Character.isDigit(query.charAt(pos))
+                || query.charAt(pos) == '.' || query.charAt(pos) == '-')) {
+            pos++;
+        }
+        return query.substring(start, pos);
+    }
+
+    private String parseFieldRef() {
+        skipWhitespace();
         // Check for alias.fieldName pattern
         if (pos < query.length() && (Character.isLetter(query.charAt(pos))
                 || query.charAt(pos) == '_')) {
@@ -253,7 +342,7 @@ final class JpqlParser {
                     pos++;
                 }
                 // Try to extract field from inside the nested call
-                return extractFieldNameFromFuncArgs();
+                return parseFieldRef();
             }
         }
         

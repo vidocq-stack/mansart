@@ -94,6 +94,17 @@ final class JpqlToSqlTranslator {
     }
 
     private Where buildSingleWhere(JpqlPredicate predicate) {
+        String func = predicate.function();
+        List<String> args = predicate.arguments();
+
+        // Multi-argument function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT)
+        // Check this FIRST, before trying to look up fieldName as an attribute
+        // (for multi-arg functions, fieldName is the first argument, which may be a literal)
+        if (!args.isEmpty() && !JpqlFunctionRegistry.isFuncFunction(func)) {
+            return buildMultiArgFunc(func, args, predicate.op());
+        }
+
+        // For unary functions and non-function predicates, look up fieldName as an attribute
         java.util.Optional<? extends io.vidocq.mansart.data.dialect.Attribute<?, ?>> attrOpt =
                 entityModel.attribute(predicate.fieldName());
         if (attrOpt.isEmpty()) {
@@ -106,7 +117,6 @@ final class JpqlToSqlTranslator {
 
         // If this predicate has a scalar function wrapper (UPPER, LOWER, etc.),
         // wrap the comparison in Where.Func
-        String func = predicate.function();
         if (func != null && JpqlFunctionRegistry.isFuncFunction(func)) {
             return new Where.Func(JpqlFunctionRegistry.sqlFunction(func), buildSingleWhereBase(attr, predicate.op()));
         }
@@ -114,15 +124,65 @@ final class JpqlToSqlTranslator {
         return buildSingleWhereBase(attr, predicate.op());
     }
 
+    /**
+     * Builds a Where node for a multi-argument function.
+     * Each argument is either a column reference (resolved to an Attribute)
+     * or a literal value (String).
+     */
+    private Where buildMultiArgFunc(String func, List<String> args, String op) {
+        List<Object> whereArgs = new java.util.ArrayList<>(args.size());
+        for (String arg : args) {
+            // Always try to resolve as attribute first (parser strips alias prefix).
+            // Fall back to literal only if attribute lookup fails.
+            java.util.Optional<? extends io.vidocq.mansart.data.dialect.Attribute<?, ?>> attrOpt =
+                    entityModel.attribute(arg);
+            if (attrOpt.isPresent()) {
+                @SuppressWarnings("unchecked")
+                io.vidocq.mansart.data.dialect.Attribute<?, ?> attr =
+                        (io.vidocq.mansart.data.dialect.Attribute<?, ?>) (Object) attrOpt.get();
+                whereArgs.add(attr);
+            } else {
+                // Literal value: string (no quotes), number, or positional param
+                whereArgs.add(arg);
+            }
+        }
+        return new Where.MultiArgFunc(func, whereArgs, opToSql(op));
+    }
+
     private Where buildSingleWhereBase(io.vidocq.mansart.data.dialect.Attribute<?, ?> attr, String op) {
         if ("=".equals(op)) {
             return Where.eq(attr);
         } else if ("<>".equals(op)) {
             return new Where.NotEq(attr);
+        } else if (">=".equals(op)) {
+            return new Where.Gte(attr);
+        } else if ("<=".equals(op)) {
+            return new Where.Lte(attr);
+        } else if (">".equals(op)) {
+            return new Where.Gt(attr);
+        } else if ("<".equals(op)) {
+            return new Where.Lt(attr);
         } else {
             throw new IllegalArgumentException(
                     "Unsupported WHERE operator: " + op);
         }
+    }
+
+    /** Map a JPQL operator to the SQL comparison string with a positional parameter. */
+    private static String opToSql(String op) {
+        return switch (op) {
+            case "="      -> " = ?";
+            case "<>"     -> " <> ?";
+            case ">="     -> " >= ?";
+            case "<="     -> " <= ?";
+            case ">"      -> " > ?";
+            case "<"      -> " < ?";
+            case "LIKE"   -> " LIKE ?";
+            case "BETWEEN" -> " BETWEEN ? AND ?";
+            case "IS NULL"    -> " IS NULL";
+            case "IS NOT NULL" -> " IS NOT NULL";
+            default -> throw new IllegalArgumentException("Unsupported operator: " + op);
+        };
     }
 
     private OrderBy buildOrderBy() {

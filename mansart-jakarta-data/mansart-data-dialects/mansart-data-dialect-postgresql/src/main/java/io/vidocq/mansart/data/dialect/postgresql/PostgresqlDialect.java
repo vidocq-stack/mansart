@@ -32,6 +32,7 @@ import java.math.BigDecimal;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -357,8 +358,12 @@ public final class PostgresqlDialect implements Dialect {
             }
             case Where.IgnoreCase w -> renderIgnoreCase(sb, w.inner(), plan);
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
+            // M8-2 — multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
+            case Where.MultiArgFunc w -> renderMultiArgFunc(sb, w.fn(), w.args(), w.op(), plan);
             case Where.AlwaysTrue _  -> sb.append("TRUE");
             case Where.AlwaysFalse _ -> sb.append("FALSE");
+            default -> throw new IllegalArgumentException(
+                    "Unhandled Where type: " + where.getClass().getSimpleName());
         }
     }
 
@@ -417,6 +422,23 @@ public final class PostgresqlDialect implements Dialect {
 
     private void appendFnLhs(StringBuilder sb, String sqlFn, String qualifiedColumn, String tail) {
         sb.append(sqlFn).append('(').append(qualifiedColumn).append(')').append(tail);
+    }
+
+    /**
+     * M8-2 — render a multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
+     */
+    private void renderMultiArgFunc(StringBuilder sb, String fn, java.util.List<Object> args, String op, Joins.Plan plan) {
+        sb.append(fn).append('(');
+        for (int i = 0; i < args.size(); i++) {
+            if (i > 0) sb.append(", ");
+            Object arg = args.get(i);
+            if (arg instanceof io.vidocq.mansart.data.dialect.Attribute<?, ?> attr) {
+                sb.append(col(attr, plan));
+            } else {
+                sb.append('\'').append(arg).append('\'');
+            }
+        }
+        sb.append(')').append(op);
     }
 
     private void appendOrderBy(StringBuilder sb, OrderBy orderBy, Joins.Plan plan) {

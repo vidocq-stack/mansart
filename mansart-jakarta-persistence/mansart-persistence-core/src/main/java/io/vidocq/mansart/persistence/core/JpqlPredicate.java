@@ -9,6 +9,8 @@
  */
 package io.vidocq.mansart.persistence.core;
 
+import java.util.List;
+
 /**
  * Represents a single WHERE predicate: {@code fieldName op literalValue}.
  *
@@ -18,12 +20,20 @@ package io.vidocq.mansart.persistence.core;
  * function call (e.g. {@code UPPER(e.name)}) around the field comparison.
  * The dialect translates this to a {@code Where.Func} node.</p>
  */
-record JpqlPredicate(String fieldName, String op, String value, String function) {
+record JpqlPredicate(String fieldName, String op, String value, String function,
+                     List<String> arguments) {
 
     /**
      * Convenience constructor for predicates without a function wrapper.
      */
     JpqlPredicate(String fieldName, String op, String value) {
-        this(fieldName, op, value, null);
+        this(fieldName, op, value, null, List.of());
+    }
+
+    /**
+     * Convenience constructor for predicates with a (unary) function wrapper.
+     */
+    JpqlPredicate(String fieldName, String op, String value, String function) {
+        this(fieldName, op, value, function, List.of());
     }
 }

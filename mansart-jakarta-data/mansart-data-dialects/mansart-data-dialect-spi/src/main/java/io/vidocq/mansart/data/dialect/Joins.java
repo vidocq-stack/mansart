@@ -91,6 +91,12 @@ public final class Joins {
             case Where.Not x       -> walkWhere(x.child(), sink);
             case Where.IgnoreCase x -> walkWhere(x.inner(), sink);
             case Where.Func x      -> walkWhere(x.inner(), sink);
+            // M8-2 — multi-argument function: walk through attribute arguments, skip literals.
+            case Where.MultiArgFunc x -> {
+                for (Object a : x.args()) {
+                    if (a instanceof Attribute<?, ?> attr) sink.accept(attr);
+                }
+            }
             case Where.AlwaysTrue ignored -> {}
             case Where.AlwaysFalse ignored -> {}
         }

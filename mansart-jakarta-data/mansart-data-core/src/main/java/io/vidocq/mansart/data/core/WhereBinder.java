@@ -69,6 +69,7 @@ final class WhereBinder {
             // character count, so the bound parameter must be Integer instead of the column's
             // declared Java type.
             case Where.Func w -> psIdx = bindFunc(dialect, ps, w, args, psIdx, argCursor);
+            case Where.MultiArgFunc w -> psIdx = bindMultiArgFunc(dialect, ps, w, args, psIdx, argCursor);
             case Where.AlwaysTrue ignored3  -> { /* no bind */ }
             case Where.AlwaysFalse ignored4 -> { /* no bind */ }
         }
@@ -123,5 +124,23 @@ final class WhereBinder {
             default -> throw new IllegalArgumentException(
                     "Func wraps Eq/NotEq/Lt/Lte/Gt/Gte/Like/Between/In/IsNull/IsNotNull/Not only, got: " + inner);
         };
+    }
+
+    /**
+     * M8-2 — bind parameters for a multi-argument function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
+     * Each argument is either an {@link Attribute} (column reference) or a literal {@link String}.
+     */
+    private static int bindMultiArgFunc(Dialect dialect, PreparedStatement ps, Where.MultiArgFunc w,
+                                        Object[] args, int psIdx, int[] argCursor) throws SQLException {
+        for (Object arg : w.args()) {
+            if (arg instanceof io.vidocq.mansart.data.dialect.Attribute<?, ?> attr) {
+                psIdx = bindOne(dialect, ps, psIdx, args, argCursor, attr.javaType());
+            } else {
+                // Literal value — bind as String
+                dialect.bind(ps, psIdx, arg, String.class);
+                psIdx++;
+            }
+        }
+        return psIdx;
     }
 }

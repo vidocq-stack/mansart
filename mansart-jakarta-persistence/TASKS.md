@@ -14,14 +14,14 @@ one closes. See `PLAN.md` for the milestone map.
 | M1 | metadata (APT + runtime Metamodel) | 12 | 12 | DONE |
 | M2 | EntityManager CRUD | 14 | 14 | DONE WITH DEFERRED |
 | M3 | transactions | 3 | 3 | DONE |
-| M4 | JPQL | 17 | 1 | TODO |
+| M4 | JPQL | 17 | 5 | TODO |
 | M5 | relationships (cascade, lazy proxies, derived ids) | — | — | TO_DEFINE |
 | M6 | inheritance, overrides, lifecycle callbacks | — | — | TO_DEFINE |
 | M7 | Criteria API | — | — | TO_DEFINE |
 | M8 | schema generation, locking, versioning, cache, types | — | — | TO_DEFINE |
 | M9 | annotation sweep, StoredProcedureQuery, PersistenceUtil, full-suite | — | — | TO_DEFINE |
 
-**Overall: 77/95 (81%)** — JP-32 deferred to M8, excluded from count.
+**Overall: 79/95 (83%)** — JP-32 deferred to M8, excluded from count.
 
 Card template:
 
@@ -390,7 +390,7 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/query/language/Client2` — test_groupByHaving, test_concatHavingClause, test_lowerHavingClause, test_upperHavingClause, test_lengthHavingClause, test_locateHavingClause, test_subquery_in; `core/query/language/Client3` — test_upperStringExpression, test_lowerStringExpression, test_substringHavingClause, test_leftStringExpression, test_rightStringExpression, test_concatStringOperator, test_castExpression, test_unionOperator, test_intersectOperator, test_exceptOperator; `core/query/language/Client4` — test_betweenDates, test_notBetweenDates
 notes:  3/20 methods implemented (UPPER, LOWER, LENGTH as Where.Func). Remaining: LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT, REPLACE, ABS, SQRT, date functions, set ops, CAST, IN subquery.
 
-### JP-41a — JPQL string functions (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT)            [TODO]
+### JP-41a — JPQL string functions (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT)            [DONE]
 deps:   JP-38, JP-41
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (function calls — extended),
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlFunctionRegistry.java` (new mappings),
@@ -398,12 +398,12 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/query/language/Client2` — test_locateHavingClause, test_concatHavingClause; `core/query/language/Client3` — test_substringHavingClause, test_leftStringExpression, test_rightStringExpression, test_concatStringOperator
 notes:  6 methods. REPLACE excluded (Derby-only test). Functions map to raw SQL fragments (not Where.Func). Parser must handle multi-arg calls.
 
-### JP-41b — JPQL numeric functions (ABS, SQRT)            [TODO]
+### JP-41b — JPQL numeric functions (ABS, SQRT)            [DONE]
 deps:   JP-38, JP-41
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlFunctionRegistry.java` (ABS, SQRT mappings),
-        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlNumericFunctionsTest.java` (new)
+        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/JpqlNumericFunctionsTest.java` (new)
 proof:  TCK `core/query/language/Client3` — test_absExpression, test_sqrtExpression (if present in TCK)
-notes:  2 methods. Already mapped in JpqlFunctionRegistry; tests verify WHERE clause wrapping.
+notes:  2 methods. ABS/SQRT mappings already present in JpqlFunctionRegistry (JP-41). Unit test verifies WHERE clause wrapping through Where.Func. Full unit suite: 309 pass, 0 fail, 1 skipped (core module). TCK: not measured.
 
 ### JP-41c — JPQL date functions (BETWEEN/NOT BETWEEN with datetime)            [TODO]
 deps:   JP-38, JP-41

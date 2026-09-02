@@ -61,9 +61,15 @@ public sealed interface Where {
      * <p>For {@code UPPER}/{@code LOWER}/{@code ABS}, the bound parameter type matches the
      * column's Java type. For {@code LENGTH}, the bound parameter is forced to {@link Integer}
      * (returns the character count of a String). Dialects map {@code LENGTH} to the SQL
-     * portable {@code CHAR_LENGTH(...)}.
+     * portable {@code CHAR_LENGTH(...)}.</p>
      */
     record Func(String fn, Where inner) implements Where {}
+    /**
+     * M8-2 — wraps a multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
+     * Each argument is either a column reference (attribute) or a literal value (String).
+     * {@code op} is the comparison operator (e.g. {@code "="}, {@code "<>"}, etc.).
+     */
+    record MultiArgFunc(String fn, List<Object> args, String op) implements Where {}
     record AlwaysTrue() implements Where {}
     record AlwaysFalse() implements Where {}
 

@@ -39,6 +39,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -364,8 +365,12 @@ public final class H2Dialect implements Dialect {
             case Where.IgnoreCase w -> renderIgnoreCase(sb, w.inner(), plan);
             // M8-1 — unary scalar function on the column (UPPER/LOWER/LENGTH/ABS).
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
+            // M8-2 — multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
+            case Where.MultiArgFunc w -> renderMultiArgFunc(sb, w.fn(), w.args(), w.op(), plan);
             case Where.AlwaysTrue ignored  -> sb.append("1=1");
             case Where.AlwaysFalse ignored -> sb.append("1=0");
+            default -> throw new IllegalArgumentException(
+                    "Unhandled Where type: " + where.getClass().getSimpleName());
         }
     }
 
@@ -424,6 +429,26 @@ public final class H2Dialect implements Dialect {
             default -> throw new IllegalArgumentException(
                     "Func wraps Eq/NotEq/Lt/Lte/Gt/Gte/Like/Between/In/IsNull/IsNotNull/Not only, got: " + inner);
         }
+    }
+
+    /**
+     * M8-2 — render a multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
+     * Each argument is either an {@link Attribute} (column) or a {@link String} (literal).
+     * {@code op} is the comparison operator (e.g. " = ?", " <> ?", etc.).
+     */
+    private void renderMultiArgFunc(StringBuilder sb, String fn, List<Object> args, String op, Joins.Plan plan) {
+        sb.append(fn).append('(');
+        for (int i = 0; i < args.size(); i++) {
+            if (i > 0) sb.append(", ");
+            Object arg = args.get(i);
+            if (arg instanceof io.vidocq.mansart.data.dialect.Attribute<?, ?> attr) {
+                sb.append(col(attr, plan));
+            } else {
+                // String literal: re-quote it for SQL
+                sb.append('\'').append(arg).append('\'');
+            }
+        }
+        sb.append(')').append(op);
     }
 
     private void appendFnLhs(StringBuilder sb, String sqlFn, String qualifiedColumn, String tail) {
