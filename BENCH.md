@@ -446,3 +446,32 @@ made the warm gen=408 finish *before* the cold gen=1); fixed by warming first, t
 timing two warm calls. Prefill figures are cold (first, cache-sensitive) and indicative,
 not steady-state. The 119B's `A3B`-less name hides that it is a MoE — confirmed only by
 its decode speed, not by its card.
+
+### 2026-09-02 (follow-up) — 119B debridled, and the "exact args" doubt settled
+
+Gave the 119B a `model_settings.json` entry with `max_context_window: 131072` (backup
+kept, `enable_thinking: false`). **Alone** it answers at 20k, but **in a real pool it is
+unusable**: oMLX keeps 2 models resident (health `loaded=2`, 93 GB), so the 119B (71 GB)
+plus any second model exceeds RAM and it 400s / no-usage-OOMs at 20k. Its API knowledge
+is 8/8 on short prompts, but throughput and tool-fidelity at 20k are impossible while
+another model co-resides. And oMLX did **not** drop it on idle — no HTTP unload endpoint
+exists (all 404), 123/128 GB stayed pinned through a 2-min idle. The app's **Restart
+button** is the only clean release (server is a child of `oMLX.app`).
+
+**The exact-args doubt, settled by logging got-vs-want:**
+- **Qwen3-Coder-Next hallucinates references.** On `nested` and `terse` it replaced the
+  requested file with a REAL file from the 20k context (`DataStoreResolver.java`,
+  `JtaTransactionBridge.java`) instead of the literal instruction. 6/8 exact — a real
+  defect, not a scoring bug, and disqualifying for a code agent: it would file a finding
+  against the wrong file.
+- **Qwen3.6-A3B: got == want on all eight** (8/8 valid, 8/8 exact, 8/8 API). Not
+  distracted by the context.
+
+Throughput caveat: this second pass's prefill/decode were cache artefacts (it read
+decode 1929 tok/s — impossible; oMLX's prefix cache made the "warm" calls near-instant).
+The trustworthy figures stay the first fresh pass: A3B decode 110/94/78 and Coder
+~256/210/175 at 20k/50k/100k.
+
+**Verdict, reinforced: keep Qwen3.6-A3B.** The Coder is faster but hallucinates file/line
+refs under context; the 119B is a memory trap that cannot co-reside with the working
+model. Argument accuracy is what an editing agent lives on, and only the A3B holds 8/8.
