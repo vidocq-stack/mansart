@@ -382,13 +382,13 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/query/apitests/Client1` — setFirstResultTest, setFirstResultIllegalArgumentExceptionTest, setGetMaxResultsTest, setMaxResultsIllegalArgumentExceptionTest
 notes:  4 methods. SQL LIMIT/OFFSET. Negative values → IllegalArgumentException.
 
-### JP-41 — JPQL scalar functions (string, numeric, date, set ops, CAST)            [TODO]
+### JP-41 — JPQL scalar functions (UPPER, LOWER, LENGTH via Where.Func)            [PARTIAL]
 deps:   JP-38
 files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (function calls — extended),
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlFunctionRegistry.java` (new — maps JPQL function → SQL function),
         `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlScalarFunctionsTest.java` (new)
 proof:  TCK `core/query/language/Client2` — test_groupByHaving, test_concatHavingClause, test_lowerHavingClause, test_upperHavingClause, test_lengthHavingClause, test_locateHavingClause, test_subquery_in; `core/query/language/Client3` — test_upperStringExpression, test_lowerStringExpression, test_substringHavingClause, test_leftStringExpression, test_rightStringExpression, test_concatStringOperator, test_castExpression, test_unionOperator, test_intersectOperator, test_exceptOperator; `core/query/language/Client4` — test_betweenDates, test_notBetweenDates
-notes:  ~20 methods. String: UPPER, LOWER, LENGTH, LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT, REPLACE (test excluded — Derby-only). Numeric: ABS, SQRT. Date: BETWEEN/NOT BETWEEN with datetime. Set ops: UNION, INTERSECT, EXCEPT. CAST. IN subquery.
+notes:  3/20 methods implemented (UPPER, LOWER, LENGTH as Where.Func). Remaining: LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT, REPLACE, ABS, SQRT, date functions, set ops, CAST, IN subquery.
 
 ### JP-42 — JPQL JOIN semantics (INNER, LEFT OUTER, FETCH)            [TODO]
 deps:   JP-38, JP-24a, JP-24b, JP-24c, JP-24d (relationship metadata for JOIN clause generation)

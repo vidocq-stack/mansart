@@ -104,7 +104,17 @@ final class JpqlToSqlTranslator {
         io.vidocq.mansart.data.dialect.Attribute<?, ?> attr =
                 (io.vidocq.mansart.data.dialect.Attribute<?, ?>) (Object) attrOpt.get();
 
-        String op = predicate.op();
+        // If this predicate has a scalar function wrapper (UPPER, LOWER, etc.),
+        // wrap the comparison in Where.Func
+        String func = predicate.function();
+        if (func != null && JpqlFunctionRegistry.isFuncFunction(func)) {
+            return new Where.Func(JpqlFunctionRegistry.sqlFunction(func), buildSingleWhereBase(attr, predicate.op()));
+        }
+        
+        return buildSingleWhereBase(attr, predicate.op());
+    }
+
+    private Where buildSingleWhereBase(io.vidocq.mansart.data.dialect.Attribute<?, ?> attr, String op) {
         if ("=".equals(op)) {
             return Where.eq(attr);
         } else if ("<>".equals(op)) {

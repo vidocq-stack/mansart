@@ -98,37 +98,41 @@ final class JpqlParser {
 
     private void parsePredicate(List<JpqlPredicate> predicates) {
         skipWhitespace();
-        // Field path: alias.fieldName
-        // Check if there's an alias (identifier followed by dot)
-        skipWhitespace();
-        String alias = null;
-        if (pos < query.length() && (Character.isLetter(query.charAt(pos))
-                || query.charAt(pos) == '_')) {
-            // Peek: is the next char after the identifier a dot?
-            int start = pos;
-            while (pos < query.length() && (Character.isLetterOrDigit(query.charAt(pos))
-                    || query.charAt(pos) == '_')) {
-                pos++;
-            }
-            skipWhitespace();
-            if (pos < query.length() && query.charAt(pos) == '.') {
-                alias = query.substring(start, pos - 1);
-                // Re-examine: the identifier was the alias, dot follows
-            } else {
-                // No dot follows — this is the field name, not an alias
-                // Reset position
-                pos = start;
-            }
-        }
         
-        // Now parse the field name
-        skipWhitespace();
-        String fieldName;
-        if (alias != null) {
-            expect(".");
-            fieldName = parseIdentifier();
-        } else {
-            fieldName = parseIdentifier();
+        // Check for scalar function call: FUNC_NAME(field)
+        FunctionInfo funcInfo = parseFunctionCall();
+        String function = funcInfo != null ? funcInfo.function() : null;
+        String fieldName = funcInfo != null ? funcInfo.fieldName() : null;
+        
+        // If we parsed a function, the field name is already extracted
+        // Otherwise, parse the field name normally
+        if (fieldName == null) {
+            skipWhitespace();
+            String alias = null;
+            if (pos < query.length() && (Character.isLetter(query.charAt(pos))
+                    || query.charAt(pos) == '_')) {
+                // Peek: is the next char after the identifier a dot?
+                int start = pos;
+                while (pos < query.length() && (Character.isLetterOrDigit(query.charAt(pos))
+                        || query.charAt(pos) == '_')) {
+                    pos++;
+                }
+                skipWhitespace();
+                if (pos < query.length() && query.charAt(pos) == '.') {
+                    alias = query.substring(start, pos - 1);
+                } else {
+                    pos = start;
+                }
+            }
+            
+            // Now parse the field name
+            skipWhitespace();
+            if (alias != null) {
+                expect(".");
+                fieldName = parseIdentifier();
+            } else {
+                fieldName = parseIdentifier();
+            }
         }
 
         skipWhitespace();
@@ -143,7 +147,118 @@ final class JpqlParser {
 
         skipWhitespace();
         String value = parseLiteral();
-        predicates.add(new JpqlPredicate(fieldName, op, value));
+        predicates.add(new JpqlPredicate(fieldName, op, value, function));
+    }
+
+    /**
+     * Holds a parsed function name and its extracted field name.
+     */
+    private record FunctionInfo(String function, String fieldName) {}
+
+    /**
+     * Attempts to parse a scalar function call at the current position.
+     *
+     * <p>Returns a {@link FunctionInfo} with the function name (uppercased)
+     * and the extracted field name (e.g. {@code "UPPER", "e.name"} from
+     * {@code UPPER(e.name)}), or {@code null} if not a recognized function
+     * call, leaving the position unchanged.</p>
+     */
+    private FunctionInfo parseFunctionCall() {
+        skipWhitespace();
+        int savePos = pos;
+        
+        // Check for function name followed by '('
+        if (!matchIdentifier()) {
+            return null;
+        }
+        String funcName = query.substring(savePos, pos);
+        skipWhitespace();
+        if (!match("(")) {
+            // Not a function call — restore position
+            pos = savePos;
+            return null;
+        }
+        
+        // Only register as a function if it's a known scalar function
+        if (!JpqlFunctionRegistry.isFuncFunction(funcName)) {
+            // Not a recognized function — restore position
+            pos = savePos;
+            return null;
+        }
+        
+        // Extract the field name from within the function call.
+        // For Where.Func functions, the first argument is the column.
+        String fieldName = extractFieldNameFromFuncArgs();
+        
+        // Skip to closing paren (consume remaining args)
+        int depth = 1;
+        while (pos < query.length() && depth > 0) {
+            char c = query.charAt(pos);
+            if (c == '(') {
+                depth++;
+            } else if (c == ')') {
+                depth--;
+            }
+            pos++;
+        }
+        
+        return new FunctionInfo(funcName.toUpperCase(), fieldName);
+    }
+
+    /**
+     * Extracts the field name from the first argument of a function call.
+     * Handles alias.fieldName patterns and nested function calls.
+     * Returns only the field name (not the alias), since the translator
+     * looks up attributes by name.
+     */
+    private String extractFieldNameFromFuncArgs() {
+        skipWhitespace();
+        
+        // Check for alias.fieldName pattern
+        if (pos < query.length() && (Character.isLetter(query.charAt(pos))
+                || query.charAt(pos) == '_')) {
+            int start = pos;
+            while (pos < query.length() && (Character.isLetterOrDigit(query.charAt(pos))
+                    || query.charAt(pos) == '_')) {
+                pos++;
+            }
+            skipWhitespace();
+            if (pos < query.length() && query.charAt(pos) == '.') {
+                // Has alias.fieldName — return only the field name
+                pos++; // skip dot
+                skipWhitespace();
+                return parseIdentifier();
+            } else {
+                // No dot — this is just a field name (or another function)
+                pos = start;
+            }
+        }
+        
+        // Check for nested function call — skip it and try to get the field from inside
+        if (pos < query.length() && (Character.isLetter(query.charAt(pos))
+                || query.charAt(pos) == '_')) {
+            int start = pos;
+            while (pos < query.length() && (Character.isLetterOrDigit(query.charAt(pos))
+                    || query.charAt(pos) == '_')) {
+                pos++;
+            }
+            skipWhitespace();
+            if (pos < query.length() && query.charAt(pos) == '(') {
+                // Nested function — skip to closing paren and try again
+                int depth = 1;
+                while (pos < query.length() && depth > 0) {
+                    char c = query.charAt(pos);
+                    if (c == '(') depth++;
+                    else if (c == ')') depth--;
+                    pos++;
+                }
+                // Try to extract field from inside the nested call
+                return extractFieldNameFromFuncArgs();
+            }
+        }
+        
+        // Fallback: return empty string (will fail in translator)
+        return "";
     }
 
     private void parseOrderByClause(List<JpqlOrderBy> orderBys) {

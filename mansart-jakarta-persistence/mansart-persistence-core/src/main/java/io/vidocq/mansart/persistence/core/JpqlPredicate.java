@@ -13,6 +13,17 @@ package io.vidocq.mansart.persistence.core;
  * Represents a single WHERE predicate: {@code fieldName op literalValue}.
  *
  * <p>Supported operators: {@code =}, {@code <>}.</p>
+ *
+ * <p>When {@code function} is non-null, the predicate wraps a scalar
+ * function call (e.g. {@code UPPER(e.name)}) around the field comparison.
+ * The dialect translates this to a {@code Where.Func} node.</p>
  */
-record JpqlPredicate(String fieldName, String op, String value) {
+record JpqlPredicate(String fieldName, String op, String value, String function) {
+
+    /**
+     * Convenience constructor for predicates without a function wrapper.
+     */
+    JpqlPredicate(String fieldName, String op, String value) {
+        this(fieldName, op, value, null);
+    }
 }
