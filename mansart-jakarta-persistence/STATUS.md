@@ -5,11 +5,12 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- JP-36 (ProviderUtil) is done. JP-37 (module wiring) is done (already wired, compiles). No next card in M2/M3 scope — generateSchema belongs in M8.
-- JP-02 (five reactor modules with module declarations) is now complete — the
-  maven-plugin module-info.java was missing and has been added; all 5 modules
-  build and install cleanly.
-- Trap: stub provider still not wired (TCK baseline unchanged).
+- JP-39 (positional params + TypedQuery) is done. Next: **JP-38** (JPQL SELECT
+  foundation — parser, translator, createQuery no-arg).
+- Trap: JP-39 only covers positional params (`?1`, `?2`) and TypedQuery wiring.
+  Named parameters (`:name`), `getParameter()`, `isBound()`, `getParameterValue()`
+  remain in JP-39's original scope (TCK clients `core/query/parameter/Client1`).
+  TCK baseline unchanged — stub provider still not wired.
 
 ## Numbers
 
@@ -27,10 +28,11 @@ TCK universe: 269 client classes, ~1 745 methods
 M0 (skeleton and harness) — 8 / 8 cards done (JP-01b quality loop verified: docker start → UP → build → sonar analysis → gate query, gate ERROR as expected for baseline).
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
 M2 (EntityManager CRUD) — 18 / 28 cards (JP-21…JP-30, JP-33, JP-34, JP-35, **JP-36** done; JP-32 deferred to M8).
-M4 (JPQL) — 0 / 12 cards (JP-38…JP-49).
+M4 (JPQL) — 1 / 12 cards (JP-38…JP-49, **JP-39** done).
 
 ## Session log
 
+2026-09-02 | JP-39 | Positional parameters + TypedQuery: `setParameter(int, Object)` and `setParameter(String, Object)` in MansartQuery, MansartQuery implements `TypedQuery<Object>`, `createQuery(String, Class<T>)` in MansartEntityManager, `instantiateEntity(ResultSet)`, JpqlParser handles `?1`/`?2` markers, JpqlToSqlTranslator skips positional from literal binding. 8 JPQL SELECT unit tests pass. | TCK not measured | unit 292/292
 2026-09-02 | JP-37 | Module wiring (transactions-core dependency + module-info.java requires) — already wired in codebase, compilation verified. Marked DONE. Build: compile green. Unit tests: not measured. TCK: not measured.
 2026-09-02 | JP-01b | Quality loop end to end: docker start vidocq-sonar → /api/system/status = UP → -Pquality verify sonar:sonar (25 source files) → gate query from API = ERROR (expected baseline: 293 violations, 52.4% coverage). No code written. Build: green. Unit tests: not measured. TCK: not measured.
 2026-09-01 | JP-33 | `getReference()`: lazy proxy via rewritten `LazyProxyFactory` (~203 lines), updated `MansartEntityManager.getReference()`, 2 new test files. 2/2 unit tests. | TCK not measured | unit 2/2

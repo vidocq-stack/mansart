@@ -92,6 +92,13 @@ final class MansartEntityManager implements EntityManager {
     }
 
     /**
+     * Returns the persistence context for query result registration.
+     */
+    PersistenceContext persistenceContext() {
+        return persistenceContext;
+    }
+
+    /**
      * Returns a connection for SQL operations: the transaction-bound
      * connection when one exists, otherwise a fresh autocommit
      * connection from the data source.  Callers must close the
@@ -1137,15 +1144,32 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public Query createQuery(String qlString) {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: createQuery(String)");
+
+        // Parse the JPQL string.
+        JpqlQuery query = new JpqlParser(qlString).parse();
+
+        // Look up the entity by name via the metamodel, then get the entity model.
+        String entityName = query.entityName();
+        jakarta.persistence.metamodel.EntityType<?> entityType =
+                factory.getMetamodel().entity(entityName);
+        Class<?> entityClass = entityType.getJavaType();
+        @SuppressWarnings("unchecked")
+        EntityModel<?> entityModel = factory.getEntityModel(entityClass);
+
+        if (entityModel == null) {
+            throw new IllegalArgumentException(
+                    "Unknown entity: " + entityName);
+        }
+
+        // Build and return the query.
+        return new MansartQuery(this, query, entityModel, factory.getDialect());
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: createQuery(String, Class)");
+        return (TypedQuery<T>) createQuery(qlString);
     }
 
     @Override

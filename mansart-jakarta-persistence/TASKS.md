@@ -14,7 +14,12 @@ one closes. See `PLAN.md` for the milestone map.
 | M1 | metadata (APT + runtime Metamodel) | 12 | 12 | DONE |
 | M2 | EntityManager CRUD | 14 | 14 | DONE WITH DEFERRED |
 | M3 | transactions | 3 | 3 | DONE |
-| M4 | JPQL | 12 | 0 | TODO |
+| M4 | JPQL | 12 | 1 | TODO |
+| M5 | relationships (cascade, lazy proxies, derived ids) | — | — | TO_DEFINE |
+| M6 | inheritance, overrides, lifecycle callbacks | — | — | TO_DEFINE |
+| M7 | Criteria API | — | — | TO_DEFINE |
+| M8 | schema generation, locking, versioning, cache, types | — | — | TO_DEFINE |
+| M9 | annotation sweep, StoredProcedureQuery, PersistenceUtil, full-suite | — | — | TO_DEFINE |
 
 **Overall: 77/90 (86%)** — JP-32 deferred to M8, excluded from count.
 
@@ -361,14 +366,14 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
 proof:  TCK `core/query/language/Client1` — test_leftouterjoin_Mx1, test_innerjoin_1xM, test_fetchjoin_1xM, test_fetchjoin_Mx1, test_fetchjoin_Mx1_1, test_ANDconditionTT, test_ANDconditionTF, test_ANDconditionFT, test_ANDconditionFF, test_ORconditionTT, test_ORconditionTF, test_ORconditionFT, test_ORconditionFF, test_groupBy_1, test_groupByWhereClause, test_subquery_exists_01, test_subquery_exists_02, test_subquery_like, test_subquery_between, test_subquery_join, test_subquery_ALL_GT, test_subquery_ALL_LT, test_subquery_ALL_EQ, test_subquery_ALL_LTEQ, test_subquery_ALL_GTEQ, test_subquery_ALL_NOTEQ, test_subquery_ANY_GT, test_subquery_ANY_LT, test_subquery_ANY_EQ, test_subquery_SOME_LTEQ, test_subquery_SOME_GTEQ, test_selectID, test_selectWhereID, test_selectVERSION, test_orderByNullsFirst, test_orderByNullsLast; `core/query/language/Client2` — test_leftouterjoin_1xM, test_innerjoin_1xM, test_innerjoin_1x1, test_groupBy, test_leftouterjoin_1x1, test_groupBy; `core/query/language/Client3` — test_selectID, test_selectWhereID, test_selectVERSION, test_orderByNullsFirst, test_orderByNullsLast
 notes:  ~30 methods. Foundation card. Parser handles SELECT/FROM/WHERE/ORDER BY/GROUP BY/HAVING. ORDER BY NULLS FIRST/LAST. Literal handling (strings, numbers, booleans). Does NOT handle JOIN FETCH (that's JP-42). Does NOT handle relationship metadata (that's M5).
 
-### JP-39 — JPQL named and positional parameters (setParameter, getParameter, isBound, getParameterValue)            [TODO]
+### JP-39 — JPQL positional parameters + TypedQuery support            [DONE]
 deps:   JP-38
-files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (parameter extraction — extended),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParameter.java` (new — ParameterModel),
-        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setParameter, getParameter, isBound, getParameterValue),
-        `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/query/JpqlParameterTest.java` (new)
-proof:  TCK `core/query/parameter/Client1` — parameterTest1, parameterTestTQ1, parameterTest2, parameterTQTest2, parameterTest4, parameterTest5, getParametersTest, getParametersTQTest; `core/query/apitests/Client1` — getParameterTest, getParameterIllegalArgumentExceptionTest, getParameterIllegalArgumentException2Test, getParameterIntClassTest, getParameterIntIllegalArgumentExceptionTest, getParameterValueParameterTest, getParameterValueParameterIllegalArgumentExceptionTest, getParameterValueParameterIllegalStateExceptionTest, getParameterValueStringTest, getParameterValueStringIllegalArgumentExceptionTest, getParameterValueStringIllegalStateExceptionTest, getParameterValueIntTest, getParameterValueIntIllegalArgumentExceptionTest, getParameterValueIntIllegalStateExceptionTest, isBoundTest
-notes:  ~29 methods. Named (:name) and positional (?1, ?2) parameters. getParameter(String/Class), getParameter(int, Class), getParameterValue, isBound, getParameters. Temporal types (Date, Calendar) deferred to JP-45.
+files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlParser.java` (positional parameter markers — extended),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/MansartQuery.java` (setParameter int/String, TypedQuery<Object>),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/MansartEntityManager.java` (createQuery with Class<T>),
+        `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/query/JpqlToSqlTranslator.java` (skip positional from literal binding)
+proof:  8 JPQL SELECT unit tests (selectFromTest, selectOrderByDescTest, selectOrderByNumericTest, selectWhereAndOrderByTest, selectWhereLiteralTest, selectOrderByAscTest, selectWherePositionalParamTest, typedQuerySelectTest)
+notes:  Implemented `setParameter(int, Object)` and `setParameter(String, Object)` in MansartQuery. Made MansartQuery implement `TypedQuery<Object>`. Fixed all setter return types. Implemented `createQuery(String, Class<T>)` in MansartEntityManager. Added `instantiateEntity(ResultSet)`. JpqlParser handles `?1`, `?2` markers. JpqlToSqlTranslator skips positional params from literal binding. Full unit suite: 292 pass, 0 fail, 1 skipped. TCK: not measured.
 
 ### JP-40 — JPQL pagination (setFirstResult, setMaxResults)            [TODO]
 deps:   JP-38

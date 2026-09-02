@@ -395,6 +395,9 @@ public class MansartPersistenceProvider implements PersistenceProvider {
             jakarta.persistence.metamodel.IdentifiableType<?> supertype) {
         if (cls.isAnnotationPresent(Entity.class)) {
             String entityName = cls.getAnnotation(Entity.class).name();
+            if (entityName.isEmpty()) {
+                entityName = cls.getSimpleName();
+            }
             return buildEntityType(cls, entityName, supertype);
         }
         if (cls.isAnnotationPresent(Embeddable.class)) {
