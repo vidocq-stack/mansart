@@ -16,7 +16,7 @@
 # replacing it outright the way the `lean`/`explore` builtins do.
 
 display_name = "Dev"
-description = "Lead developer for the project's current target (Medium 3.5). Full-auto edits, delegates code-writing to coder."
+description = "Lead developer for the project's current target (Medium 3.5). Full-auto: edits and bash both auto-approve, except a short denylist of irreversible git/rm/docker operations."
 safety = "destructive"
 agent_type = "agent"
 
@@ -28,6 +28,32 @@ permission = "always"
 
 [tools.edit]
 permission = "always"
+
+# Full-auto bash, not a curated allowlist: a real "auto" agent can't be
+# limited to a dozen commands someone thought to list in advance — this
+# was the actual bug the earlier "ask + allowlist" version had (every
+# command outside that list stalled on a prompt, contradicting "full-auto"
+# everywhere this agent is described). Denylist entries are the only hard
+# NEVER (bash.py: denylist wins over the base "always" permission,
+# command-prefix match, no globs — see model-discipline). Anything not
+# listed here just runs. Destructive git ops and `rm -rf` are genuinely
+# never needed by this agent's own workflow (a mistake gets fixed by
+# another edit or a revert commit, not by discarding work); `docker
+# rm`/`docker volume rm` protects vidocq-sonar's history, which has no
+# other backup (see vidocq-quality).
+[tools.bash]
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
+]
 
 # Pre-approve delegation to our own subagent roster (+ the builtin `explore`)
 # so a session doesn't stall on a permission prompt for every `task` call.

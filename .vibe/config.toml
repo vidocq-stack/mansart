@@ -2,6 +2,7 @@ default_agent = "dev"
 applied_migrations = [
     "bash_read_only_defaults_v1",
 ]
+active_model = ""
 
 [[providers]]
 name = "mistral"
@@ -62,68 +63,28 @@ thinking = "off"
 [tools.bash]
 permission = "ask"
 allowlist = [
-    "./mvnw",
-    "basename",
     "cat",
-    "cd",
-    "comm",
-    "curl http://localhost:8080",
-    "curl http://localhost:9001",
-    "cut",
-    "date",
-    "diff",
-    "dirname",
-    "docker start vidocq-sonar",
-    "docker stop vidocq-sonar",
-    "du",
-    "echo",
-    "file",
     "find",
-    "fmt",
-    "fold",
-    "git add",
-    "git branch",
-    "git commit",
-    "git diff",
-    "git log",
-    "git show",
-    "git status",
     "grep",
-    "head",
-    "join",
-    "less",
     "ls",
-    "md5sum",
-    "more",
-    "mvn",
-    "nl",
-    "od",
-    "paste",
-    "pwd",
-    "readlink",
     "rg",
-    "rtk",
     "sed",
-    "sha1sum",
-    "sha256sum",
-    "shasum",
-    "sort",
-    "stat",
-    "sum",
-    "tac",
-    "tail",
-    "tr",
-    "tree",
-    "uname",
-    "uniq",
-    "wc",
-    "which",
-    "whoami",
+    "xargs",
 ]
 
 [tools.web_fetch]
 allowlist = [
+    "docs.mistral.ai",
+    "eclipse-ee4j.github.io",
     "jakarta.ee",
     "openjdk.org",
-    "docs.mistral.ai",
+    "repo.eclipse.org",
+    "repo1.maven.org",
+    "search.maven.org",
+]
+
+[tools.read_file]
+allowlist = [
+    "/Users/yblazart/.vibe/*",
+    "/private/var/folders/z8/9n9241t961z0y48h4rntnh4r0000gn/T/vibe-scratchpad-db99d306-6m2qcb3e/persistence-tck/artifacts/*",
 ]

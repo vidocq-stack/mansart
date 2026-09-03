@@ -375,12 +375,33 @@ No globs, no trailing `*` — `"git status"` matches `git status` and
 `git status --short`, never write `"git status*"`. A **denylist** match is
 a hard `NEVER` (the command is refused outright, not confirmed); an
 **allowlist** match is `ALWAYS` (auto-approved); anything unmatched falls
-through to the tool's base `permission` (`ask` by default). Destructive git
-operations (`reset`, `clean`, `restore`, `checkout --`, `push`) and
-`rm -rf` are deliberately **not** listed anywhere in this project's config
-— they fall through to `ask`, same intent as the OpenCode setup's
-per-command `ask` rules, but via omission rather than an explicit denylist
-(a denylist entry would block them outright, removing the escape hatch).
+through to the tool's base `permission`.
+
+Two different shapes are used on purpose, one per role:
+
+- **`dev` (`.vibe/agents/dev.toml`) sets `permission = "always"` with a
+  short `denylist`** (destructive git — `reset`/`clean`/`restore`/
+  `checkout --`/`checkout HEAD`/`push` — plus `rm -rf` and
+  `docker rm`/`docker volume rm`) — genuinely full-auto, not "ask for
+  anything not on a curated allowlist." An earlier version of this file
+  had `dev` inherit the project-level `ask` + safe-command-allowlist
+  default instead, which meant every command outside that dozen-item list
+  stalled on a prompt — contradicting "full-auto" everywhere this agent is
+  described. The denylist is a **hard block**, not "ask": this agent's own
+  workflow never legitimately needs those commands (a mistake gets fixed
+  by another edit or a revert commit, not by discarding work or force-
+  pushing), so there's no escape hatch to preserve — if one of those is
+  ever genuinely needed, run it yourself, outside the session.
+- **Every subagent (`coder`, `tck-runner`, `auditor`, `guardian`,
+  `tracker`, `spec-reader`) keeps `permission = "ask"` with a narrow,
+  curated allowlist** — appropriate for a scoped specialist, not a
+  regression: `coder` doesn't need broad shell access to write code inside
+  files it's told to touch, and the others are read-only reviewers by
+  design.
+- The **project-level** `.vibe/config.toml` `[tools.bash]` (`ask` +
+  a safe-command allowlist) is the fallback for any *other* agent profile
+  selected in a session (`ask`, `plan`, `accept-edits`, `auto-approve`) —
+  none of those have their own bash block, so they inherit this one.
 
 File tools (`read_file`, `grep`, `write_file`, `edit`) use a **different**
 mechanism — path globs, checked in this order (from Vibe's own doc):
@@ -395,17 +416,19 @@ observing a real session. Two things to check on the first real run, the
 same way the OpenCode setup verified its assumptions by capturing the raw
 HTTP request (`PREPARE_OPENCODE.md` §4.1):
 
-- Run one `mvn`/`git diff`/`git status` command as `dev` and confirm it
-  is auto-approved, not prompted. If it prompts, the allowlist entries
-  aren't matching as expected — re-check the exact command Vibe receives
-  (it may include a leading `cd ... &&` that changes what `command` is at
-  match time).
-- Confirm a destructive command (`git push`, for instance) *does* prompt.
-  If it doesn't, something in the layering is more permissive than
-  intended (recall this machine's **global** `~/.vibe/config.toml` sets
+- Run any ordinary command (`mvn`, `git diff`, something not on `dev`'s
+  denylist) as `dev` and confirm it just runs, no prompt.
+- Confirm a denylisted command (`git push`, for instance) is **refused
+  outright** as `dev` — not asked, refused, since `permission = "always"`
+  + `denylist` means NEVER, not ask. If it prompts instead of refusing,
+  or if it's silently allowed, the denylist entries aren't matching as
+  expected — re-check the exact command Vibe receives (it may include a
+  leading `cd ... &&` that changes what `command` is at match time), and
+  recall this machine's **global** `~/.vibe/config.toml` sets
   `[tools.edit].permission = "always"` and `[tools.write_file].permission =
   "always"` for *every* project, not just this one — harmless for edits,
-  but double-check it hasn't also loosened bash).
+  but double-check it hasn't also loosened bash for a *different* agent
+  profile than `dev`.
 
 ## 5. Agents
 
@@ -417,7 +440,7 @@ comment for what was merged and why).
 
 | agent | type | model (default) | role |
 | --- | --- | --- | --- |
-| `dev` | primary | Medium 3.5 | lead developer; full-auto edits; delegates code-writing |
+| `dev` | primary | Medium 3.5 | lead developer; full-auto edits + bash (denylist only); delegates code-writing |
 | `coder` | subagent | **Small 4** | implements a well-specified change |
 | `spec-reader` | subagent | Medium 3.5 | read-only spec/TCK oracle; the only agent with `web_fetch` |
 | `tck-runner` | subagent | **Small 4** | runs the TCK, reports real integers, never edits |
