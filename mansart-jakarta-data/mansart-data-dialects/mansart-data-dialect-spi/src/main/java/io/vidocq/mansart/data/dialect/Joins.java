@@ -97,6 +97,8 @@ public final class Joins {
                     if (a instanceof Attribute<?, ?> attr) sink.accept(attr);
                 }
             }
+            // M8-4 — EXTRACT: walk through the attribute argument (the column).
+            case Where.Extract x -> sink.accept(x.attr());
             case Where.AlwaysTrue ignored -> {}
             case Where.AlwaysFalse ignored -> {}
         }

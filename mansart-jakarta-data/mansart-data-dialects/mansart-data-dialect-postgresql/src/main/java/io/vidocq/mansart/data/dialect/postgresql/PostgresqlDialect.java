@@ -360,6 +360,8 @@ public final class PostgresqlDialect implements Dialect {
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
             // M8-2 — multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
             case Where.MultiArgFunc w -> renderMultiArgFunc(sb, w.fn(), w.args(), w.op(), plan);
+            // M8-4 — EXTRACT(date/time extraction: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND).
+            case Where.Extract w -> renderExtract(sb, w.field(), w.attr(), plan);
             case Where.AlwaysTrue _  -> sb.append("TRUE");
             case Where.AlwaysFalse _ -> sb.append("FALSE");
             default -> throw new IllegalArgumentException(
@@ -439,6 +441,14 @@ public final class PostgresqlDialect implements Dialect {
             }
         }
         sb.append(')').append(op);
+    }
+
+    /**
+     * M8-4 — render {@code EXTRACT(field FROM col) = ?} for date/time extraction.
+     */
+    private void renderExtract(StringBuilder sb, String field, io.vidocq.mansart.data.dialect.Attribute<?, ?> attr,
+                               Joins.Plan plan) {
+        sb.append("EXTRACT(").append(field).append(" FROM ").append(col(attr, plan)).append(") = ?");
     }
 
     private void appendOrderBy(StringBuilder sb, OrderBy orderBy, Joins.Plan plan) {

@@ -70,6 +70,7 @@ final class WhereBinder {
             // declared Java type.
             case Where.Func w -> psIdx = bindFunc(dialect, ps, w, args, psIdx, argCursor);
             case Where.MultiArgFunc w -> psIdx = bindMultiArgFunc(dialect, ps, w, args, psIdx, argCursor);
+            case Where.Extract w -> psIdx = bindOne(dialect, ps, psIdx, args, argCursor, w.attr().javaType());
             case Where.AlwaysTrue ignored3  -> { /* no bind */ }
             case Where.AlwaysFalse ignored4 -> { /* no bind */ }
         }

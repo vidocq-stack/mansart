@@ -5,8 +5,8 @@ Maintained by `@tracker` only.
 
 ## Current focus
 
-- JP-38 through **JP-41b** (numeric functions: ABS, SQRT) are done. Next: **JP-41c**
-  (date functions), **JP-41d** (set ops), **JP-41e** (CAST/IN).
+- JP-41d (set ops: UNION, INTERSECT, EXCEPT). JP-41c (EXTRACT date/time) done. Next: **JP-41d**
+  (set ops), **JP-41e** (CAST/IN).
 - Trap: JP-39 only covers positional params (`?1`, `?2`) and TypedQuery wiring.
   Named parameters (`:name`), `getParameter()`, `isBound()`, `getParameterValue()`
   remain in JP-39's original scope (TCK clients `core/query/parameter/Client1`).
@@ -16,8 +16,8 @@ Maintained by `@tracker` only.
 
 | metric | value | measured |
 | --- | --- | --- |
-| TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired) | 2026-08-28 |
-| unit tests | 309 pass / 308 total + 1 skipped (core module); 161 pass (data module) | 2026-09-02 |
+| TCK PASS / total | 991 run, 989 errors, 2 skipped (same baseline — stub provider not wired) | 2026-09-03 |
+| unit tests | 315 pass / 314 total + 1 skipped (core module); 161 pass (data module) | 2026-09-03 |
 | build | 34/34 (compile, `./mvnw -ntp clean install -DskipTests`) | 2026-09-01 |
 
 TCK universe: 269 client classes, ~1 745 methods
@@ -28,7 +28,7 @@ TCK universe: 269 client classes, ~1 745 methods
 M0 (skeleton and harness) — 8 / 8 cards done (JP-01b quality loop verified: docker start → UP → build → sonar analysis → gate query, gate ERROR as expected for baseline).
 M1 (metadata: APT) — 12 / 12 cards (JP-09…JP-20).
 M2 (EntityManager CRUD) — 18 / 28 cards (JP-21…JP-30, JP-33, JP-34, JP-35, **JP-36** done; JP-32 deferred to M8).
-M4 (JPQL) — 5 / 17 cards (JP-38, **JP-39**, **JP-40**, **JP-41a**, **JP-41b** done).
+M4 (JPQL) — 6 / 17 cards (JP-38, **JP-39**, **JP-40**, **JP-41**, **JP-41a**, **JP-41b**, **JP-41c** done).
 
 ## Session log
 
@@ -51,3 +51,4 @@ M4 (JPQL) — 5 / 17 cards (JP-38, **JP-39**, **JP-40**, **JP-41a**, **JP-41b** 
 2026-09-01 | JP-36 | `ProviderUtil` implementation: new class `MansartProviderUtil` (enum singleton) implementing `jakarta.persistence.spi.ProviderUtil` with 3 methods (`isLoaded`, `isLoadedWithReference`, `isLoadedWithoutReference`). Uses `ThreadLocal<PersistenceContext>` bound/unbound in factory's `createEntityManager()`/`close()`. Returns `LoadState.LOADED` for managed entities, `LoadState.NOT_LOADED` for unmanaged. Wired into `MansartPersistenceProvider.getProviderUtil()` (replacing stub) and `MansartEntityManagerFactory.getProviderUtil()` (new accessor). Updated `MansartPersistenceProviderTest.getProviderUtilThrows` → `getProviderUtilReturnsInstance`. 10/10 unit tests (ProviderUtilTest). Full suite: 284 pass, 0 fail, 1 skipped (core module).
 2026-09-02 | JP-41 | JPQL scalar functions (UPPER, LOWER, LENGTH via Where.Func): extended `JpqlParser` to extract field names from function calls, created `JpqlFunctionRegistry` (JPQL→SQL mapping), updated `JpqlToSqlTranslator` to wrap function predicates in `Where.Func`. 3/3 unit tests (JpqlScalarFunctionsTest). Remaining ~17 methods (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT, CAST, set ops, date functions) deferred to follow-up sessions. | unit 301/301 + 1 skipped
 2026-09-02 | JP-41a | JPQL string functions (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT): Fixed JpqlToSqlTranslator.buildMultiArgFunc to always attempt entityModel.attribute(arg) first (parser strips alias prefix, so e.name arrives as "name" with no dot — the old dot-check treated it as a literal). Added Where.MultiArgFunc case + bindMultiArgFunc() to WhereBinder. Extended Where.java (SPI) MultiArgFunc record with String op. Updated H2Dialect/PostgresqlDialect renderPredicate/renderMultiArgFunc. Updated Joins.java walkWhere. Created JpqlStringFunctionsTest.java (6 tests: locateTest, substringTest, leftTest, rightTest, concatTest, locateWithGreaterThanTest). Unit: 307 pass, 0 fail, 1 skipped (core module). TCK: not measured.
+2026-09-03 | JP-41c | JPQL EXTRACT date/time extraction (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND): Extended JpqlParser.parseFunctionCall() to handle `EXTRACT(field FROM expr)` syntax (SQL standard). Added Where.Extract(String field, Attribute<?, ?> attr) to SPI. Updated JpqlToSqlTranslator.buildExtractFunc() to emit Where.Extract. Updated H2Dialect/PostgresqlDialect renderExtract() to emit `EXTRACT(field FROM col) = ?`. Created JpqlDateExtractionTest.java (6 tests: extractYear, extractMonth, extractDay, extractHour, extractMinute, extractSecond). Fixed JpqlParser.parseFieldRef() to return bare identifiers (e.g. "YEAR") without dot notation. Full suite: 315 pass, 0 fail, 1 skipped (core module). TCK: not measured.

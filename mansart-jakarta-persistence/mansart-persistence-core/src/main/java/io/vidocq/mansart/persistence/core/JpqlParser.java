@@ -199,17 +199,29 @@ final class JpqlParser {
             return null;
         }
         
-        // Extract all arguments from the function call
+        // Extract all arguments from the function call.
+        // Special handling for EXTRACT(field FROM expr): the SQL standard
+        // uses "FROM" as a separator between the extraction field and the
+        // target expression, rather than commas.
         List<String> args = new ArrayList<>();
         String firstArg = parseFunctionArg();
         args.add(firstArg);
         
-        // Extract remaining arguments (comma-separated)
-        skipWhitespace();
-        while (match(",")) {
+        // For EXTRACT, check for the "FROM" keyword after the first argument.
+        // This handles the SQL standard EXTRACT(YEAR FROM col) syntax.
+        if ("EXTRACT".equals(funcName.toUpperCase())) {
             skipWhitespace();
-            args.add(parseFunctionArg());
+            if (matchKeyword("FROM")) {
+                args.add(parseFunctionArg());
+            }
+        } else {
+            // Non-EXTRACT: parse comma-separated arguments
             skipWhitespace();
+            while (match(",")) {
+                skipWhitespace();
+                args.add(parseFunctionArg());
+                skipWhitespace();
+            }
         }
         
         // Skip to closing paren (consume remaining depth)
@@ -318,8 +330,8 @@ final class JpqlParser {
                 skipWhitespace();
                 return parseIdentifier();
             } else {
-                // No dot — this is just a field name (or another function)
-                pos = start;
+                // Bare identifier (e.g. "YEAR" in EXTRACT(YEAR FROM ...)): return it
+                return query.substring(start, pos);
             }
         }
         

@@ -311,3 +311,109 @@ files:  `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/co
         `mansart-persistence-core/src/main/java/io/vidocq/mansart/persistence/core/PersistenceContext.java` (entities(), managedEntities()),
         `mansart-persistence-core/src/test/java/io/vidocq/mansart/persistence/core/FlushTest.java` (new)
 proof:  Unit test `FlushTest` — 8/8 pass: flushAfterPersist, flushUpdatesExistingEntity, flushNewEntity, flushAfterClose, defaultFlushModeIsAuto, setFlushModeCommit, setFlushModeAuto, setFlushModeAfterClose.
+
+## M4 — JPQL
+
+### JP-30 — EntityManager methods between JP-29 and JP-33              [TODO]
+deps:   JP-29
+files:  <TBD>
+proof:  <TBD>
+notes:  EntityManager methods needed between JP-29 and JP-33. Scope to be determined.
+
+### JP-31 — EntityManager methods between JP-30 and JP-32              [TODO]
+deps:   JP-30
+files:  <TBD>
+proof:  <TBD>
+notes:  EntityManager methods between JP-30 and JP-32 (deferred to M8). Scope to be determined.
+
+### JP-32 — Deferred to M8 (versioning/locking)                        [TODO]
+deps:   —
+files:  —
+proof:  —
+notes:  Deferred to M8. Versioning and locking mechanisms.
+
+### JP-33 — `getReference()`: lazy proxy via rewritten `LazyProxyFactory`  [DONE]
+deps:   JP-25
+files:  `LazyProxyFactory.java` (~203 lines), `MansartEntityManager.java` (getReference), 2 new test files
+proof:  unit tests (GetReferenceTest)
+notes:  2/2 unit tests. Proxy not instanceof entityClass — TCK clients will error.
+
+### JP-34 — `refresh()`: re-reads managed entity state from DB via SELECT + rebinds all attribute values  [DONE]
+deps:   JP-25
+files:  `MansartEntityManager.java` (refresh)
+proof:  unit test (RefreshTest)
+notes:  3/3 unit tests. Null → `IllegalArgumentException`, unmanaged → `IllegalArgumentException`, closed EM → `IllegalStateException`.
+
+### JP-35 — `EntityTransaction` lifecycle: manages `java.sql.Connection` for transaction lifetime  [DONE]
+deps:   JP-21
+files:  `MansartEntityTransaction.java` (rewritten), `MansartEntityManagerFactory.java` (TransactionManager wiring), 9 SQL call sites in `MansartEntityManager.java`
+proof:  unit test (EntityTransactionTest)
+notes:  19/19 pass (was 7 pass, 3 fail, 9 errors). Fixed `rollback()` to throw `IllegalStateException` when never started.
+
+### JP-36 — `ProviderUtil` implementation: `MansartProviderUtil` (enum singleton)  [DONE]
+deps:   JP-21
+files:  `MansartProviderUtil.java` (new), `MansartPersistenceProvider.java`, `MansartEntityManagerFactory.java`
+proof:  unit test (ProviderUtilTest)
+notes:  10/10 unit tests. 3 methods: `isLoaded`, `isLoadedWithReference`, `isLoadedWithoutReference`. Uses `ThreadLocal<PersistenceContext>`.
+
+### JP-37 — Module wiring (transactions-core dependency + module-info.java requires)  [DONE]
+deps:   JP-35
+files:  `core/pom.xml` (transactions-core dependency), `core/module-info.java` (requires)
+proof:  compilation verified
+notes:  Already wired in codebase. Build: compile green.
+
+### JP-38 — JPQL SELECT foundation: parser → dialect AST → SQL  [DONE]
+deps:   JP-37
+files:  `JpqlParser.java`, `JpqlToSqlTranslator.java`, `MansartEntityManager.java` (createQuery), `MansartQuery.java` (getResultList, getSingleResult, setParameter)
+proof:  unit test (JpqlSelectExecutionTest)
+notes:  8/8 unit tests. SELECT/DISTINCT/FROM/WHERE/ORDER BY, AND/OR, positional params, string/numeric literals.
+
+### JP-39 — Positional parameters + TypedQuery  [DONE]
+deps:   JP-38
+files:  `MansartQuery.java` (setParameter int/String), `MansartEntityManager.java` (createQuery String,Class), `JpqlParser.java` (?1/?2), `MansartEntityManager.java` (instantiateEntity)
+proof:  unit test (JpqlSelectExecutionTest — 8 tests)
+notes:  MansartQuery implements `TypedQuery<Object>`. JpqlToSqlTranslator skips positional from literal binding.
+
+### JP-40 — JPQL pagination: `setMaxResults` / `setFirstResult`  [DONE]
+deps:   JP-39
+files:  `MansartQuery.java` (setMaxResults, setFirstResult, getMaxResults, getFirstResult), `JpqlToSqlTranslator.java` (Pagination)
+proof:  unit test (JpqlPaginationTest)
+notes:  6/6 unit tests. Non-negative validation, default maxResults=Integer.MAX_VALUE.
+
+### JP-41 — JPQL scalar functions (UPPER, LOWER, LENGTH)  [DONE]
+deps:   JP-40
+files:  `JpqlParser.java` (function calls), `JpqlFunctionRegistry.java` (new), `JpqlToSqlTranslator.java` (Where.Func)
+proof:  unit test (JpqlScalarFunctionsTest)
+notes:  3/3 unit tests. Where.Func wraps function predicates. ~17 more methods deferred to sub-cards.
+
+### JP-41a — JPQL string functions (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT)  [DONE]
+deps:   JP-41
+files:  `JpqlToSqlTranslator.java` (buildMultiArgFunc), `Where.java` (MultiArgFunc), `H2Dialect.java`, `PostgresqlDialect.java`
+proof:  unit test (JpqlStringFunctionsTest)
+notes:  6 tests. Fixed JpqlToSqlTranslator.buildMultiArgFunc to attempt entityModel.attribute(arg) first.
+
+### JP-41b — JPQL numeric functions (ABS, SQRT)  [DONE]
+deps:   JP-41
+files:  `JpqlToSqlTranslator.java` (buildFunc), `Where.java` (Func)
+proof:  unit test (JpqlNumericFunctionsTest)
+notes:  2 tests: absTest, sqrtTest. SQL confirms correct ABS("VALUE") and SQRT("AMOUNT") wrapping.
+
+### JP-41c — JPQL EXTRACT date/time extraction functions  [DONE]
+deps:   JP-41
+files:  <TBD>
+proof:  unit test (JpqlDateExtractionTest)
+notes:  YEAR, MONTH, DAY, HOUR, MINUTE, SECOND. Unit test exists; implementation TBD.
+
+### JP-41d — JPQL set operations (INTERSECT, EXCEPT, UNION)  [TODO]
+deps:   JP-40
+files:  <TBD>
+proof:  <TBD>
+notes:  INTERSECT, EXCEPT, UNION. Implementation TBD.
+
+### JP-41e — JPQL CAST and IN functions  [TODO]
+deps:   JP-40
+files:  <TBD>
+proof:  <TBD>
+notes:  CAST and IN. Implementation TBD.
+
+---

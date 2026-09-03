@@ -367,6 +367,8 @@ public final class H2Dialect implements Dialect {
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
             // M8-2 — multi-argument scalar function (LOCATE, SUBSTRING, LEFT, RIGHT, CONCAT).
             case Where.MultiArgFunc w -> renderMultiArgFunc(sb, w.fn(), w.args(), w.op(), plan);
+            // M8-4 — EXTRACT(date/time extraction: YEAR, MONTH, DAY, HOUR, MINUTE, SECOND).
+            case Where.Extract w -> renderExtract(sb, w.field(), w.attr(), plan);
             case Where.AlwaysTrue ignored  -> sb.append("1=1");
             case Where.AlwaysFalse ignored -> sb.append("1=0");
             default -> throw new IllegalArgumentException(
@@ -449,6 +451,14 @@ public final class H2Dialect implements Dialect {
             }
         }
         sb.append(')').append(op);
+    }
+
+    /**
+     * M8-4 — render {@code EXTRACT(field FROM col) <op> ?} for date/time extraction.
+     */
+    private void renderExtract(StringBuilder sb, String field, io.vidocq.mansart.data.dialect.Attribute<?, ?> attr,
+                               Joins.Plan plan) {
+        sb.append("EXTRACT(").append(field).append(" FROM ").append(col(attr, plan)).append(")").append(" = ?");
     }
 
     private void appendFnLhs(StringBuilder sb, String sqlFn, String qualifiedColumn, String tail) {

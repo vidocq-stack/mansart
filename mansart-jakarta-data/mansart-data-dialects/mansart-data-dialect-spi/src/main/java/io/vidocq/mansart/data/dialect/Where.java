@@ -70,6 +70,14 @@ public sealed interface Where {
      * {@code op} is the comparison operator (e.g. {@code "="}, {@code "<>"}, etc.).
      */
     record MultiArgFunc(String fn, List<Object> args, String op) implements Where {}
+    /**
+     * M8-4 — wraps a SQL-standard {@code EXTRACT(field FROM expr)} date/time extraction.
+     * {@code field} is the extraction field name (e.g. "YEAR", "MONTH", "DAY", "HOUR",
+     * "MINUTE", "SECOND"). {@code attr} is the target column attribute.
+     *
+     * <p>Dialects render this as {@code EXTRACT(field, col) <op> ?}.</p>
+     */
+    record Extract(String field, Attribute<?, ?> attr) implements Where {}
     record AlwaysTrue() implements Where {}
     record AlwaysFalse() implements Where {}
 

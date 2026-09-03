@@ -101,6 +101,12 @@ final class JpqlToSqlTranslator {
         // Check this FIRST, before trying to look up fieldName as an attribute
         // (for multi-arg functions, fieldName is the first argument, which may be a literal)
         if (!args.isEmpty() && !JpqlFunctionRegistry.isFuncFunction(func)) {
+            // Special case: EXTRACT(field FROM expr) — the first argument is the
+            // extraction field name (a string literal like "YEAR"), the rest are
+            // column references. Emit a Where.Extract node.
+            if ("EXTRACT".equals(func)) {
+                return buildExtractFunc(args, predicate.op());
+            }
             return buildMultiArgFunc(func, args, predicate.op());
         }
 
@@ -122,6 +128,30 @@ final class JpqlToSqlTranslator {
         }
         
         return buildSingleWhereBase(attr, predicate.op());
+    }
+
+    /**
+     * Builds a Where node for an EXTRACT date/time extraction function.
+     * The first argument is the extraction field name (e.g. "YEAR"),
+     * the remaining arguments are column references.
+     */
+    private Where buildExtractFunc(List<String> args, String op) {
+        // First arg is the extraction field name (string literal)
+        String field = args.get(0);
+        // Remaining args are column references
+        if (args.size() < 2) {
+            throw new IllegalArgumentException("EXTRACT requires at least 2 arguments: field and column");
+        }
+        java.util.Optional<? extends io.vidocq.mansart.data.dialect.Attribute<?, ?>> attrOpt =
+                entityModel.attribute(args.get(1));
+        if (attrOpt.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Unknown column in EXTRACT: " + args.get(1));
+        }
+        @SuppressWarnings("unchecked")
+        io.vidocq.mansart.data.dialect.Attribute<?, ?> attr =
+                (io.vidocq.mansart.data.dialect.Attribute<?, ?>) (Object) attrOpt.get();
+        return new Where.Extract(field, attr);
     }
 
     /**
