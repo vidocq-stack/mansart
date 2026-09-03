@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    POM racine agrégateur ET parent des trois sous-réactors.
-    Les trois sous-projets (mansart-pool, mansart-jakarta-data, mansart-transactions) parentent
+    POM racine agrégateur ET parent des quatre sous-réactors.
+    Les quatre sous-projets (mansart-pool, mansart-jakarta-data, mansart-transactions, mansart-jakarta-persistence) parentent
     ce POM (qui lui-même parente vidocq-parent), formant ainsi un réacteur Maven UNIFIÉ.
-    Cela permet à `mvn versions:set` de versionner les 21 modules en une seule passe,
+    Cela permet à `mvn versions:set` de versionner les modules en une seule passe,
     condition nécessaire au bon fonctionnement du CI de release.
 
     Ce POM est déployé sur Maven Central (maven.deploy.skip=false) : packaging=pom, donc
     seul le .pom est publié (pas de jar). C'est OBLIGATOIRE car il est le parent de
-    mansart-pool / mansart-jakarta-data / mansart-transactions — un consommateur externe
+    mansart-pool / mansart-jakarta-data / mansart-transactions / mansart-jakarta-persistence — un consommateur externe
     (CI vidocq résolvant mansart depuis central-snapshots, hors reactor local) a besoin de
     toute la chaîne de parents pour lire le descripteur d'un artefact enfant. L'exclure
     cassait la résolution (mansart-root:pom absent → mansart-pool-api irrésoluble).
@@ -32,7 +32,7 @@
     <packaging>pom</packaging>
 
     <name>Mansart :: Workspace</name>
-    <description>Aggregator for the three independent Mansart reactors — pool, jakarta-data, transactions.</description>
+    <description>Aggregator for the four independent Mansart reactors — pool, jakarta-data, transactions, jakarta-persistence.</description>
     <url>https://codefloe.com/Vidocq/mansart</url>
 
     <scm>
@@ -87,5 +87,6 @@
         <module>mansart-pool</module>
         <module>mansart-jakarta-data</module>
         <module>mansart-transactions</module>
+        <module>mansart-jakarta-persistence</module>
     </modules>
 </project>
