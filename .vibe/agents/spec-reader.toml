@@ -1,0 +1,25 @@
+# Read-only oracle for whatever spec + TCK sources the current target
+# implements — portable, not specific to any one spec (§14). Direct port
+# of OpenCode's `spec-reader`: one question in, one cited answer out
+# (~40 lines), so the caller never has to load the spec/TCK into its own
+# window. The only agent with web_fetch allowed (jakarta.ee / openjdk.org —
+# see .vibe/config.toml [tools.web_fetch]; extend that allowlist with the
+# target spec's own domain if it isn't a Jakarta spec).
+
+display_name = "Spec Reader"
+description = "Read-only spec/TCK oracle for the current target (Medium 3.5). Answers one question with a citation; never writes code."
+safety = "safe"
+agent_type = "subagent"
+
+active_model = "mistral-medium-3.5"
+enabled_tools = ["grep", "read_file", "skill", "web_fetch", "bash"]
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"
+
+[tools.bash]
+permission = "ask"
+allowlist = ["find", "grep", "rg", "sed", "ls", "cat"]

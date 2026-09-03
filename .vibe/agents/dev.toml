@@ -1,0 +1,44 @@
+# Primary agent — portable across any project using this method: copy
+# .vibe/agents/ and .vibe/skills/{bootstrap-plan,model-discipline}/
+# as-is, write a fresh AGENTS.md "Current active work" section and one
+# project-architecture skill for the new target. Not specific to any spec
+# or sub-module: Medium 3.5 for
+# orchestration/reasoning, delegating pure code-writing to the `coder`
+# subagent (Small 4) via the `task` tool. What it's actually working on
+# comes from AGENTS.md's "Current active work" section (or whatever
+# equivalent the target project defines) and the project-architecture
+# skill that section points at — never hardcoded here.
+#
+# The session protocol and non-negotiable engineering rules live in the
+# project's own AGENTS.md (auto-injected) — NOT here. `system_prompt_id`
+# is left unset so this agent keeps Vibe's built-in "cli" scaffolding
+# (tone, tool-use policy) and AGENTS.md layers on top of it, rather than
+# replacing it outright the way the `lean`/`explore` builtins do.
+
+display_name = "Dev"
+description = "Lead developer for the project's current target (Medium 3.5). Full-auto edits, delegates code-writing to coder."
+safety = "destructive"
+agent_type = "agent"
+
+active_model = "mistral-medium-3.5"
+disabled_tools = ["exit_plan_mode"]
+
+[tools.write_file]
+permission = "always"
+
+[tools.edit]
+permission = "always"
+
+# Pre-approve delegation to our own subagent roster (+ the builtin `explore`)
+# so a session doesn't stall on a permission prompt for every `task` call.
+[tools.task]
+allowlist = [
+    "explore",
+    "coder",
+    "spec-reader",
+    "tck-runner",
+    "auditor",
+    "tracker",
+    "guardian",
+    "thinker",
+]

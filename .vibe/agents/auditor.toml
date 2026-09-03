@@ -1,0 +1,34 @@
+# Anti-drift auditor. Direct port of OpenCode's `auditor`: hunts fake
+# implementations, runtime reflection, TCK knowledge leaking into main
+# sources, disabled/narrowed tests, and module/dependency violations — the
+# five patterns that stalled the previous local-model attempt at 2/1745 TCK
+# PASS (see the root AGENTS.md and PREPARE_OPENCODE.md on branch
+# ybl/jpa-opencode). Never fixes anything; only reports. Medium
+# 3.5: this needs judgment, not code generation.
+
+display_name = "Auditor"
+description = "Anti-drift review (Medium 3.5): stubs, reflection, TCK leakage, disabled tests, module violations. Read-only, reports only."
+safety = "safe"
+agent_type = "subagent"
+
+active_model = "mistral-medium-3.5"
+enabled_tools = ["grep", "read_file", "skill", "bash"]
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"
+
+[tools.bash]
+permission = "ask"
+allowlist = [
+    "git diff",
+    "git log",
+    "git status",
+    "find",
+    "grep",
+    "rg",
+    "sed",
+    "ls",
+]

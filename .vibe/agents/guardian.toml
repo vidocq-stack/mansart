@@ -1,0 +1,36 @@
+# Consolidates OpenCode's module-guardian + dependency-gatekeeper +
+# virtual-threads-reviewer into one review subagent (kept separate there
+# because all agents shared one weak local model and needed narrow, sharp
+# prompts; a single well-scoped checklist is more efficient here). Split it
+# back out if reviews get noisy. Also the security backstop: known-
+# vulnerable dependencies and Sonar security hotspots/vulnerabilities on
+# new code — see the `vidocq-quality` skill. Read-only, reports only.
+# Medium 3.5: needs judgment against four separate rule sets in one pass.
+
+display_name = "Guardian"
+description = "Reviews Java module declarations, POM dependencies (zero-dependency + known vulnerabilities), virtual-thread/concurrency hygiene, and Sonar security findings on new code (Medium 3.5). Read-only."
+safety = "safe"
+agent_type = "subagent"
+
+active_model = "mistral-medium-3.5"
+enabled_tools = ["grep", "read_file", "skill", "bash"]
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"
+
+[tools.bash]
+permission = "ask"
+allowlist = [
+    "git diff",
+    "git log",
+    "git status",
+    "find",
+    "grep",
+    "rg",
+    "sed",
+    "ls",
+    "curl http://localhost:9001",
+]

@@ -1,0 +1,39 @@
+# Owns STATUS.md and TASKS.md only. Direct port of OpenCode's `tracker`:
+# writes real, measured numbers so the next session starts from ~1k tokens
+# instead of re-reading the repo. The job is mechanical, given explicit
+# numbers to record — never invent one — so Mistral Small 4 (GA, see the
+# `model-discipline` skill) is plenty.
+#
+# write_file/edit allowlists are PATH globs (distinct from bash's
+# command-prefix matching — see .vibe/config.toml) restricting this agent
+# to files named exactly STATUS.md/TASKS.md, one level under any mansart
+# sub-module directory — generalized so /bootstrap-plan (and normal
+# sessions) work the same way for mansart-transactions, mansart-pool, etc.,
+# not just mansart-jakarta-persistence; anything else falls through to "ask".
+
+display_name = "Tracker"
+description = "Owns each sub-module's STATUS.md and TASKS.md: records measured numbers, never invents one. Touches no other file."
+safety = "neutral"
+agent_type = "subagent"
+
+active_model = "mistral-small-4"
+# active_model = "devstral-local"   # free, local via oMLX — needs the server up
+# active_model = "mistral-medium-3.5"   # fallback if this ever misrecords
+
+[tools.write_file]
+permission = "ask"
+allowlist = [
+    "*/STATUS.md",
+    "*/TASKS.md",
+]
+
+[tools.edit]
+permission = "ask"
+allowlist = [
+    "*/STATUS.md",
+    "*/TASKS.md",
+]
+
+[tools.bash]
+permission = "ask"
+allowlist = ["git log", "git status", "git diff", "grep", "sed", "ls"]

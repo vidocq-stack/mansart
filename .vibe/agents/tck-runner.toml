@@ -1,0 +1,42 @@
+# Runs the current target's official TCK and reports the real pass/total
+# numbers read from surefire, never edits main sources. The job is
+# mechanical (run script, parse XML, report) — Mistral Small 4 (GA, see
+# the `model-discipline` skill) is plenty. Portable across projects — which
+# TCK, and how to run it, comes from the project's own architecture skill,
+# not from anything hardcoded here.
+#
+# The TCK runner script's exact path is project- (and often sub-module-)
+# specific, so it is deliberately NOT allowlisted below — it falls through
+# to "ask" the first time, once per project. Add it explicitly here once
+# known (bash allowlist entries are literal command PREFIXES, not globs —
+# see .vibe/config.toml) if the extra confirmation becomes annoying.
+
+display_name = "TCK Runner"
+description = "Runs the current target's out-of-reactor TCK and reports measured pass/total numbers. Never edits sources."
+safety = "neutral"
+agent_type = "subagent"
+
+active_model = "mistral-small-4"
+# active_model = "devstral-local"   # free, local via oMLX — needs the server up
+# active_model = "mistral-medium-3.5"   # fallback if numbers ever look wrong
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"
+
+[tools.bash]
+permission = "ask"
+allowlist = [
+    "cd",
+    "./mvnw",
+    "mvn",
+    "find",
+    "grep",
+    "rg",
+    "sed",
+    "ls",
+    "cat",
+    "wc",
+]

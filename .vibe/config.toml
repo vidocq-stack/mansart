@@ -1,0 +1,129 @@
+default_agent = "dev"
+applied_migrations = [
+    "bash_read_only_defaults_v1",
+]
+
+[[providers]]
+name = "mistral"
+api_base = "https://api.mistral.ai/v1"
+api_key_env_var = "MISTRAL_API_KEY"
+api_style = "openai"
+backend = "mistral"
+
+[[providers]]
+name = "omlx"
+api_base = "http://127.0.0.1:8000/v1"
+api_key_env_var = "OMLX_API_KEY"
+api_style = "openai"
+backend = "generic"
+
+[[models]]
+name = "mistral-vibe-cli-latest"
+provider = "mistral"
+alias = "mistral-medium-3.5"
+temperature = 1.0
+thinking = "max"
+supports_images = true
+input_price = 1.5
+output_price = 7.5
+cached_input_price = 0.15
+auto_compact_threshold = 150000
+
+[[models]]
+name = "mistral-small-latest"
+provider = "mistral"
+alias = "mistral-small-4"
+temperature = 0.2
+thinking = "off"
+supports_images = true
+input_price = 0.15
+output_price = 0.6
+cached_input_price = 0.015
+auto_compact_threshold = 150000
+
+[[models]]
+name = "Devstral-Small-2-24B-Instruct-2512-8bit"
+provider = "omlx"
+alias = "devstral-local"
+temperature = 0.15
+thinking = "off"
+input_price = 0.0
+output_price = 0.0
+auto_compact_threshold = 150000
+active_model = "mistral-medium-3.5"
+
+[compaction_model]
+name = "mistral-small-latest"
+provider = "mistral"
+alias = "compactor"
+temperature = 0.2
+thinking = "off"
+
+[tools.bash]
+permission = "ask"
+allowlist = [
+    "./mvnw",
+    "basename",
+    "cat",
+    "cd",
+    "comm",
+    "curl http://localhost:8080",
+    "curl http://localhost:9001",
+    "cut",
+    "date",
+    "diff",
+    "dirname",
+    "docker start vidocq-sonar",
+    "docker stop vidocq-sonar",
+    "du",
+    "echo",
+    "file",
+    "find",
+    "fmt",
+    "fold",
+    "git add",
+    "git branch",
+    "git commit",
+    "git diff",
+    "git log",
+    "git show",
+    "git status",
+    "grep",
+    "head",
+    "join",
+    "less",
+    "ls",
+    "md5sum",
+    "more",
+    "mvn",
+    "nl",
+    "od",
+    "paste",
+    "pwd",
+    "readlink",
+    "rg",
+    "rtk",
+    "sed",
+    "sha1sum",
+    "sha256sum",
+    "shasum",
+    "sort",
+    "stat",
+    "sum",
+    "tac",
+    "tail",
+    "tr",
+    "tree",
+    "uname",
+    "uniq",
+    "wc",
+    "which",
+    "whoami",
+]
+
+[tools.web_fetch]
+allowlist = [
+    "jakarta.ee",
+    "openjdk.org",
+    "docs.mistral.ai",
+]
