@@ -37,6 +37,30 @@ public interface Dialect {
     SqlFragment select(EntityModel<?> model, Where where, OrderBy orderBy, Pagination pagination);
 
     /**
+     * M4-41d — renders a set operation (UNION, INTERSECT, EXCEPT) combining
+     * multiple sub-queries. Each sub-query is translated independently and
+     * combined with the set operation keyword.
+     *
+     * @param setOp the set operation type
+     * @param subQueries the individual sub-queries (opaque to the dialect)
+     * @param subEntityModels the entity model for each sub-query
+     * @param subPagination the pagination settings for each sub-query
+     * @return the combined SQL fragment
+     */
+    default SqlFragment selectSet(SetOpType setOp, Object[] subQueries,
+            java.util.List<EntityModel<?>> subEntityModels,
+            java.util.List<Pagination> paginationList) {
+        throw new UnsupportedOperationException("selectSet not implemented by " + name());
+    }
+
+    /**
+     * Set operation type for combined queries (UNION, INTERSECT, EXCEPT).
+     */
+    enum SetOpType {
+        NONE, UNION, INTERSECT, EXCEPT
+    }
+
+    /**
      * M8-3 — variant of {@link #select} that selects a custom column list (one or many) instead
      * of the entity's full row. Used by JDQL aggregates (passing a single {@code aggExpr}-shaped
      * column entry), single-attribute projections, and multi-attribute projections — all of

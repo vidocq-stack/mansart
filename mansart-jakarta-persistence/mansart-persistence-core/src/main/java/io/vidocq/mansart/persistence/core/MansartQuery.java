@@ -86,8 +86,36 @@ final class MansartQuery implements jakarta.persistence.Query,
         } else {
             pagination = new Pagination.Offset(firstResult, maxResults);
         }
-        SqlFragment fragment = new JpqlToSqlTranslator(
-                jpqlQuery, entityModel, dialect).translate(pagination);
+
+            // Check for set operations (UNION, INTERSECT, EXCEPT)
+            List<JpqlQuery> subQueries = jpqlQuery.subQueries();
+            SqlFragment fragment;
+            if (!subQueries.isEmpty()) {
+                // Resolve entity models for each sub-query
+                java.util.List<EntityModel<?>> subEntityModels =
+                        new java.util.ArrayList<>(subQueries.size());
+                java.util.List<Pagination> paginationList =
+                        new java.util.ArrayList<>(subQueries.size());
+                for (int i = 0; i < subQueries.size(); i++) {
+                    JpqlQuery sq = subQueries.get(i);
+                    String entityName = sq.entityName();
+                    @SuppressWarnings("unchecked")
+                    Class<?> entityClass = entityManager.getEntityManagerFactory()
+                            .getMetamodel().entity(entityName).getJavaType();
+                    @SuppressWarnings("unchecked")
+                    EntityModel<?> em = ((MansartEntityManagerFactory)
+                            entityManager.getEntityManagerFactory())
+                            .getEntityModel(entityClass);
+                    subEntityModels.add(em);
+                    paginationList.add(pagination);
+                }
+                fragment = new JpqlToSqlTranslator(
+                        jpqlQuery, entityModel, dialect)
+                        .translateSetOperation(pagination, subEntityModels, paginationList);
+            } else {
+                fragment = new JpqlToSqlTranslator(
+                        jpqlQuery, entityModel, dialect).translate(pagination);
+            }
         String sql = fragment.sql();
         System.out.println("DEBUG SQL: " + sql);
 

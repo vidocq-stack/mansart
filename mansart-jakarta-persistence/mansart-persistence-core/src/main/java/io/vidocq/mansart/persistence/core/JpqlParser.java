@@ -35,7 +35,11 @@ final class JpqlParser {
     /**
      * Parses the query into an AST.
      *
-     * @return the parsed query AST
+     * <p>Supports single queries and set operations:
+     * {@code SELECT [DISTINCT] e FROM Entity e [WHERE expr] [ORDER BY expr [ASC|DESC]]
+     * [UNION|INTERSECT|EXCEPT SELECT ...]}.</p>
+     *
+     * @return the parsed query AST (or set operation with sub-queries)
      * @throws IllegalArgumentException if the query is not a supported SELECT
      */
     JpqlQuery parse() {
@@ -73,8 +77,85 @@ final class JpqlParser {
             parseOrderByClause(orderBys);
         }
 
+        // Check for set operation (UNION, INTERSECT, EXCEPT)
+        if (matchKeyword("UNION")) {
+            return parseSetOperation(JpqlQuery.SetOpType.UNION,
+                    entityName, selectAlias, fromAlias, distinct,
+                    predicates, orderBys);
+        }
+        if (matchKeyword("INTERSECT")) {
+            return parseSetOperation(JpqlQuery.SetOpType.INTERSECT,
+                    entityName, selectAlias, fromAlias, distinct,
+                    predicates, orderBys);
+        }
+        if (matchKeyword("EXCEPT")) {
+            return parseSetOperation(JpqlQuery.SetOpType.EXCEPT,
+                    entityName, selectAlias, fromAlias, distinct,
+                    predicates, orderBys);
+        }
+
         return new JpqlQuery(entityName, selectAlias, fromAlias, distinct,
                 predicates, orderBys);
+    }
+
+    /**
+     * Parses a set operation: the first query plus one or more subsequent
+     * SELECT queries combined with the given set operation type.
+     */
+    private JpqlQuery parseSetOperation(JpqlQuery.SetOpType setOp,
+                                        String entityName, String selectAlias,
+                                        String fromAlias, boolean distinct,
+                                        List<JpqlPredicate> predicates,
+                                        List<JpqlOrderBy> orderBys) {
+        // Build the first (head) query — its setOp is NONE
+        JpqlQuery head = new JpqlQuery(entityName, selectAlias, fromAlias,
+                distinct, predicates, orderBys);
+
+        // Parse subsequent SELECT queries
+        List<JpqlQuery> subQueries = new ArrayList<>();
+        subQueries.add(head);
+
+        while (true) {
+            skipWhitespace();
+            if (!matchKeyword("SELECT")) {
+                break;
+            }
+
+            // Optional DISTINCT for sub-query
+            boolean subDistinct = matchKeyword("DISTINCT");
+
+            // SELECT clause
+            String subSelectAlias = parseSelectClause();
+
+            // FROM clause
+            expectKeyword("FROM");
+            String subEntityName = parseIdentifier();
+            String subFromAlias = subEntityName;
+            skipWhitespace();
+            if (pos < query.length() && (Character.isLetter(query.charAt(pos))
+                    || query.charAt(pos) == '_')) {
+                subFromAlias = parseIdentifier();
+            }
+
+            // WHERE clause
+            List<JpqlPredicate> subPredicates = new ArrayList<>();
+            if (matchKeyword("WHERE")) {
+                parseWhereClause(subPredicates);
+            }
+
+            // ORDER BY clause
+            List<JpqlOrderBy> subOrderBys = new ArrayList<>();
+            if (matchKeyword("ORDER")) {
+                expectKeyword("BY");
+                parseOrderByClause(subOrderBys);
+            }
+
+            subQueries.add(new JpqlQuery(subEntityName, subSelectAlias,
+                    subFromAlias, subDistinct, subPredicates, subOrderBys));
+        }
+
+        return new JpqlQuery(null, null, null, false, List.of(), List.of(),
+                setOp, subQueries);
     }
 
     private String parseSelectClause() {

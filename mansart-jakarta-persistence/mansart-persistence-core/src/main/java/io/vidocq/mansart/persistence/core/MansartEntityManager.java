@@ -1150,6 +1150,10 @@ final class MansartEntityManager implements EntityManager {
 
         // Look up the entity by name via the metamodel, then get the entity model.
         String entityName = query.entityName();
+        // For set operations, use the first sub-query's entity name.
+        if (entityName == null && !query.subQueries().isEmpty()) {
+            entityName = query.subQueries().get(0).entityName();
+        }
         jakarta.persistence.metamodel.EntityType<?> entityType =
                 factory.getMetamodel().entity(entityName);
         Class<?> entityClass = entityType.getJavaType();
@@ -1435,8 +1439,7 @@ final class MansartEntityManager implements EntityManager {
     @Override
     public EntityManagerFactory getEntityManagerFactory() {
         checkClosed();
-        throw new UnsupportedOperationException(
-                "not implemented: getEntityManagerFactory");
+        return factory;
     }
 
     @Override

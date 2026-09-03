@@ -16,6 +16,11 @@ import java.util.List;
  *
  * <p>Fields: entity name, select alias, from alias, distinct flag,
  * WHERE predicates, and ORDER BY items.</p>
+ *
+ * <p>For set operations (UNION, INTERSECT, EXCEPT), {@code setOp} holds
+ * the operation type of the combined result, and {@code subQueries}
+ * contains all individual queries (the first query's setOp is always
+ * {@code null}).</p>
  */
 record JpqlQuery(
         String entityName,
@@ -23,5 +28,24 @@ record JpqlQuery(
         String fromAlias,
         boolean distinct,
         List<JpqlPredicate> predicates,
-        List<JpqlOrderBy> orderBys) {
+        List<JpqlOrderBy> orderBys,
+        SetOpType setOp,
+        List<JpqlQuery> subQueries) {
+
+    /**
+     * Creates a simple (non-set-operation) query.
+     */
+    JpqlQuery(String entityName, String selectAlias, String fromAlias,
+              boolean distinct, List<JpqlPredicate> predicates,
+              List<JpqlOrderBy> orderBys) {
+        this(entityName, selectAlias, fromAlias, distinct, predicates,
+                orderBys, SetOpType.NONE, List.of());
+    }
+
+    /**
+     * Set operation type for combined queries.
+     */
+    enum SetOpType {
+        NONE, UNION, INTERSECT, EXCEPT
+    }
 }

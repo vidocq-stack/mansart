@@ -80,6 +80,56 @@ final class JpqlToSqlTranslator {
         return dialect.select(entityModel, where, orderBy, pagination);
     }
 
+    /**
+     * Translates a set operation (UNION, INTERSECT, EXCEPT) into SQL.
+     *
+     * <p>Each sub-query is translated independently using a dedicated
+     * translator, and the results are combined with the set operation
+     * keyword.</p>
+     *
+     * @param pagination the pagination settings (offset, limit)
+     * @param subEntityModels the entity models for each sub-query
+     * @param paginationList the pagination settings for each sub-query
+     * @return the combined SQL fragment with bind sites
+     */
+    SqlFragment translateSetOperation(Pagination pagination,
+                                      List<io.vidocq.mansart.data.dialect.EntityModel<?>> subEntityModels,
+                                      List<Pagination> paginationList) {
+        StringBuilder sb = new StringBuilder();
+        java.util.List<SqlFragment.BindSite> allBinds =
+                new java.util.ArrayList<>();
+
+        List<JpqlQuery> subQueries = query.subQueries();
+        for (int i = 0; i < subQueries.size(); i++) {
+            JpqlQuery sq = subQueries.get(i);
+            EntityModel<?> em = subEntityModels.get(i);
+            Pagination sp = (i < paginationList.size()) ? paginationList.get(i) : Pagination.NONE;
+
+            // Create a dedicated translator for this sub-query
+            JpqlToSqlTranslator subTranslator =
+                    new JpqlToSqlTranslator(sq, em, dialect);
+
+            // Build the sub-query SQL using the dialect's select method
+            SqlFragment subFragment = subTranslator.translate(sp);
+
+            if (i > 0) {
+                String op = switch (query.setOp()) {
+                    case UNION -> " UNION ";
+                    case INTERSECT -> " INTERSECT ";
+                    case EXCEPT -> " EXCEPT ";
+                    default -> throw new IllegalStateException("Unknown set op: " + query.setOp());
+                };
+                sb.append(op);
+            }
+            sb.append(subFragment.sql());
+
+            // Collect bind sites from all sub-queries
+            allBinds.addAll(subFragment.binds());
+        }
+
+        return new SqlFragment(sb.toString(), allBinds);
+    }
+
     private Where buildWhere() {
         List<JpqlPredicate> predicates = query.predicates();
         if (predicates.isEmpty()) {
