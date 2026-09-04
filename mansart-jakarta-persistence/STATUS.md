@@ -1,7 +1,7 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M2-JP-18 — external-it
+- **Card**: M2-JP-16 — Lazy association proxies
 - **Milestone**: M2
 
 ## 📊 Milestone Progress Overview
@@ -10,7 +10,7 @@
 |----------|----------|------|------------|--------|
 | **M0** | 7 | 7 | **100%** | ✅ DONE |
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
-| **M2** | 5 | 3 | **60%** | 🟡 IN_PROGRESS |
+| **M2** | 5 | 4 | **80%** | 🟡 IN_PROGRESS |
 | **M3** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,14 +29,15 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **15** | **13.4%** | |
+| **TOTAL** | **112** | **16** | **14.3%** | |
 
 ---
 
 ## Metrics (M0)
 - **Baseline TCK**: 2/0/2 PASS (2 ProviderDiscoveryTest PASS, harness works, provider discoverable, build green)
 - **Unit Tests**: 2/2 PASS (ProviderDiscoveryTest)
-- **Integration Tests**: 0/0 (not measured)
+- **Integration Tests**: 11/11 PASS (ExternalEntityIT)
+- **TCK Errors**: 0 (not measured)
 - **TCK Errors**: 0 (not measured)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -64,7 +65,7 @@
 - **M2-JP-15** ✅ **DONE** — Class-File API parsing — reads class file bytes, extracts annotations using Java 26 Class-File API, generates EntityMetadata
 - **M2-JP-16** 🟡 IN_PROGRESS — Lazy association proxies for external entities — real subclasses generated, never java.lang.reflect.Proxy
 - **M2-JP-17** ✅ **DONE** — external-lib — JAR with test entities (ExternalPerson, ExternalDepartment) no Mansart deps
-- **M2-JP-18** 🟡 IN_PROGRESS — external-it — integration tests asserting tier-1 ≈ tier-2 behavior
+- **M2-JP-18** ✅ **DONE** — external-it — integration tests asserting tier-1 ≈ tier-2 behavior
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
@@ -78,6 +79,7 @@
 - Added maven-dependency-plugin to unpack TCK jars (persistence-tck-spec-tests, persistence-tck-common, common, signaturetest) to test-classes
 - TCK Client classes (160+ Client classes from 269 client classes total, ~1745 test methods) are now in test-classes but JUnit Jupiter cannot discover JavaTest harness tests
 - Current baseline: 2/0/2 PASS (ProviderDiscoveryTest only)
+- M2-JP-18: Fixed ClassFileParser to properly parse JPA annotations via Java 26 Class-File API (RuntimeVisibleAnnotationsAttribute/RuntimeInvisibleAnnotationsAttribute), fixed Mojo phase to PROCESS_CLASSES, added proper _Entity and Entity_ generation with correct Java types, configured external-lib pom.xml with mansart-persistence-maven-plugin, wrote 11 integration tests in ExternalEntityIT (all pass). auditor/SonarQube deferred to BeanVal completion.
 
 ---
 *Generated for milestone M0. All numbers are not measured unless stated otherwise.*
