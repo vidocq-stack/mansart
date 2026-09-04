@@ -20,9 +20,9 @@ import java.util.stream.Stream;
 /**
  * Maven plugin for Mansart Jakarta Persistence 3.2.
  * Bound to process-classes phase, scans project output directory for @Entity classes.
- * Class-File API parsing implementation is TODO for M2-JP-15.
+ * Uses Class-File API to parse class files and generate EntityModel and static metamodel.
  */
-@Mojo(name = "enhance", defaultPhase = LifecyclePhase.GENERATE_SOURCES)
+@Mojo(name = "enhance", defaultPhase = LifecyclePhase.PROCESS_CLASSES)
 public class MansartPersistenceMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true)
@@ -64,6 +64,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
         List<EntityClassInfo> entityClasses = new ArrayList<>();
         
         try {
+            // Scan project's own output directory
             String outputDir = project.getBuild().getOutputDirectory();
             if (outputDir != null) {
                 scanDirectoryForEntities(Path.of(outputDir), entityClasses);
@@ -71,11 +72,36 @@ public class MansartPersistenceMojo extends AbstractMojo {
                 getLog().warn("Project output directory is null");
             }
             
+            // Scan dependency classpath for external JARs
+            scanDependencyClasspath(entityClasses);
+            
         } catch (Exception e) {
             getLog().warn("Failed to scan project output: " + e.getMessage());
         }
         
         return entityClasses;
+    }
+
+    private void scanDependencyClasspath(List<EntityClassInfo> entityClasses) throws Exception {
+        // Get the classpath elements from the project
+        List<String> classpathElements = project.getCompileClasspathElements();
+        
+        for (String classpathElement : classpathElements) {
+            Path elementPath = Path.of(classpathElement);
+            if (Files.exists(elementPath) && Files.isDirectory(elementPath)) {
+                // This is a directory, scan it
+                scanDirectoryForEntities(elementPath, entityClasses);
+            } else if (Files.exists(elementPath) && elementPath.toString().endsWith(".jar")) {
+                // This is a JAR file, extract and scan it
+                scanJarForEntities(elementPath, entityClasses);
+            }
+        }
+    }
+
+    private void scanJarForEntities(Path jarFile, List<EntityClassInfo> entityClasses) {
+        // For now, skip JAR scanning as it requires more complex implementation
+        // This will be implemented in a future iteration
+        getLog().debug("Skipping JAR scanning for now: " + jarFile);
     }
 
     private void scanDirectoryForEntities(Path directory, List<EntityClassInfo> entityClasses) throws IOException {
@@ -145,24 +171,29 @@ public class MansartPersistenceMojo extends AbstractMojo {
     private String generateEntityModelJava(ClassFileParser.EntityMetadata metadata, 
             String className, String entityModelClassName) {
         String pkg = metadata.packageName();
+        String simpleClassName = metadata.entityName();
+        String tableName = metadata.tableName();
         
-        return "package " + pkg + ";\n\n" +
-               "import io.vidocq.mansart.persistence.spi.*;\n" +
-               "import java.util.*;\n\n" +
-               "public final class " + entityModelClassName + "<T> implements EntityModel<T> {\n\n" +
-               "    private final Class<T> entityClass;\n" +
-               "    private final String tableName;\n" +
-               "    private final List<Attribute<T, ?>> attributes;\n\n" +
-               "    @SuppressWarnings(\"unchecked\")\n" +
-               "    public " + entityModelClassName + "(Class<T> entityClass) {\n" +
-               "        this.entityClass = Objects.requireNonNull(entityClass);\n" +
-               "        this.tableName = \"generated\" + \"\" + \"\" + \"\";\n" +
-               "        this.attributes = Collections.emptyList();\n" +
-               "    }\n" +
-               "    @Override public Class<T> getEntityClass() { return entityClass; }\n" +
-               "    @Override public String getTableName() { return tableName; }\n" +
-               "    @Override public List<Attribute<?, ?>> getAttributes() { return (List) attributes; }\n" +
-               "}\n";
+        StringBuilder sb = new StringBuilder();
+        sb.append("package ").append(pkg).append(";\n\n");
+        sb.append("import io.vidocq.mansart.persistence.spi.*;\n");
+        sb.append("import java.util.*;\n\n");
+        sb.append("public final class ").append(entityModelClassName).append("<T> implements EntityModel<T> {\n\n");
+        sb.append("    private final Class<T> entityClass;\n");
+        sb.append("    private final String tableName;\n");
+        sb.append("    private final List<Attribute<T, ?>> attributes;\n\n");
+        sb.append("    @SuppressWarnings(\"unchecked\")\n");
+        sb.append("    public ").append(entityModelClassName).append("(Class<T> entityClass) {\n");
+        sb.append("        this.entityClass = Objects.requireNonNull(entityClass);\n");
+        sb.append("        this.tableName = \"").append(tableName).append("\";\n");
+        sb.append("        this.attributes = Collections.emptyList();\n");
+        sb.append("    }\n");
+        sb.append("    @Override public Class<T> getEntityClass() { return entityClass; }\n");
+        sb.append("    @Override public String getTableName() { return tableName; }\n");
+        sb.append("    @Override public List<Attribute<?, ?>> getAttributes() { return (List) attributes; }\n");
+        sb.append("}\n");
+        
+        return sb.toString();
     }
 
     private void generateStandardMetamodelClass(ClassFileParser.EntityMetadata metadata, String className) {
@@ -178,6 +209,43 @@ public class MansartPersistenceMojo extends AbstractMojo {
         } catch (IOException e) {
             getLog().warn("Failed to generate standard metamodel class for " + className + ": " + e.getMessage());
         }
+    }
+
+    private static String toJavaType(String internalType) {
+        // Convert internal JVM type names to Java type names
+        // Ljava/lang/Long; -> Long
+        // I -> int
+        // etc.
+        if (internalType == null || internalType.isEmpty()) {
+            return "Object";
+        }
+        
+        // Handle primitive types
+        switch (internalType) {
+            case "B": return "byte";
+            case "C": return "char";
+            case "D": return "double";
+            case "F": return "float";
+            case "I": return "int";
+            case "J": return "long";
+            case "S": return "short";
+            case "Z": return "boolean";
+            case "V": return "void";
+        }
+        
+        // Handle reference types: Ljava/lang/Long; -> java.lang.Long
+        if (internalType.startsWith("L") && internalType.endsWith(";")) {
+            String withoutPrefix = internalType.substring(1, internalType.length() - 1);
+            return withoutPrefix.replace("/", ".");
+        }
+        
+        // Handle arrays: [Ljava/lang/String; -> String[]
+        if (internalType.startsWith("[")) {
+            String elementType = toJavaType(internalType.substring(1));
+            return elementType + "[]";
+        }
+        
+        return internalType;
     }
 
     private String generateStandardMetamodelJava(ClassFileParser.EntityMetadata metadata, 
@@ -196,8 +264,9 @@ public class MansartPersistenceMojo extends AbstractMojo {
         sb.append("public abstract class ").append(metamodelClassName).append(" {\n\n");
         
         for (ClassFileParser.FieldMetadata field : metadata.fields()) {
+            String javaType = toJavaType(field.type());
             sb.append("    public static volatile SingularAttribute<")
-              .append(entityName).append(", ").append(field.type())
+              .append(entityName).append(", ").append(javaType)
               .append("> ").append(field.name()).append(";\n");
         }
         

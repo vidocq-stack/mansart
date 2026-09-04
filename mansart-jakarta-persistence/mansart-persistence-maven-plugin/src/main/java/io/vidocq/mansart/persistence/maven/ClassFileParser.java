@@ -7,11 +7,18 @@ import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.FieldModel;
 import java.lang.classfile.Attribute;
+import java.lang.classfile.Annotation;
+import java.lang.classfile.AnnotationElement;
+import java.lang.classfile.AnnotationValue;
+import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import java.lang.classfile.constantpool.Utf8Entry;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.Map;
+import java.util.HashMap;
 
 /**
  * Class-File API parser for entity class scanning and processing.
@@ -137,35 +144,69 @@ public final class ClassFileParser {
         return new FieldMetadata(name, type, column, isId, isVersion, false, nullable, unique, attrType);
     }
 
-    private static boolean hasAnnotation(ClassModel element, String annotationType) {
-        for (Attribute<?> attr : element.attributes()) {
-            if (attr.attributeName().toString().equals("RuntimeVisibleAnnotations")) {
-                // This is the annotations attribute
-                // We need to check if it contains our annotation type
-                // The structure is complex, so for now we'll return true for any class with RuntimeVisibleAnnotations
-                return true;
-            }
+    private static List<Annotation> getAnnotations(Attribute<?> attribute) {
+        if (attribute instanceof RuntimeVisibleAnnotationsAttribute rva) {
+            return rva.annotations();
+        } else if (attribute instanceof RuntimeInvisibleAnnotationsAttribute ria) {
+            return ria.annotations();
         }
-        return false;
+        return List.of();
+    }
+
+    private static String toInternalForm(String annotationType) {
+        // Convert from "jakarta/persistence/Entity" to "Ljakarta/persistence/Entity;"
+        return "L" + annotationType + ";";
+    }
+
+    private static boolean hasAnnotation(ClassModel element, String annotationType) {
+        String internalForm = toInternalForm(annotationType);
+        return element.attributes().stream()
+                .flatMap(attr -> getAnnotations(attr).stream())
+                .anyMatch(ann -> ann.className().toString().equals(internalForm));
     }
 
     private static boolean hasAnnotation(FieldModel element, String annotationType) {
-        for (Attribute<?> attr : element.attributes()) {
-            if (attr.attributeName().toString().equals("RuntimeVisibleAnnotations")) {
-                // This field has annotations
-                return true;
+        String internalForm = toInternalForm(annotationType);
+        return element.attributes().stream()
+                .flatMap(attr -> getAnnotations(attr).stream())
+                .anyMatch(ann -> ann.className().toString().equals(internalForm));
+    }
+
+    private static Optional<String> getAnnotationValue(ClassModel element, String annotationType, String attributeName) {
+        String internalForm = toInternalForm(annotationType);
+        return element.attributes().stream()
+                .flatMap(attr -> getAnnotations(attr).stream())
+                .filter(ann -> ann.className().toString().equals(internalForm))
+                .findFirst()
+                .flatMap(ann -> getAnnotationElementValue(ann, attributeName));
+    }
+
+    private static Optional<String> getAnnotationValue(FieldModel element, String annotationType, String attributeName) {
+        String internalForm = toInternalForm(annotationType);
+        return element.attributes().stream()
+                .flatMap(attr -> getAnnotations(attr).stream())
+                .filter(ann -> ann.className().toString().equals(internalForm))
+                .findFirst()
+                .flatMap(ann -> getAnnotationElementValue(ann, attributeName));
+    }
+
+    private static Optional<String> getAnnotationElementValue(Annotation annotation, String elementName) {
+        for (AnnotationElement element : annotation.elements()) {
+            if (element.name().toString().equals(elementName)) {
+                AnnotationValue value = element.value();
+                if (value instanceof AnnotationValue.OfString sv) {
+                    return Optional.of(sv.stringValue());
+                } else if (value instanceof AnnotationValue.OfInt iv) {
+                    return Optional.of(String.valueOf(iv.intValue()));
+                } else if (value instanceof AnnotationValue.OfLong lv) {
+                    return Optional.of(String.valueOf(lv.longValue()));
+                } else if (value instanceof AnnotationValue.OfBoolean bv) {
+                    return Optional.of(String.valueOf(bv.booleanValue()));
+                } else if (value instanceof AnnotationValue.OfEnum ev) {
+                    return Optional.of(ev.constantName().toString());
+                }
             }
         }
-        return false;
-    }
-
-    private static Optional<String> getAnnotationValue(ClassModel element, String annotationType, String attribute) {
-        // For now, return empty as we need to implement proper annotation parsing
-        return Optional.empty();
-    }
-
-    private static Optional<String> getAnnotationValue(FieldModel element, String annotationType, String attribute) {
-        // For now, return empty as we need to implement proper annotation parsing
         return Optional.empty();
     }
 
