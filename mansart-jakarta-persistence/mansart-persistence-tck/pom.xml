@@ -123,6 +123,8 @@
             <version>2.6</version>
             <scope>test</scope>
         </dependency>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -173,7 +175,7 @@
                 </configuration>
             </plugin>
 
-            <!-- Exec plugin for TCK Client tests (JavaTest harness) - disabled for now as it requires proper TCK setup -->
+            <!-- Exec plugin for TCK Client tests (JavaTest harness) -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -181,16 +183,38 @@
                 <executions>
                     <execution>
                         <id>run-tck</id>
-                        <phase>none</phase>
+                        <phase>test</phase>
                         <goals>
                             <goal>java</goal>
                         </goals>
                         <configuration>
                             <mainClass>com.sun.ts.tests.common.vehicle.VehicleClient</mainClass>
                             <classpathScope>test</classpathScope>
+                            <workingDirectory>${project.build.directory}/test-classes</workingDirectory>
                             <arguments>
-                                <argument>jakarta.persistence.provider=io.vidocq.mansart.persistence.core.MansartPersistenceProvider</argument>
+                                <argument>-p</argument>
+                                <argument>javatest.properties</argument>
                             </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- SigTest plugin for signature tests -->
+            <plugin>
+                <groupId>jakarta.tck</groupId>
+                <artifactId>sigtest-maven-plugin</artifactId>
+                <version>2.6</version>
+                <executions>
+                    <execution>
+                        <id>signature-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <packages>io.vidocq.mansart.persistence.core</packages>
+                            <releaseVersion>25</releaseVersion>
                         </configuration>
                     </execution>
                 </executions>
