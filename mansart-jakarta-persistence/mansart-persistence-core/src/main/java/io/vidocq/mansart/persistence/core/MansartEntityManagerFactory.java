@@ -7,17 +7,18 @@ import jakarta.persistence.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * Mansart implementation of Jakarta Persistence EntityManagerFactory.
- * All methods throw UnsupportedOperationException - stub for JP-01.
  */
 public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     private final String persistenceUnitName;
     private final Map<String, Object> properties;
+    private final AtomicBoolean open = new AtomicBoolean(true);
 
     public MansartEntityManagerFactory(String persistenceUnitName, Map<String, Object> properties) {
         this.persistenceUnitName = persistenceUnitName;
@@ -43,10 +44,12 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
         throw new UnsupportedOperationException("not implemented: getMetamodel"); 
     }
     @Override public boolean isOpen() { 
-        return false; 
+        return open.get(); 
     }
     @Override public void close() { 
-        throw new UnsupportedOperationException("not implemented: close"); 
+        if (!open.compareAndSet(true, false)) {
+            throw new IllegalStateException("EntityManagerFactory is closed");
+        }
     }
     @Override public String getName() { 
         return persistenceUnitName; 
@@ -86,9 +89,5 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     }
     @Override public <R> R callInTransaction(Function<EntityManager, R> function) { 
         throw new UnsupportedOperationException("not implemented: callInTransaction"); 
-    }
-    
-    public String getPersistenceUnitName() {
-        return persistenceUnitName;
     }
 }

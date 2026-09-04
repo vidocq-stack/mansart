@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+                 https://jakarta.ee/xml/ns/persistence/persistence_3_2.xsd"
+             version="3.2">
+
+    <persistence-unit name="test-pu" transaction-type="RESOURCE_LOCAL">
+        <provider>io.vidocq.mansart.persistence.core.MansartPersistenceProvider</provider>
+        <properties>
+            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:mem:testdb"/>
+            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            <property name="io.vidocq.mansart.test.marker" value="from-xml"/>
+        </properties>
+    </persistence-unit>
+
+    <persistence-unit name="second-pu" transaction-type="JTA">
+        <provider>io.vidocq.mansart.persistence.core.MansartPersistenceProvider</provider>
+        <jta-data-source>java:app/jdbc/DS</jta-data-source>
+        <properties>
+            <property name="io.vidocq.mansart.test.marker" value="second"/>
+        </properties>
+    </persistence-unit>
+</persistence>
