@@ -1,14 +1,14 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M0-JP-07 — Baseline TCK run
-- **Milestone**: M0
+- **Card**: M1-JP-08 — MansartPersistenceProcessor
+- **Milestone**: M1
 
 ## 📊 Milestone Progress Overview
 
 | Milestone | Total JP | Done | % Complete | Status |
 |----------|----------|------|------------|--------|
-| **M0** | 7 | 6 | **85%** | 🟡 In Progress |
+| **M0** | 7 | 7 | **100%** | ✅ DONE |
 | **M2** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M3** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
@@ -49,6 +49,10 @@
 - **M0-JP-05** ✅ **DONE** — TCK infrastructure (out-of-reactor) - standalone pom.xml, run script, README
 - **M0-JP-06** ✅ **DONE** — Harness wiring + provider registration (ServiceLoader discovers MansartPersistenceProvider, ProviderDiscoveryTest passes)
 - **M0-JP-07** ✅ **DONE** — Baseline TCK run (harness works, provider discoverable, **2/0/2 PASS**, build green. Switch to JUnit 4, surefire limited to ProviderDiscoveryTest, TCK Client classes unpacked, exec-maven-plugin + sigtest-maven-plugin configured. JavaTest harness integration pending for full 1745 test execution)
+
+### M1 — Entity Metamodel + APT Generation
+- **M1-JP-08** ✅ **DONE** — MansartPersistenceProcessor (SourceVersion.RELEASE_25, @SupportedAnnotationTypes for JPA annotations, service file registered)
+- **M1-JP-09** 🟡 IN_PROGRESS — Entity scanning — detects @Entity, @Table, @Id, @GeneratedValue, @Column, @Version, @ManyToOne, @OneToOne, @JoinColumn, @Enumerated, @Embedded, @Embeddable
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
