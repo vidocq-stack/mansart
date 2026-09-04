@@ -94,13 +94,13 @@ external-it ── core, external-lib (test) — proves tier-1 ≈ tier-2
 **Ends when**: `./run-official-tck-persistence-3.2.sh` runs to completion and reports a measured **0/X/1745** (0 pass, X error, 1745 total) — honest baseline where all failures are in `setup*Data` or provider wiring, not in the test framework itself.
 
 **Cards** (expanded in TASKS.md):
-- JP-01: Parent `pom.xml` `mansart-jakarta-persistence` + 9 sub-modules (Maven Model 4.1.0, `.mvn/` marker)
-- JP-02: `module-info.java` for each module (strict Java modules, minimal exports, `provides/uses` for services)
-- JP-03: `mansart-persistence-spi` — EntityModel, Attribute hierarchy, re-export dialect SPI types
-- JP-04: `mansart-persistence-core` — skeleton `MansartPersistenceProvider` (implements `jakarta.persistence.spi.PersistenceProvider`), `MansartEntityManagerFactory`, `MansartEntityManager` (all throw `UnsupportedOperationException` for now)
-- JP-05: TCK infra — `mansart-persistence-tck` standalone POM 4.0.0, `run-official-tck-persistence-3.2.sh`, smoke harness
-- JP-06: Harness wiring — provider registered via `META-INF/services/jakarta.persistence.spi.PersistenceProvider`, TCK entity classes reach our provider
-- JP-07: Baseline TCK run — prove harness works, document 0/N/1745 with all errors in `setup*Data`
+- M0-JP-01: Parent `pom.xml` `mansart-jakarta-persistence` + 9 sub-modules (Maven Model 4.1.0, `.mvn/` marker)
+- M0-JP-02: `module-info.java` for each module (strict Java modules, minimal exports, `provides/uses` for services)
+- M0-JP-03: `mansart-persistence-spi` — EntityModel, Attribute hierarchy, re-export dialect SPI types
+- M0-JP-04: `mansart-persistence-core` — skeleton `MansartPersistenceProvider` (implements `jakarta.persistence.spi.PersistenceProvider`), `MansartEntityManagerFactory`, `MansartEntityManager` (all throw `UnsupportedOperationException` for now)
+- M0-JP-05: TCK infra — `mansart-persistence-tck` standalone POM 4.0.0, `run-official-tck-persistence-3.2.sh`, smoke harness
+- M0-JP-06: Harness wiring — provider registered via `META-INF/services/jakarta.persistence.spi.PersistenceProvider`, TCK entity classes reach our provider
+- M0-JP-07: Baseline TCK run — prove harness works, document 0/N/1745 with all errors in `setup*Data`
 
 **Pitfalls to avoid**:
 - Provider not discoverable by TCK (missing service file or wrong module name)
@@ -118,12 +118,12 @@ external-it ── core, external-lib (test) — proves tier-1 ≈ tier-2
 - Integration test: compile entity `Book` → `_Book` + `Book_` produced with correct table/column names, typed attributes, MethodHandles for get/set
 
 **Cards**:
-- JP-08: `MansartPersistenceProcessor` (`SourceVersion.RELEASE_25`, `@SupportedAnnotationTypes` for JPA annotations)
-- JP-09: Entity scanning — detects `@Entity`, `@Table`, `@Id`, `@GeneratedValue`, `@Column`, `@Version`, `@ManyToOne`, `@OneToOne`, `@JoinColumn`, `@Enumerated`, `@Embedded`, `@Embeddable`
-- JP-10: `_Entity` generation — `EntityModel<T>`, typed `Attribute` subtypes (`IdAttribute`, `TextAttribute`, `NumericAttribute`, `TemporalAttribute`, `ReferenceAttribute`, `EnumAttribute`, `VersionAttribute`)
-- JP-11: Standard JPA static metamodel generation — `Entity_` with `SingularAttribute` fields (if `jakarta.persistence-api` on classpath)
-- JP-12: MethodHandle resolution — `MethodHandles.privateLookupIn` in `<clinit>`, never `setAccessible`
-- JP-13: SQL naming conventions — snake_case column names, plural snake_case table names, FK column naming
+- M1-JP-08: `MansartPersistenceProcessor` (`SourceVersion.RELEASE_25`, `@SupportedAnnotationTypes` for JPA annotations)
+- M1-JP-09: Entity scanning — detects `@Entity`, `@Table`, `@Id`, `@GeneratedValue`, `@Column`, `@Version`, `@ManyToOne`, `@OneToOne`, `@JoinColumn`, `@Enumerated`, `@Embedded`, `@Embeddable`
+- M1-JP-10: `_Entity` generation — `EntityModel<T>`, typed `Attribute` subtypes (`IdAttribute`, `TextAttribute`, `NumericAttribute`, `TemporalAttribute`, `ReferenceAttribute`, `EnumAttribute`, `VersionAttribute`)
+- M1-JP-11: Standard JPA static metamodel generation — `Entity_` with `SingularAttribute` fields (if `jakarta.persistence-api` on classpath)
+- M1-JP-12: MethodHandle resolution — `MethodHandles.privateLookupIn` in `<clinit>`, never `setAccessible`
+- M1-JP-13: SQL naming conventions — snake_case column names, plural snake_case table names, FK column naming
 
 ### M2 — Maven Plugin (Tier 2) + External Library Support
 
@@ -433,6 +433,12 @@ external-it ── core, external-lib (test) — proves tier-1 ≈ tier-2
 - JP-116: TCK QueryTests — all query-related tests pass
 - JP-117: TCK SignatureTests — all signature tests pass
 - JP-118: Full TCK run — 1745/1745 PASS on H2 and PostgreSQL
+
+## Card Naming Convention
+
+All implementation cards follow the pattern **`M<milestone>-JP-<number>`** to explicitly bind each card to its milestone. For example:
+- `M0-JP-01` — Parent pom.xml with 9 sub-modules (Milestone 0)
+- `M1-JP-08` — APT Processor implementation (Milestone 1)
 
 ## Decomposition Rules
 

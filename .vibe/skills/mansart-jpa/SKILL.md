@@ -86,6 +86,13 @@ generated code instead of reflection · virtual threads and `ScopedValue` ·
 zero external runtime dependencies beyond the Jakarta APIs · TDD, failing test
 first · English in code, Javadoc, Markdown and commits.
 
+## Card Naming Convention
+
+All implementation cards follow the pattern **`M<milestone>-JP-<number>`** to explicitly
+bind each card to its milestone. For example:
+- `M0-JP-01` — Parent pom.xml with 9 sub-modules (Milestone 0)
+- `M1-JP-08` — APT Processor implementation (Milestone 1)
+
 ## Definition of done
 
 A card is done when: build green on every module, unit tests green, `auditor`
