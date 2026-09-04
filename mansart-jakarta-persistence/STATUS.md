@@ -1,7 +1,7 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M1-JP-10 — _Entity generation
+- **Card**: M1-JP-11 — Standard JPA static metamodel generation
 - **Milestone**: M1
 
 ## 📊 Milestone Progress Overview
@@ -53,7 +53,8 @@
 ### M1 — Entity Metamodel + APT Generation
 - **M1-JP-08** ✅ **DONE** — MansartPersistenceProcessor (SourceVersion.RELEASE_25, @SupportedAnnotationTypes for JPA annotations, service file registered)
 - **M1-JP-09** ✅ **DONE** — Entity scanning — detects @Entity, @Table, @Id, @GeneratedValue, @Column, @Version, @ManyToOne, @OneToOne, @JoinColumn, @Enumerated, @Embedded, @Embeddable
-- **M1-JP-10** 🟡 IN_PROGRESS — _Entity generation — EntityModel<T>, typed Attribute subtypes (IdAttribute, TextAttribute, NumericAttribute, TemporalAttribute, ReferenceAttribute, EnumAttribute, VersionAttribute)
+- **M1-JP-10** ✅ **DONE** — _Entity generation — EntityModel<T>, typed Attribute subtypes (IdAttribute, BasicAttribute, NumericAttribute, TemporalAttribute, ReferenceAttribute, EnumAttribute, VersionAttribute)
+- **M1-JP-11** 🟡 IN_PROGRESS — Standard JPA static metamodel generation — Entity_ with SingularAttribute fields (if jakarta.persistence-api on classpath)
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
