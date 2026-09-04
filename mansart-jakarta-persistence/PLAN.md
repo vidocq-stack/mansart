@@ -472,6 +472,7 @@ A milestone is done when **all its cards are DONE** and its ending number is ver
 | 7 | **Runtime independence** | No runtime dependency on `mansart-jakarta-data` |
 | 8 | **TDD discipline** | Failing test first, smallest real implementation |
 | 9 | **Honest metrics** | Only PASS counts, stubs forbidden, `auditor` enforces |
+| 10 | **Status tracking in STATUS.md only** | TASKS.md defines cards and details; STATUS.md owns all state markers (TODO, IN_PROGRESS, DONE, BLOCKED). Never duplicate status in TASKS.md. |
 
 ---
 

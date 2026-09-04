@@ -85,43 +85,43 @@ tck ────────── core, cdi, processor (out of reactor)
 
 ## Expanded Cards for M0 (current milestone)
 
-### M0-JP-01 — Parent pom.xml with 9 sub-modules            [TODO]
+### M0-JP-01 — Parent pom.xml with 9 sub-modules
 - deps:   —
 - files:  mansart-jakarta-persistence/pom.xml, .mvn/
 - proof:  mvn clean install -DskipTests
 - notes:  Maven Model 4.1.0, compiler 4.0.0-beta-4, Java 25 toolchain
 
-### M0-JP-02 — module-info.java for each module            [TODO]
+### M0-JP-02 — module-info.java for each module
 - deps:   —
 - files:  mansart-persistence-{spi,processor,core,maven-plugin,cdi,tests,external-lib,external-it,tck}/module-info.java
 - proof:  mvn compile on each module
 - notes:  strict Java modules, minimal exports, provides/uses for services
 
-### M0-JP-03 — mansart-persistence-spi module                [TODO]
+### M0-JP-03 — mansart-persistence-spi module
 - deps:   —
 - files:  mansart-persistence-spi/pom.xml, module-info.java, package-info.java, EntityModel.java, Attribute.java (hierarchy)
 - proof:  mvn install on spi module
 - notes:  re-exports mansart-data-dialect-spi types, defines common metadata model
 
-### M0-JP-04 — mansart-persistence-core skeleton              [TODO]
+### M0-JP-04 — mansart-persistence-core skeleton
 - deps:   M0-JP-03
 - files:  mansart-persistence-core/pom.xml, module-info.java, MansartPersistenceProvider.java, MansartEntityManagerFactory.java, MansartEntityManager.java
 - proof:  mvn compile on core module
 - notes:  all methods throw UnsupportedOperationException("not implemented: <method>"), service provider registered
 
-### M0-JP-05 — TCK infrastructure (out-of-reactor)         [TODO]
+### M0-JP-05 — TCK infrastructure (out-of-reactor)
 - deps:   M0-JP-04
 - files:  mansart-persistence-tck/pom.xml (standalone, modelVersion 4.0.0), run-official-tck-persistence-3.2.sh, README.md
 - proof:  script runs without harness errors
 - notes:  no parent POM, stacks with tck-run, tck-pg, tck-sig profiles
 
-### M0-JP-06 — Harness wiring + provider registration        [TODO]
+### M0-JP-06 — Harness wiring + provider registration
 - deps:   M0-JP-04, M0-JP-05
 - files:  mansart-persistence-core/src/main/resources/META-INF/services/jakarta.persistence.spi.PersistenceProvider
 - proof:  TCK discovers Mansart provider
 - notes:  provider must be reachable, service file format: io.vidocq.mansart.persistence.core.MansartPersistenceProvider
 
-### M0-JP-07 — Baseline TCK run                          [TODO]
+### M0-JP-07 — Baseline TCK run
 - deps:   M0-JP-05, M0-JP-06
 - files:  (no new files, just execution)
 - proof:  ./run-official-tck-persistence-3.2.sh reports 0/X/1745 with all errors in setup*Data or provider wiring
