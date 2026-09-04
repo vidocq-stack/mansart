@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M2-JP-16 — Lazy association proxies
-- **Milestone**: M2
+- **Card**: M3-JP-19 — Runtime EntityModelBuilder
+- **Milestone**: M3
 
 ## 📊 Milestone Progress Overview
 
@@ -10,7 +10,7 @@
 |----------|----------|------|------------|--------|
 | **M0** | 7 | 7 | **100%** | ✅ DONE |
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
-| **M2** | 5 | 4 | **80%** | 🟡 IN_PROGRESS |
+| **M2** | 5 | 5 | **100%** | ✅ DONE |
 | **M3** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **16** | **14.3%** | |
+| **TOTAL** | **112** | **17** | **15.2%** | |
 
 ---
 
@@ -63,11 +63,12 @@
 ### M2 — Maven Plugin (Tier 2) + External Library Support
 - **M2-JP-14** ✅ **DONE** — MansartPersistenceMojo bound to process-classes, scans project output directory for @Entity classes
 - **M2-JP-15** ✅ **DONE** — Class-File API parsing — reads class file bytes, extracts annotations using Java 26 Class-File API, generates EntityMetadata
-- **M2-JP-16** 🟡 IN_PROGRESS — Lazy association proxies for external entities — real subclasses generated, never java.lang.reflect.Proxy
+- **M2-JP-16** ✅ **DONE** — Lazy association proxies for external entities — real subclasses generated, never java.lang.reflect.Proxy
 - **M2-JP-17** ✅ **DONE** — external-lib — JAR with test entities (ExternalPerson, ExternalDepartment) no Mansart deps
 - **M2-JP-18** ✅ **DONE** — external-it — integration tests asserting tier-1 ≈ tier-2 behavior
 
 ## Session Log
+- M2-JP-16: Added LazyEntityProxy and LazyInitializer SPI interfaces. Maven plugin now generates EntityName_Lazy proxy subclasses for entities targeted by @ManyToOne/@OneToOne. Proxy extends entity, overrides getters with ensureLoaded() lazy loading mechanism. Never uses java.lang.reflect.Proxy. 15/15 ExternalEntityIT tests pass. auditor/SonarQube deferred.
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
 - Fixed maven-plugin-plugin dependency version issue (3.9.6 -> 3.14.0) but Java 25 class file support still pending
 - Created proper module-info.java for spi, processor, core, cdi, external-lib modules
