@@ -48,7 +48,7 @@
 - **M0-JP-04** ✅ **DONE** — mansart-persistence-core skeleton (MansartPersistenceProvider, MansartEntityManagerFactory, MansartEntityManager - all throw UnsupportedOperationException)
 - **M0-JP-05** ✅ **DONE** — TCK infrastructure (out-of-reactor) - standalone pom.xml, run script, README
 - **M0-JP-06** ✅ **DONE** — Harness wiring + provider registration (ServiceLoader discovers MansartPersistenceProvider, ProviderDiscoveryTest passes)
-- **M0-JP-07** ⏳ TODO — Baseline TCK run (waiting for TCK download and execution)
+- **M0-JP-07** ⏳ TODO — Baseline TCK run (harness works, provider discoverable, 3/3 tests executed: 2 ProviderDiscoveryTest PASS, 1 JPASigTest signature error. TCK dependencies wired: persistence-tck-spec-tests:3.2.1, signaturetest:11.0.0-RC5, sigtest-maven-plugin:2.6. Blocked: Surefire cannot discover Jakarta TCK Client classes - needs custom TestEngine or framework configuration)
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
