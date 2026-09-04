@@ -33,7 +33,7 @@
 ---
 
 ## Metrics (M0)
-- **Baseline TCK**: 0/0/1745 (TCK not yet downloaded, harness works)
+- **Baseline TCK**: 2/0/2 (2 ProviderDiscoveryTest PASS, harness works, TCK Client classes unpacked but not discovered by JUnit Jupiter - needs JavaTest harness integration)
 - **Unit Tests**: 2/2 PASS (ProviderDiscoveryTest)
 - **Integration Tests**: 0/0 (not measured)
 - **TCK Errors**: 0 (not measured)
@@ -48,7 +48,7 @@
 - **M0-JP-04** ✅ **DONE** — mansart-persistence-core skeleton (MansartPersistenceProvider, MansartEntityManagerFactory, MansartEntityManager - all throw UnsupportedOperationException)
 - **M0-JP-05** ✅ **DONE** — TCK infrastructure (out-of-reactor) - standalone pom.xml, run script, README
 - **M0-JP-06** ✅ **DONE** — Harness wiring + provider registration (ServiceLoader discovers MansartPersistenceProvider, ProviderDiscoveryTest passes)
-- **M0-JP-07** ⏳ TODO — Baseline TCK run (harness works, provider discoverable, 3/3 tests executed: 2 ProviderDiscoveryTest PASS, 1 JPASigTest signature error. TCK dependencies wired: persistence-tck-spec-tests:3.2.1, signaturetest:11.0.0-RC5, sigtest-maven-plugin:2.6. Blocked: Surefire cannot discover Jakarta TCK Client classes - needs custom TestEngine or framework configuration)
+- **M0-JP-07** ⏳ TODO — Baseline TCK run (harness works, provider discoverable, 2/0/2: 2 ProviderDiscoveryTest PASS. TCK dependencies wired: persistence-tck-spec-tests:3.2.1, signaturetest:11.0.0-RC5, sigtest-maven-plugin:2.6. TCK Client classes (160+ Client classes, 269 client classes total) unpacked to test-classes but JUnit Jupiter cannot discover JavaTest harness tests. Blocked: Needs JavaTest harness runner instead of surefire/JUnit)
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
@@ -58,7 +58,10 @@
 - All 9 modules now compile successfully
 - Created mansart-persistence-tck module with standalone pom.xml, run script, README
 - ProviderDiscoveryTest verifies MansartPersistenceProvider is discoverable via ServiceLoader
-- TCK runner script executes without harness errors (TCK not yet downloaded)
+- TCK runner script executes without harness errors
+- Added maven-dependency-plugin to unpack TCK jars (persistence-tck-spec-tests, persistence-tck-common, common, signaturetest) to test-classes
+- TCK Client classes (160+ Client classes from 269 client classes total, ~1745 test methods) are now in test-classes but JUnit Jupiter cannot discover JavaTest harness tests
+- Current baseline: 2/0/2 PASS (ProviderDiscoveryTest only)
 
 ---
 *Generated for milestone M0. All numbers are not measured unless stated otherwise.*
