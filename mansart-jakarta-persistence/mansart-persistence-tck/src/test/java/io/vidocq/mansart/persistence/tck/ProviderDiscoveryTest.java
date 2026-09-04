@@ -4,12 +4,12 @@
 package io.vidocq.mansart.persistence.tck;
 
 import jakarta.persistence.spi.PersistenceProvider;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.util.ServiceLoader;
 import java.util.stream.StreamSupport;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.*;
 
 /**
  * Test that the Mansart PersistenceProvider is discoverable via ServiceLoader.
@@ -24,14 +24,14 @@ public class ProviderDiscoveryTest {
         var providers = StreamSupport.stream(loader.spliterator(), false)
                 .toList();
         
-        assertFalse(providers.isEmpty(), "No PersistenceProvider implementations found");
+        assertFalse("No PersistenceProvider implementations found", providers.isEmpty());
         
         var mansartProvider = providers.stream()
                 .filter(p -> p.getClass().getName().equals("io.vidocq.mansart.persistence.core.MansartPersistenceProvider"))
                 .findFirst();
         
-        assertTrue(mansartProvider.isPresent(), 
-                "MansartPersistenceProvider not found. Check META-INF/services/jakarta.persistence.spi.PersistenceProvider");
+        assertTrue("MansartPersistenceProvider not found. Check META-INF/services/jakarta.persistence.spi.PersistenceProvider", 
+                mansartProvider.isPresent());
     }
 
     @Test
@@ -42,12 +42,16 @@ public class ProviderDiscoveryTest {
                 .filter(p -> p.getClass().getName().equals("io.vidocq.mansart.persistence.core.MansartPersistenceProvider"))
                 .findFirst();
         
-        assertTrue(mansartProvider.isPresent(), "MansartPersistenceProvider not found");
+        assertTrue("MansartPersistenceProvider not found", mansartProvider.isPresent());
         
         // All methods should throw UnsupportedOperationException for stub implementation
         var provider = mansartProvider.get();
         
-        assertThrows(UnsupportedOperationException.class, 
-            () -> provider.createEntityManagerFactory("test", java.util.Map.of()));
+        try {
+            provider.createEntityManagerFactory("test", java.util.Map.of());
+            fail("Expected UnsupportedOperationException");
+        } catch (UnsupportedOperationException e) {
+            // Expected
+        }
     }
 }

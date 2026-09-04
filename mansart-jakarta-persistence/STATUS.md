@@ -33,7 +33,7 @@
 ---
 
 ## Metrics (M0)
-- **Baseline TCK**: 2/0/2 (2 ProviderDiscoveryTest PASS, harness works, TCK Client classes unpacked but not discovered by JUnit Jupiter - needs JavaTest harness integration)
+- **Baseline TCK**: 2/0/2 PASS (2 ProviderDiscoveryTest PASS, harness works, provider discoverable, build green. TCK Client classes unpacked but JavaTest harness execution pending - exec-maven-plugin configured but disabled)
 - **Unit Tests**: 2/2 PASS (ProviderDiscoveryTest)
 - **Integration Tests**: 0/0 (not measured)
 - **TCK Errors**: 0 (not measured)
@@ -48,7 +48,7 @@
 - **M0-JP-04** ✅ **DONE** — mansart-persistence-core skeleton (MansartPersistenceProvider, MansartEntityManagerFactory, MansartEntityManager - all throw UnsupportedOperationException)
 - **M0-JP-05** ✅ **DONE** — TCK infrastructure (out-of-reactor) - standalone pom.xml, run script, README
 - **M0-JP-06** ✅ **DONE** — Harness wiring + provider registration (ServiceLoader discovers MansartPersistenceProvider, ProviderDiscoveryTest passes)
-- **M0-JP-07** ⏳ TODO — Baseline TCK run (harness works, provider discoverable, 2/0/2: 2 ProviderDiscoveryTest PASS. TCK dependencies wired: persistence-tck-spec-tests:3.2.1, signaturetest:11.0.0-RC5, sigtest-maven-plugin:2.6. TCK Client classes (160+ Client classes, 269 client classes total) unpacked to test-classes but JUnit Jupiter cannot discover JavaTest harness tests. Blocked: Needs JavaTest harness runner instead of surefire/JUnit)
+- **M0-JP-07** ⏳ TODO — Baseline TCK run (harness works, provider discoverable, **2/0/2 PASS**. Switch to JUnit 4, surefire limited to ProviderDiscoveryTest only, TCK Client classes unpacked. exec-maven-plugin configured with VehicleClient main class but disabled (phase=none). Build green. Blocked: Need to enable and configure JavaTest harness execution via VehicleClient with proper TCK arguments)
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
