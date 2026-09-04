@@ -49,7 +49,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
             }
         }
 
-        return new MansartEntityManagerFactory(emName, mergedProperties);
+        return new MansartEntityManagerFactory(emName, descriptor.transactionType(), mergedProperties);
     }
 
     @Override
@@ -60,6 +60,7 @@ public class MansartPersistenceProvider implements PersistenceProvider {
 
         return new MansartEntityManagerFactory(
                 configuration.name(),
+                configuration.transactionType(),
                 new LinkedHashMap<>(configuration.properties())
         );
     }

@@ -1,7 +1,7 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M4-JP-24 — MansartEntityManagerFactory
+- **Card**: M4-JP-25 — MansartEntityManager
 - **Milestone**: M4
 
 ## 📊 Milestone Progress Overview
@@ -12,7 +12,7 @@
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
 | **M2** | 5 | 5 | **100%** | ✅ DONE |
 | **M3** | 4 | 4 | 100% | ✅ DONE |
-| **M4** | 6 | 1 | ~17% | ✅ IN_PROGRESS |
+| **M4** | 6 | 2 | **~33%** | ✅ IN_PROGRESS |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
 | **M7** | 12 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **22** | **~19.6%** | |
+| **TOTAL** | **112** | **23** | **~20.5%** | |
 
 ---
 
@@ -45,6 +45,8 @@
 ## 🎯 Current Milestone Details
 ### M4 — Core Runtime: EntityManagerFactory + EntityManager
 - **M4-JP-23** ✅ **DONE** — MansartPersistenceProvider implements PersistenceProvider, parses persistence.xml, creates EntityManagerFactory. 7/7 tests pass. Measured: MansartPersistenceProviderTest 7/7 PASS, full mansart-persistence-tests module 24/24 PASS. SonarQube: 0 bugs/0 smells/0 vulnerabilities/0 hotspots on new code. Pre-existing debt noted (112 open issues in untouched files, jacoco coverage gap).
+
+- **M4-JP-24** ✅ **DONE** — MansartEntityManagerFactory now manages EntityManager instances: tracks all created EMs in a ConcurrentLinkedQueue, cascades close on factory close (all EMs marked closed). Double-check pattern in createTrackedEm guards against TOCTOU race between ensureOpen and EM registration. Bootstrap metadata: EMF now stores PersistenceUnitTransactionType (passed from both XML descriptor path and PersistenceConfiguration path). getTransactionType() returns it without a closed check (per spec, no @throws IllegalStateException). Closed-state contract: createEntityManager throws IllegalStateException if factory closed. getProperties, getCache, getPersistenceUnitUtil, unwrap all throw IllegalStateException if closed (per their @throws declarations). getCache returns null (spec-sanctioned for no L2 cache). unwrap supports MansartEntityManagerFactory and EntityManagerFactory, throws PersistenceException for unsupported types. MansartPersistenceUnitUtil (new): implements PersistenceUnitUtil, all methods throw UnsupportedOperationException (entity model not built yet — that's M5+). MansartEntityManager: added open/closed state (AtomicBoolean). isOpen() checks both EM state and factory state. close() deregisters from factory. markClosed() (package-private) called by factory cascade. Persistence operations remain UnsupportedOperationException (M4-JP-25 scope). MansartPersistenceProvider: both createEntityManagerFactory paths now pass transactionType to the EMF constructor. Measured: MansartEntityManagerFactoryTest: 19/19 PASS, Full mansart-persistence-tests module: 43/43 PASS (was 24, +19 new tests). Build: green on all modules (including external-it). Auditor: clean on diff (2 minor findings fixed: dead registerEntityManager method removed, null guard on constructor properties added). SonarQube: 0 bugs, 0 vulnerabilities, 0 security hotspots, 0 violations on M4-JP-24 changed files. Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both are pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeAttribute.java, RuntimeEntityModel.java, RuntimeEntityModelBuilder.java), same pattern as M4-JP-23.
 
 ### M3 — Runtime Metadata and Repository Generation
 - **M3-JP-19** ✅ **DONE** — RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 tests pass.
@@ -96,6 +98,8 @@
 - M3-JP-22: Tier3WarningCollector accumulates warnings for tier-3 entities, names entity class and points to mansart-persistence-maven-plugin. RuntimeEntityModelBuilder accepts optional Tier3WarningCollector. 3/3 Tier3WarningTest tests pass.
 - Measured: 17/17 tests pass in mansart-persistence-tests (6 RuntimeEntityModelBuilderTest + 3 Tier3WarningTest + 3 RuntimeEntityClassGeneratorTest + 5 MansartCallbackTest), build green.
 - M4-JP-23: MansartPersistenceProvider now parses persistence.xml via JDK DOM API with full XXE hardening, creates EntityManagerFactory from both XML and programmatic config, and implements real lifecycle with AtomicBoolean. module-info.java now requires java.xml. auditor/guardian findings resolved (XXE hardening structure, TOCTOU in close()). Test resource added: META-INF/persistence.xml with two PUs. Measured: MansartPersistenceProviderTest 7/7 PASS, full mansart-persistence-tests module 24/24 PASS. SonarQube quality gate clean on new code (0 bugs/0 smells/0 vulnerabilities/0 hotspots); pre-existing debt noted (112 open issues in untouched files) and jacoco coverage gap (new_coverage=0.0) as backlog items.
+
+- M4-JP-24: MansartEntityManagerFactory now manages EntityManager instances: tracks all created EMs in a ConcurrentLinkedQueue, cascades close on factory close (all EMs marked closed). Double-check pattern in createTrackedEm guards against TOCTOU race between ensureOpen and EM registration. Bootstrap metadata: EMF now stores PersistenceUnitTransactionType (passed from both XML descriptor path and PersistenceConfiguration path). getTransactionType() returns it without a closed check (per spec, no @throws IllegalStateException). Closed-state contract: createEntityManager throws IllegalStateException if factory closed. getProperties, getCache, getPersistenceUnitUtil, unwrap all throw IllegalStateException if closed (per their @throws declarations). getCache returns null (spec-sanctioned for no L2 cache). unwrap supports MansartEntityManagerFactory and EntityManagerFactory, throws PersistenceException for unsupported types. MansartPersistenceUnitUtil (new): implements PersistenceUnitUtil, all methods throw UnsupportedOperationException (entity model not built yet — that's M5+). MansartEntityManager: added open/closed state (AtomicBoolean). isOpen() checks both EM state and factory state. close() deregisters from factory. markClosed() (package-private) called by factory cascade. Persistence operations remain UnsupportedOperationException (M4-JP-25 scope). MansartPersistenceProvider: both createEntityManagerFactory paths now pass transactionType to the EMF constructor. Measured: MansartEntityManagerFactoryTest: 19/19 PASS, Full mansart-persistence-tests module: 43/43 PASS (was 24, +19 new tests). Build: green on all modules (including external-it). Auditor: clean on diff (2 minor findings fixed: dead registerEntityManager method removed, null guard on constructor properties added). SonarQube: 0 bugs, 0 vulnerabilities, 0 security hotspots, 0 violations on M4-JP-24 changed files. Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both are pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeAttribute.java, RuntimeEntityModel.java, RuntimeEntityModelBuilder.java), same pattern as M4-JP-23.
 
 ---
 *Generated for milestone M0. All numbers are not measured unless stated otherwise.*

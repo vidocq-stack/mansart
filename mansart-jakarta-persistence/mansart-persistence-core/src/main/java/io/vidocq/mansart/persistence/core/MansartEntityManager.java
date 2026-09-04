@@ -8,15 +8,20 @@ import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Metamodel;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Mansart implementation of Jakarta Persistence EntityManager.
- * All methods throw UnsupportedOperationException - stub for JP-01.
+ *
+ * <p>Lifecycle is managed jointly with the owning {@link MansartEntityManagerFactory}:
+ * when the factory closes, all tracked EMs are marked closed via {@link #markClosed()}.
+ * Persistence operations (persist, find, etc.) are implemented in M4-JP-25.
  */
 public class MansartEntityManager implements EntityManager {
 
     private final MansartEntityManagerFactory entityManagerFactory;
     private final Map<String, Object> properties;
+    private final AtomicBoolean open = new AtomicBoolean(true);
 
     public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties) {
         this.entityManagerFactory = entityManagerFactory;
@@ -75,8 +80,24 @@ public class MansartEntityManager implements EntityManager {
     @Override public boolean isJoinedToTransaction() { throw new UnsupportedOperationException("not implemented: isJoinedToTransaction"); }
     @Override public <T> T unwrap(Class<T> cls) { throw new UnsupportedOperationException("not implemented: unwrap"); }
     @Override public Object getDelegate() { throw new UnsupportedOperationException("not implemented: getDelegate"); }
-    @Override public void close() { throw new UnsupportedOperationException("not implemented: close"); }
-    @Override public boolean isOpen() { throw new UnsupportedOperationException("not implemented: isOpen"); }
+    @Override public void close() {
+        if (!open.compareAndSet(true, false)) {
+            throw new IllegalStateException("EntityManager is closed");
+        }
+        entityManagerFactory.unregisterEntityManager(this);
+    }
+    @Override public boolean isOpen() {
+        return open.get() && entityManagerFactory.isOpen();
+    }
+
+    /**
+     * Marks this EntityManager as closed without deregistering from the factory.
+     * Called by {@link MansartEntityManagerFactory#close()} when cascading close
+     * to all tracked entity managers.
+     */
+    void markClosed() {
+        open.set(false);
+    }
     @Override public EntityTransaction getTransaction() { throw new UnsupportedOperationException("not implemented: getTransaction"); }
     @Override public EntityManagerFactory getEntityManagerFactory() { return entityManagerFactory; }
     @Override public CriteriaBuilder getCriteriaBuilder() { throw new UnsupportedOperationException("not implemented: getCriteriaBuilder"); }
