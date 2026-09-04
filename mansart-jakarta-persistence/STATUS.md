@@ -1,7 +1,7 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M2-JP-14 — MansartPersistenceMojo
+- **Card**: M2-JP-15 — Class-File API parsing
 - **Milestone**: M2
 
 ## 📊 Milestone Progress Overview
@@ -10,7 +10,7 @@
 |----------|----------|------|------------|--------|
 | **M0** | 7 | 7 | **100%** | ✅ DONE |
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
-| **M2** | 5 | 0 | 0% | ⏳ TO_DEFINE |
+| **M2** | 5 | 1 | **20%** | 🟡 IN_PROGRESS |
 | **M3** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **12** | **10.7%** | |
+| **TOTAL** | **112** | **13** | **11.6%** | |
 
 ---
 
@@ -58,6 +58,10 @@
 - **M1-JP-11** ✅ **DONE** — Standard JPA static metamodel generation — Entity_ with SingularAttribute fields (if jakarta.persistence-api on classpath)
 - **M1-JP-12** ✅ **DONE** — MethodHandle resolution — MethodHandles.privateLookupIn in constructor, never setAccessible
 - **M1-JP-13** ✅ **DONE** — SQL naming conventions — snake_case column names, plural snake_case table names, FK column naming
+
+### M2 — Maven Plugin (Tier 2) + External Library Support
+- **M2-JP-14** ✅ **DONE** — MansartPersistenceMojo bound to process-classes, scans project output directory for @Entity classes
+- **M2-JP-15** 🟡 IN_PROGRESS — Class-File API parsing — reads class file bytes, extracts annotations, generates same _Entity + Entity_ as APT
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
