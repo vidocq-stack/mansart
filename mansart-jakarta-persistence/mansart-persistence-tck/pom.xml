@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.vidocq.mansart</groupId>
+    <artifactId>mansart-persistence-tck</artifactId>
+    <version>0.3.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>Mansart :: Persistence :: TCK</name>
+    <description>Official Jakarta Persistence 3.2 TCK runner for Mansart implementation. Standalone POM, out-of-reactor.</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>25</maven.compiler.source>
+        <maven.compiler.release>25</maven.compiler.release>
+        <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
+        <tck.version>3.2.0</tck.version>
+        <junit.version>5.10.0</junit.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>jakarta-ee-specs</id>
+            <name>Jakarta EE Specifications</name>
+            <url>https://repo1.maven.org/maven2/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Jakarta Persistence API -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+            <version>${jakarta.persistence.version}</version>
+        </dependency>
+
+        <!-- Mansart Persistence Core -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-core</artifactId>
+            <version>0.3.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Mansart Persistence CDI -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-persistence-cdi</artifactId>
+            <version>0.3.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Mansart Data Dialect SPI -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-data-dialect-spi</artifactId>
+            <version>0.3.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Mansart Data Dialect H2 -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-data-dialect-h2</artifactId>
+            <version>0.3.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Test dependencies -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Database drivers -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <version>2.2.224</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Transaction -->
+        <dependency>
+            <groupId>io.vidocq.mansart</groupId>
+            <artifactId>mansart-transactions-core</artifactId>
+            <version>0.3.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.0</version>
+                <configuration>
+                    <release>25</release>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
+
+            <!-- Surefire plugin for TCK execution -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <includes>
+                        <include>**/*Test.java</include>
+                        <include>**/*Tests.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <jakarta.persistence.provider>io.vidocq.mansart.persistence.core.MansartPersistenceProvider</jakarta.persistence.provider>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <!-- Failsafe for integration tests -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>3.2.5</version>
+                <executions>
+                    <execution>
+                        <id>tck-h2</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/*Test.java</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- H2 in-memory database profile -->
+        <profile>
+            <id>tck-run</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                <tck.db>h2</tck.db>
+                <tck.db.url>jdbc:h2:mem:test;DB_CLOSE_DELAY=-1</tck.db.url>
+                <tck.db.user>sa</tck.db.user>
+                <tck.db.password></tck.db.password>
+            </properties>
+        </profile>
+
+        <!-- PostgreSQL profile -->
+        <profile>
+            <id>tck-pg</id>
+            <properties>
+                <tck.db>postgresql</tck.db>
+                <tck.db.url>jdbc:postgresql://localhost:5432/test</tck.db.url>
+                <tck.db.user>test</tck.db.user>
+                <tck.db.password>test</tck.db.password>
+            </properties>
+        </profile>
+
+        <!-- Signature tests profile -->
+        <profile>
+            <id>tck-sig</id>
+            <properties>
+                <tck.test>signature</tck.test>
+            </properties>
+        </profile>
+    </profiles>
+</project>

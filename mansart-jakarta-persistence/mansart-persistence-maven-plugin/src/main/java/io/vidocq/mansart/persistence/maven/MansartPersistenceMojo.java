@@ -4,11 +4,14 @@
 package io.vidocq.mansart.persistence.maven;
 
 import org.apache.maven.plugin.AbstractMojo;
+import org.apache.maven.plugins.annotations.LifecyclePhase;
+import org.apache.maven.plugins.annotations.Mojo;
 
 /**
  * Maven plugin for Mansart Jakarta Persistence 3.2.
  * Stub implementation for JP-01.
  */
+@Mojo(name = "enhance", defaultPhase = LifecyclePhase.PROCESS_CLASSES)
 public class MansartPersistenceMojo extends AbstractMojo {
     @Override
     public void execute() {
