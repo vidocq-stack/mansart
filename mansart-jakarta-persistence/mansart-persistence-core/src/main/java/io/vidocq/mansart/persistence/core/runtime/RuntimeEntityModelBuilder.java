@@ -35,6 +35,24 @@ public final class RuntimeEntityModelBuilder {
     private static final String JPA_VERSION = "Ljakarta/persistence/Version;";
     private static final String JPA_TRANSIENT = "Ljakarta/persistence/Transient;";
 
+    private final Tier3WarningCollector warningCollector;
+
+    /**
+     * Creates a builder with no warning collection.
+     */
+    public RuntimeEntityModelBuilder() {
+        this(null);
+    }
+
+    /**
+     * Creates a builder that collects tier-3 warnings.
+     *
+     * @param warningCollector the warning collector, or null to disable
+     */
+    public RuntimeEntityModelBuilder(Tier3WarningCollector warningCollector) {
+        this.warningCollector = warningCollector;
+    }
+
     /**
      * Builds an EntityModel from the given entity class by reading its class file bytes.
      *
@@ -44,6 +62,10 @@ public final class RuntimeEntityModelBuilder {
      * @throws IllegalArgumentException if the class is not an @Entity or the class file cannot be read
      */
     public <T> EntityModel<T> build(Class<T> entityClass) {
+        if (warningCollector != null) {
+            warningCollector.warnTier3(entityClass.getName());
+        }
+
         String resourceName = "/" + entityClass.getName().replace('.', '/') + ".class";
         byte[] classBytes;
         try (InputStream is = entityClass.getResourceAsStream(resourceName)) {
