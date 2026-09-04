@@ -60,11 +60,6 @@ alias = "compactor"
 temperature = 0.2
 thinking = "off"
 
-# Project-level fallback — only reached by agents without their own
-# [tools.bash] override, i.e. Vibe's built-ins (`explore`, `lean`), since
-# `dev` and every custom subagent now set their own always+denylist block.
-# Full-auto (2026-09-04, "tous les agents en auto"): same shared denylist
-# as every agent profile, no allowlist ceiling.
 [tools.bash]
 permission = "always"
 denylist = [
@@ -79,17 +74,14 @@ denylist = [
     "docker volume rm",
 ]
 
-# NOTE: `allowlist` used to be listed here as a domain restriction, but
-# Vibe's WebFetchConfig (vibe/core/tools/builtins/web_fetch.py) has no such
-# field — Pydantic's extra="allow" silently kept it as inert data, never
-# read by resolve_permission(), which only checks `permission` and asks
-# per-domain otherwise. It never restricted anything. Set to "always" for
-# full-auto (2026-09-04): every agent can fetch any URL with no prompt —
-# there is no config-level way to keep a domain allowlist in this Vibe
-# version, only per-domain runtime grants (ask -> Always allow) or a flat
-# permission.
 [tools.web_fetch]
 permission = "always"
 
 [tools.web_search]
 permission = "always"
+
+[tools.read_file]
+allowlist = [
+    "/Users/yblazart/.vibe/*",
+    "/Users/yblazazart/projects/perso/vidocq/mansart/mansart-jakarta-persistence/mansart-persistence-external-it/*",
+]
