@@ -130,7 +130,7 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
                 if (name != null && !name.isEmpty()) return name;
             }
         }
-        return toSnakeCase(entity.getSimpleName().toString());
+        return toSnakeCase(toPlural(entity.getSimpleName().toString()));
     }
 
     private String getSchema(TypeElement entity) {
@@ -168,6 +168,42 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         return sb.toString();
     }
 
+    private String toPlural(String s) {
+        if (s == null || s.isEmpty()) return s;
+        
+        // Handle common English pluralization rules
+        if (s.endsWith("y") && s.length() > 1 && !isVowel(s.charAt(s.length() - 2))) {
+            return s.substring(0, s.length() - 1) + "ies";
+        }
+        if (s.endsWith("s") || s.endsWith("sh") || s.endsWith("ch") || 
+            s.endsWith("x") || s.endsWith("z")) {
+            return s + "es";
+        }
+        if (s.endsWith("f") || s.endsWith("fe")) {
+            return s.substring(0, s.length() - (s.endsWith("fe") ? 2 : 1)) + "ves";
+        }
+        if (s.endsWith("o") && s.length() > 1 && !isVowel(s.charAt(s.length() - 2))) {
+            return s + "es";
+        }
+        if (s.endsWith("us")) {
+            return s.substring(0, s.length() - 2) + "i";
+        }
+        if (s.endsWith("on") || s.endsWith("um")) {
+            return s.substring(0, s.length() - 2) + "a";
+        }
+        if (s.endsWith("is")) {
+            return s.substring(0, s.length() - 2) + "es";
+        }
+        
+        // Default: add 's'
+        return s + "s";
+    }
+
+    private boolean isVowel(char c) {
+        return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u' || 
+               c == 'A' || c == 'E' || c == 'I' || c == 'O' || c == 'U';
+    }
+
     private FieldMetadata scanField(VariableElement field) {
         String name = field.getSimpleName().toString();
         String type = field.asType().toString();
@@ -191,6 +227,17 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
     }
 
     private String getColumnName(VariableElement field) {
+        // Check @JoinColumn first for relationship fields
+        TypeElement joinColAnnot = elementUtils.getTypeElement("jakarta.persistence.JoinColumn");
+        if (joinColAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, joinColAnnot);
+            if (mirror != null) {
+                String name = getAnnotationValue(mirror, "name");
+                if (name != null && !name.isEmpty()) return name;
+            }
+        }
+        
+        // Check @Column for regular fields
         TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
         if (colAnnot != null) {
             AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
@@ -199,6 +246,21 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
                 if (name != null && !name.isEmpty()) return name;
             }
         }
+        
+        // For relationship fields without explicit @JoinColumn, generate FK column name
+        if (hasAnnotation(field, "jakarta.persistence.ManyToOne") || 
+            hasAnnotation(field, "jakarta.persistence.OneToOne")) {
+            String fieldType = field.asType().toString();
+            // Extract simple class name from fully qualified name
+            String simpleType = fieldType;
+            int lastDot = fieldType.lastIndexOf('.');
+            if (lastDot >= 0) {
+                simpleType = fieldType.substring(lastDot + 1);
+            }
+            return toSnakeCase(simpleType) + "_id";
+        }
+        
+        // Default naming for regular fields
         return toSnakeCase(field.getSimpleName().toString());
     }
 
@@ -434,11 +496,13 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         String name = getAttrImplClass(f);
         String iface = getAttrInterface(f);
         String fieldType = f.type();
+        String fieldName = f.name();
 
         w.write("    private static final class " + name + "<T, V> implements " + iface + "<T, V> {\n");
         w.write("        private final String name, columnName;\n");
         w.write("        private final EntityModel<T> entityModel;\n");
-        w.write("        private final boolean nullable, unique, isId, isVersion;\n\n");
+        w.write("        private final boolean nullable, unique, isId, isVersion;\n");
+        w.write("        private final java.lang.invoke.MethodHandle getter, setter;\n\n");
 
         w.write("        @SuppressWarnings(\"unchecked\")\n");
         w.write("        public " + name + "(String name, String columnName, EntityModel<T> entityModel,\n");
@@ -447,7 +511,9 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("            this.entityModel = entityModel;\n");
         w.write("            this.nullable = nullable; this.unique = unique;\n");
         w.write("            this.isId = isId; this.isVersion = isVersion;\n");
-        w.write("        }\n\n");
+        w.write("            this.getter = resolveGetter();\n");
+        w.write("            this.setter = resolveSetter();\n");
+        w.write("        }\n\n");;
 
         w.write("        @Override public String getName() { return name; }\n");
         w.write("        @Override public String getColumnName() { return columnName; }\n");
@@ -458,10 +524,45 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("        @Override public boolean isId() { return isId; }\n");
         w.write("        @Override public boolean isVersion() { return isVersion; }\n");
         w.write("        @Override public boolean isColumn() { return true; }\n");
-        w.write("        @Override public java.lang.invoke.MethodHandle getGetter() { throw new UnsupportedOperationException(\"not implemented\"); }\n");
-        w.write("        @Override public java.lang.invoke.MethodHandle getSetter() { throw new UnsupportedOperationException(\"not implemented\"); }\n");
-        w.write("        @Override @SuppressWarnings(\"unchecked\") public V get(T instance) { throw new UnsupportedOperationException(\"not implemented\"); }\n");
-        w.write("        @Override public void set(T instance, V value) { throw new UnsupportedOperationException(\"not implemented\"); }\n");
+        w.write("        @Override public java.lang.invoke.MethodHandle getGetter() { return getter; }\n");
+        w.write("        @Override public java.lang.invoke.MethodHandle getSetter() { return setter; }\n");
+        w.write("        @Override @SuppressWarnings(\"unchecked\") public V get(T instance) {\n");
+        w.write("            try { return (V) getter.invoke(instance); }\n");
+        w.write("            catch (Throwable e) { throw new RuntimeException(e); }\n");
+        w.write("        }\n");
+        w.write("        @Override public void set(T instance, V value) {\n");
+        w.write("            try { setter.invoke(instance, value); }\n");
+        w.write("            catch (Throwable e) { throw new RuntimeException(e); }\n");
+        w.write("        }\n");
+        w.write("\n");
+        w.write("        private java.lang.invoke.MethodHandle resolveGetter() {\n");
+        w.write("            try {\n");
+        w.write("                java.lang.invoke.MethodHandles.Lookup lookup =\n");
+        w.write("                    java.lang.invoke.MethodHandles.privateLookupIn(\n");
+        w.write("                        entityModel.getEntityClass(),\n");
+        w.write("                        java.lang.invoke.MethodHandles.lookup()\n");
+        w.write("                    );\n");
+        w.write("                return lookup.findGetter(\n");
+        w.write("                    entityModel.getEntityClass(), \"" + fieldName + "\", \"" + fieldType + "\"\n");
+        w.write("                );\n");
+        w.write("            } catch (Exception e) {\n");
+        w.write("                throw new RuntimeException(\"Failed to resolve getter for \" + fieldName, e);\n");
+        w.write("            }\n");
+        w.write("        }\n\n");;
+        w.write("        private java.lang.invoke.MethodHandle resolveSetter() {\n");
+        w.write("            try {\n");
+        w.write("                java.lang.invoke.MethodHandles.Lookup lookup =\n");
+        w.write("                    java.lang.invoke.MethodHandles.privateLookupIn(\n");
+        w.write("                        entityModel.getEntityClass(),\n");
+        w.write("                        java.lang.invoke.MethodHandles.lookup()\n");
+        w.write("                    );\n");
+        w.write("                return lookup.findSetter(\n");
+        w.write("                    entityModel.getEntityClass(), \"" + fieldName + "\", \"" + fieldType + "\"\n");
+        w.write("                );\n");
+        w.write("            } catch (Exception e) {\n");
+        w.write("                throw new RuntimeException(\"Failed to resolve setter for \" + fieldName, e);\n");
+        w.write("            }\n");
+        w.write("        }\n\n");
 
         w.write("    }\n\n");
     }

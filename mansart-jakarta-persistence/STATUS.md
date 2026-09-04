@@ -1,15 +1,15 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M1-JP-12 — MethodHandle resolution
-- **Milestone**: M1
+- **Card**: M2-JP-14 — MansartPersistenceMojo
+- **Milestone**: M2
 
 ## 📊 Milestone Progress Overview
 
 | Milestone | Total JP | Done | % Complete | Status |
 |----------|----------|------|------------|--------|
 | **M0** | 7 | 7 | **100%** | ✅ DONE |
-| **M1** | 6 | 4 | **66.7%** | 🟡 IN_PROGRESS |
+| **M1** | 6 | 6 | **100%** | ✅ DONE |
 | **M2** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M3** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **10** | **8.9%** | |
+| **TOTAL** | **112** | **12** | **10.7%** | |
 
 ---
 
@@ -56,7 +56,8 @@
 - **M1-JP-09** ✅ **DONE** — Entity scanning — detects @Entity, @Table, @Id, @GeneratedValue, @Column, @Version, @ManyToOne, @OneToOne, @JoinColumn, @Enumerated, @Embedded, @Embeddable
 - **M1-JP-10** ✅ **DONE** — _Entity generation — EntityModel<T>, typed Attribute subtypes (IdAttribute, BasicAttribute, NumericAttribute, TemporalAttribute, ReferenceAttribute, EnumAttribute, VersionAttribute)
 - **M1-JP-11** ✅ **DONE** — Standard JPA static metamodel generation — Entity_ with SingularAttribute fields (if jakarta.persistence-api on classpath)
-- **M1-JP-12** 🟡 IN_PROGRESS — MethodHandle resolution — MethodHandles.privateLookupIn in <clinit>, never setAccessible
+- **M1-JP-12** ✅ **DONE** — MethodHandle resolution — MethodHandles.privateLookupIn in constructor, never setAccessible
+- **M1-JP-13** ✅ **DONE** — SQL naming conventions — snake_case column names, plural snake_case table names, FK column naming
 
 ## Session Log
 - Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
