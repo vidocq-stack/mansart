@@ -1,7 +1,7 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M3-JP-19 — Runtime EntityModelBuilder
+- **Card**: M3-JP-20 — RuntimeRepositoryClassGenerator
 - **Milestone**: M3
 
 ## 📊 Milestone Progress Overview
@@ -11,7 +11,7 @@
 | **M0** | 7 | 7 | **100%** | ✅ DONE |
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
 | **M2** | 5 | 5 | **100%** | ✅ DONE |
-| **M3** | 4 | 0 | 0% | ⏳ TO_DEFINE |
+| **M3** | 4 | 1 | 25% | ✅ 1/4 DONE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **17** | **15.2%** | |
+| **TOTAL** | **112** | **18** | **16.1%** | |
 
 ---
 
@@ -43,6 +43,9 @@
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
 
 ## 🎯 Current Milestone Details
+### M3 — Runtime Metadata and Repository Generation
+- **M3-JP-19** ✅ **DONE** — RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 tests pass.
+
 ### M0 — Skeleton + Real TCK Harness Baseline
 - **M0-JP-01** ✅ **DONE** — Parent pom.xml with 9 sub-modules
 - **M0-JP-02** ✅ **DONE** — module-info.java for each module (5/9 complete - no module-info for maven-plugin, tests, external-it, tck)
@@ -81,6 +84,7 @@
 - TCK Client classes (160+ Client classes from 269 client classes total, ~1745 test methods) are now in test-classes but JUnit Jupiter cannot discover JavaTest harness tests
 - Current baseline: 2/0/2 PASS (ProviderDiscoveryTest only)
 - M2-JP-18: Fixed ClassFileParser to properly parse JPA annotations via Java 26 Class-File API (RuntimeVisibleAnnotationsAttribute/RuntimeInvisibleAnnotationsAttribute), fixed Mojo phase to PROCESS_CLASSES, added proper _Entity and Entity_ generation with correct Java types, configured external-lib pom.xml with mansart-persistence-maven-plugin, wrote 11 integration tests in ExternalEntityIT (all pass). auditor/SonarQube deferred to BeanVal completion.
+- M3-JP-19: RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 RuntimeEntityModelBuilderTest tests pass, build green.
 
 ---
 *Generated for milestone M0. All numbers are not measured unless stated otherwise.*
