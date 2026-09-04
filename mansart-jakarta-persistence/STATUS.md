@@ -11,7 +11,7 @@
 | **M0** | 7 | 7 | **100%** | ✅ DONE |
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
 | **M2** | 5 | 5 | **100%** | ✅ DONE |
-| **M3** | 4 | 1 | 25% | ✅ 1/4 DONE |
+| **M3** | 4 | 2 | 50% | ✅ 2/4 DONE |
 | **M4** | 6 | 0 | 0% | ⏳ TO_DEFINE |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **18** | **16.1%** | |
+| **TOTAL** | **112** | **19** | **17.0%** | |
 
 ---
 
@@ -45,6 +45,7 @@
 ## 🎯 Current Milestone Details
 ### M3 — Runtime Metadata and Repository Generation
 - **M3-JP-19** ✅ **DONE** — RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 tests pass.
+- **M3-JP-22** ✅ **DONE** — Tier3WarningCollector accumulates warnings for tier-3 entities, names entity class and points to mansart-persistence-maven-plugin. RuntimeEntityModelBuilder accepts optional Tier3WarningCollector. 3/3 tests pass.
 
 ### M0 — Skeleton + Real TCK Harness Baseline
 - **M0-JP-01** ✅ **DONE** — Parent pom.xml with 9 sub-modules
@@ -85,6 +86,7 @@
 - Current baseline: 2/0/2 PASS (ProviderDiscoveryTest only)
 - M2-JP-18: Fixed ClassFileParser to properly parse JPA annotations via Java 26 Class-File API (RuntimeVisibleAnnotationsAttribute/RuntimeInvisibleAnnotationsAttribute), fixed Mojo phase to PROCESS_CLASSES, added proper _Entity and Entity_ generation with correct Java types, configured external-lib pom.xml with mansart-persistence-maven-plugin, wrote 11 integration tests in ExternalEntityIT (all pass). auditor/SonarQube deferred to BeanVal completion.
 - M3-JP-19: RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 RuntimeEntityModelBuilderTest tests pass, build green.
+- M3-JP-22: Tier3WarningCollector accumulates warnings for tier-3 entities, names entity class and points to mansart-persistence-maven-plugin. RuntimeEntityModelBuilder accepts optional Tier3WarningCollector. 3/3 Tier3WarningTest tests pass.
 
 ---
 *Generated for milestone M0. All numbers are not measured unless stated otherwise.*
