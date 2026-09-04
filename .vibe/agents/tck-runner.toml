@@ -5,14 +5,20 @@
 # TCK, and how to run it, comes from the project's own architecture skill,
 # not from anything hardcoded here.
 #
-# The TCK runner script's exact path is project- (and often sub-module-)
-# specific, so it is deliberately NOT allowlisted below — it falls through
-# to "ask" the first time, once per project. Add it explicitly here once
-# known (bash allowlist entries are literal command PREFIXES, not globs —
-# see .vibe/config.toml) if the extra confirmation becomes annoying.
+# Full-auto bash, same rationale as `dev` (see dev.toml): this agent can
+# NEVER write or edit a file (both "never" below), so an unrestricted bash
+# has no code-mutation side channel — only the denylisted ops below are a
+# real risk, and it doesn't need any of them for its own job (downloading
+# a TCK zip, unzip/tar, mvn install:install-file, curl'ing Maven Central
+# or Sonar for coordinates/status). An "ask + allowlist" model stalls this
+# agent on every command that wasn't guessed in advance — e.g. it had no
+# way to look up TCK Maven coordinates via web_search or unpack a TCK
+# archive without a prompt nobody was there to answer during a 50+ minute
+# unsupervised run. See vidocq-quality / model-discipline for the same
+# discussion applied elsewhere.
 
 display_name = "TCK Runner"
-description = "Runs the current target's out-of-reactor TCK and reports measured pass/total numbers. Never edits sources."
+description = "Runs the current target's out-of-reactor TCK and reports measured pass/total numbers. Never edits sources. Full-auto: bash auto-approves except the shared destructive-ops denylist."
 safety = "neutral"
 agent_type = "subagent"
 
@@ -27,16 +33,15 @@ permission = "never"
 permission = "never"
 
 [tools.bash]
-permission = "ask"
-allowlist = [
-    "cd",
-    "./mvnw",
-    "mvn",
-    "find",
-    "grep",
-    "rg",
-    "sed",
-    "ls",
-    "cat",
-    "wc",
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
 ]

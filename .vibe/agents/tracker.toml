@@ -35,5 +35,15 @@ allowlist = [
 ]
 
 [tools.bash]
-permission = "ask"
-allowlist = ["git log", "git status", "git diff", "grep", "sed", "ls"]
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
+]

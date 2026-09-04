@@ -60,72 +60,36 @@ alias = "compactor"
 temperature = 0.2
 thinking = "off"
 
+# Project-level fallback — only reached by agents without their own
+# [tools.bash] override, i.e. Vibe's built-ins (`explore`, `lean`), since
+# `dev` and every custom subagent now set their own always+denylist block.
+# Full-auto (2026-09-04, "tous les agents en auto"): same shared denylist
+# as every agent profile, no allowlist ceiling.
 [tools.bash]
-permission = "ask"
-allowlist = [
-    "./mvnw",
-    "basename",
-    "cat",
-    "cd",
-    "comm",
-    "curl http://localhost:8080",
-    "curl http://localhost:9001",
-    "cut",
-    "date",
-    "diff",
-    "dirname",
-    "docker start vidocq-sonar",
-    "docker stop vidocq-sonar",
-    "du",
-    "echo",
-    "file",
-    "find",
-    "fmt",
-    "fold",
-    "git add",
-    "git branch",
-    "git commit",
-    "git diff",
-    "git log",
-    "git show",
-    "git status",
-    "grep",
-    "head",
-    "join",
-    "less",
-    "ls",
-    "md5sum",
-    "mkdir",
-    "more",
-    "mvn",
-    "nl",
-    "od",
-    "paste",
-    "pwd",
-    "readlink",
-    "rg",
-    "rtk",
-    "sed",
-    "sha1sum",
-    "sha256sum",
-    "shasum",
-    "sort",
-    "stat",
-    "sum",
-    "tac",
-    "tail",
-    "tr",
-    "tree",
-    "uname",
-    "uniq",
-    "wc",
-    "which",
-    "whoami",
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
 ]
 
+# NOTE: `allowlist` used to be listed here as a domain restriction, but
+# Vibe's WebFetchConfig (vibe/core/tools/builtins/web_fetch.py) has no such
+# field — Pydantic's extra="allow" silently kept it as inert data, never
+# read by resolve_permission(), which only checks `permission` and asks
+# per-domain otherwise. It never restricted anything. Set to "always" for
+# full-auto (2026-09-04): every agent can fetch any URL with no prompt —
+# there is no config-level way to keep a domain allowlist in this Vibe
+# version, only per-domain runtime grants (ask -> Always allow) or a flat
+# permission.
 [tools.web_fetch]
-allowlist = [
-    "jakarta.ee",
-    "openjdk.org",
-    "docs.mistral.ai",
-]
+permission = "always"
+
+[tools.web_search]
+permission = "always"

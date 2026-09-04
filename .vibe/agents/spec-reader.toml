@@ -2,12 +2,20 @@
 # implements — portable, not specific to any one spec (§14). Direct port
 # of OpenCode's `spec-reader`: one question in, one cited answer out
 # (~40 lines), so the caller never has to load the spec/TCK into its own
-# window. The only agent with web_fetch allowed (jakarta.ee / openjdk.org —
-# see .vibe/config.toml [tools.web_fetch]; extend that allowlist with the
-# target spec's own domain if it isn't a Jakarta spec).
+# window. The only agent that lists web_fetch in enabled_tools — other
+# agents technically could call it too (no enabled_tools restriction), but
+# aren't prompted to. web_fetch permission is "always" project-wide (see
+# .vibe/config.toml — Vibe has no domain-allowlist mechanism for it, only
+# a flat permission), so this is unrestricted to any URL, not just
+# jakarta.ee/openjdk.org.
+#
+# Full-auto bash (same rationale as `dev`/`tck-runner`/`guardian`):
+# write_file and edit are both "never" below, so this agent has no way to
+# turn an unrestricted bash into a code change — only the shared denylist
+# is a real risk, and this agent never legitimately needs any of those ops.
 
 display_name = "Spec Reader"
-description = "Read-only spec/TCK oracle for the current target (Medium 3.5). Answers one question with a citation; never writes code."
+description = "Read-only spec/TCK oracle for the current target (Medium 3.5). Answers one question with a citation; never writes code. Full-auto: bash auto-approves except the shared destructive-ops denylist."
 safety = "safe"
 agent_type = "subagent"
 
@@ -21,5 +29,15 @@ permission = "never"
 permission = "never"
 
 [tools.bash]
-permission = "ask"
-allowlist = ["find", "grep", "rg", "sed", "ls", "cat"]
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
+]

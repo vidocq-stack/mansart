@@ -15,7 +15,7 @@
 # still matters more than staying cloud-hosted.
 
 display_name = "Coder"
-description = "Implements a well-specified change: writes/edits the code, does not decide scope or architecture."
+description = "Implements a well-specified change: writes/edits the code, does not decide scope or architecture. Full-auto: writes, edits, and bash all auto-approve, except the shared destructive-ops denylist."
 safety = "destructive"
 agent_type = "subagent"
 
@@ -30,18 +30,15 @@ permission = "always"
 permission = "always"
 
 [tools.bash]
-permission = "ask"
-allowlist = [
-    "cd",
-    "echo",
-    "git diff",
-    "git status",
-    "./mvnw",
-    "mvn",
-    "find",
-    "grep",
-    "rg",
-    "sed",
-    "ls",
-    "cat",
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
 ]

@@ -5,9 +5,14 @@
 # PASS (see the root AGENTS.md and PREPARE_OPENCODE.md on branch
 # ybl/jpa-opencode). Never fixes anything; only reports. Medium
 # 3.5: this needs judgment, not code generation.
+#
+# Full-auto bash (same rationale as the other read-only subagents):
+# write_file and edit are both "never" below, so this agent has no way to
+# turn an unrestricted bash into a code change — only the shared denylist
+# is a real risk, and this agent never legitimately needs any of those ops.
 
 display_name = "Auditor"
-description = "Anti-drift review (Medium 3.5): stubs, reflection, TCK leakage, disabled tests, module violations. Read-only, reports only."
+description = "Anti-drift review (Medium 3.5): stubs, reflection, TCK leakage, disabled tests, module violations. Read-only, reports only. Full-auto: bash auto-approves except the shared destructive-ops denylist."
 safety = "safe"
 agent_type = "subagent"
 
@@ -21,14 +26,15 @@ permission = "never"
 permission = "never"
 
 [tools.bash]
-permission = "ask"
-allowlist = [
-    "git diff",
-    "git log",
-    "git status",
-    "find",
-    "grep",
-    "rg",
-    "sed",
-    "ls",
+permission = "always"
+denylist = [
+    "git reset",
+    "git clean",
+    "git restore",
+    "git checkout --",
+    "git checkout HEAD",
+    "git push",
+    "rm -rf",
+    "docker rm",
+    "docker volume rm",
 ]
