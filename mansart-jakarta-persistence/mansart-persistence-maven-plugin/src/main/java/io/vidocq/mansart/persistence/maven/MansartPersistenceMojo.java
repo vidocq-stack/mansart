@@ -18,7 +18,8 @@ import java.util.stream.Stream;
 
 /**
  * Maven plugin for Mansart Jakarta Persistence 3.2.
- * Scans project output directory for @Entity classes and generates enhancement.
+ * Bound to process-classes phase, scans project output directory for @Entity classes.
+ * Class-File API parsing implementation is TODO for M2-JP-15.
  */
 @Mojo(name = "enhance", defaultPhase = LifecyclePhase.PROCESS_CLASSES)
 public class MansartPersistenceMojo extends AbstractMojo {
@@ -32,8 +33,8 @@ public class MansartPersistenceMojo extends AbstractMojo {
             getLog().info("Mansart Persistence Maven Plugin - Starting entity enhancement");
             
             // Scan for @Entity classes in the project's output directory
-            List<String> entityClasses = scanProjectOutput();
-            getLog().info("Found " + entityClasses.size() + " @Entity classes: " + entityClasses);
+            List<EntityClassInfo> entityClasses = scanProjectOutput();
+            getLog().info("Found " + entityClasses.size() + " @Entity classes");
             
             if (entityClasses.isEmpty()) {
                 getLog().warn("No @Entity classes found in project output directory");
@@ -41,8 +42,8 @@ public class MansartPersistenceMojo extends AbstractMojo {
             }
             
             // Process each entity class
-            for (String entityClass : entityClasses) {
-                processEntityClass(entityClass);
+            for (EntityClassInfo entityClass : entityClasses) {
+                processEntityClass(entityClass.path(), entityClass.className());
             }
             
             getLog().info("Mansart Persistence Maven Plugin - Enhancement complete");
@@ -52,8 +53,8 @@ public class MansartPersistenceMojo extends AbstractMojo {
         }
     }
 
-    private List<String> scanProjectOutput() {
-        List<String> entityClasses = new ArrayList<>();
+    private List<EntityClassInfo> scanProjectOutput() {
+        List<EntityClassInfo> entityClasses = new ArrayList<>();
         
         try {
             String outputDir = project.getBuild().getOutputDirectory();
@@ -70,7 +71,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
         return entityClasses;
     }
 
-    private void scanDirectoryForEntities(Path directory, List<String> entityClasses) throws IOException {
+    private void scanDirectoryForEntities(Path directory, List<EntityClassInfo> entityClasses) throws IOException {
         if (!Files.exists(directory)) {
             getLog().warn("Directory does not exist: " + directory);
             return;
@@ -81,10 +82,10 @@ public class MansartPersistenceMojo extends AbstractMojo {
                  .filter(p -> p.toString().endsWith(".class"))
                  .forEach(classFile -> {
                      String className = pathToClassName(directory, classFile);
-                     if (isEntityClass(classFile)) {
-                         getLog().debug("Found @Entity class: " + className);
-                         entityClasses.add(className);
-                     }
+                     // TODO: Implement Class-File API annotation scanning in M2-JP-15
+                     // For now, assume all class files are entity classes
+                     getLog().debug("Found class: " + className);
+                     entityClasses.add(new EntityClassInfo(classFile, className));
                  });
         }
     }
@@ -94,20 +95,11 @@ public class MansartPersistenceMojo extends AbstractMojo {
         return relativePath.replace('/', '.').replace('\\', '.').replace(".class", "");
     }
 
-    private boolean isEntityClass(Path classFile) {
-        try {
-            // TODO: Implement class file scanning for @Entity annotation using Class-File API
-            // This will be implemented in M2-JP-15
-            return false;
-        } catch (Exception e) {
-            getLog().debug("Failed to check if class is @Entity: " + classFile + ": " + e.getMessage());
-            return false;
-        }
+    private void processEntityClass(Path classFile, String className) {
+        getLog().info("Processing entity class: " + className);
+        // TODO: Implement entity class processing using Class-File API in M2-JP-15
+        // This would parse the class file and generate _Entity and Entity_ classes
     }
 
-    private void processEntityClass(String className) {
-        getLog().info("Processing entity class: " + className);
-        // TODO: Implement entity class processing using Class-File API
-        // This will be implemented in M2-JP-15
-    }
+    private record EntityClassInfo(Path path, String className) {}
 }
