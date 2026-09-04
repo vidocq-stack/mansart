@@ -247,6 +247,28 @@ public final class ClassFileParser {
                type.equals("java/math/BigDecimal");
     }
 
+    /**
+     * Converts an internal JVM type name to a Java class name.
+     * For example: "Lio/vidocq/mansart/persistence/external/ExternalPerson;" -> "io.vidocq.mansart.persistence.external.ExternalPerson"
+     *
+     * @param internalType the internal JVM type name
+     * @return the Java class name
+     */
+    public static String toJavaClassName(String internalType) {
+        if (internalType == null || internalType.isEmpty()) {
+            return "";
+        }
+        
+        // Handle reference types: Ljava/lang/Long; -> java.lang.Long
+        if (internalType.startsWith("L") && internalType.endsWith(";")) {
+            String withoutPrefix = internalType.substring(1, internalType.length() - 1);
+            return withoutPrefix.replace("/", ".");
+        }
+        
+        // Handle primitive types - return as is
+        return internalType;
+    }
+
     private static String toSnakeCase(String s) {
         if (s == null || s.isEmpty()) return s;
         StringBuilder sb = new StringBuilder();

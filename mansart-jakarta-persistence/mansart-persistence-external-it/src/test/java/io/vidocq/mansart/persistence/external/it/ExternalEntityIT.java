@@ -178,4 +178,55 @@ public class ExternalEntityIT {
             throw new RuntimeException("Failed to read file: " + path, e);
         }
     }
+
+    // --- M2-JP-16: Lazy association proxies ---
+
+    @Test
+    public void testMavenPluginGeneratedLazyProxyForExternalPerson() {
+        // ExternalPerson is the target of ExternalDepartment's @ManyToOne, so a proxy should be generated
+        Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_Lazy.java");
+        
+        assertThat(Files.exists(generatedFile)).as("Generated ExternalPerson_Lazy.java should exist").isTrue();
+        
+        String content = readFile(generatedFile);
+        assertThat(content).contains("public final class ExternalPerson_Lazy extends ExternalPerson");
+        assertThat(content).contains("implements LazyEntityProxy");
+        assertThat(content).contains("import io.vidocq.mansart.persistence.spi.LazyEntityProxy");
+        assertThat(content).contains("import io.vidocq.mansart.persistence.spi.LazyInitializer");
+        assertThat(content).contains("private LazyInitializer lazyInitializer");
+        assertThat(content).contains("private boolean loaded");
+    }
+
+    @Test
+    public void testMavenPluginGeneratedLazyProxyOverridesGetters() {
+        Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_Lazy.java");
+        
+        assertThat(Files.exists(generatedFile)).as("Generated ExternalPerson_Lazy.java should exist").isTrue();
+        
+        String content = readFile(generatedFile);
+        // The proxy should override entity getters to trigger lazy loading
+        assertThat(content).contains("public String getName()");
+        assertThat(content).contains("public String getDescription()");
+        assertThat(content).contains("public int getVersion()");
+        assertThat(content).contains("ensureLoaded()");
+    }
+
+    @Test
+    public void testMavenPluginGeneratedLazyProxyHasIsLoadedMethod() {
+        Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_Lazy.java");
+        
+        assertThat(Files.exists(generatedFile)).as("Generated ExternalPerson_Lazy.java should exist").isTrue();
+        
+        String content = readFile(generatedFile);
+        assertThat(content).contains("public boolean isLoaded()");
+        assertThat(content).contains("public void setLazyInitializer(LazyInitializer");
+    }
+
+    @Test
+    public void testNoLazyProxyGeneratedForNonReferencedEntities() {
+        // Book is not the target of any @ManyToOne/@OneToOne, so no proxy should be generated
+        Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/lib/Book_Lazy.java");
+        
+        assertThat(Files.exists(generatedFile)).as("Book_Lazy.java should NOT exist — Book is not referenced by any entity").isFalse();
+    }
 }

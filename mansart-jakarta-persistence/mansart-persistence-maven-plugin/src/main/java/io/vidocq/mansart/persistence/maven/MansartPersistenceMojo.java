@@ -14,7 +14,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -52,6 +54,9 @@ public class MansartPersistenceMojo extends AbstractMojo {
             for (EntityClassInfo entityClass : entityClasses) {
                 processEntityClass(entityClass.path(), entityClass.className());
             }
+            
+            // Generate lazy proxies for referenced entities
+            generateLazyProxies(entityClasses);
             
             getLog().info("Mansart Persistence Maven Plugin - Enhancement complete");
             
@@ -272,6 +277,196 @@ public class MansartPersistenceMojo extends AbstractMojo {
         
         sb.append("\n}");
         return sb.toString();
+    }
+
+    /**
+     * Collects all entity types that are targets of @ManyToOne/@OneToOne relationships
+     * and generates lazy proxy subclasses for them.
+     *
+     * @param entityClasses the list of all entity classes found
+     */
+    private void generateLazyProxies(List<EntityClassInfo> entityClasses) {
+        Set<String> referencedEntityTypes = new HashSet<>();
+        
+        // First pass: collect all referenced entity types from REFERENCE fields
+        for (EntityClassInfo entityClass : entityClasses) {
+            try {
+                ClassFileParser.EntityMetadata metadata = ClassFileParser.parseEntityClass(entityClass.path(), entityClass.className());
+                if (metadata != null) {
+                    for (ClassFileParser.FieldMetadata field : metadata.fields()) {
+                        if (field.attributeType() == ClassFileParser.AttributeType.REFERENCE) {
+                            String referencedType = ClassFileParser.toJavaClassName(field.type());
+                            if (!referencedType.isEmpty()) {
+                                referencedEntityTypes.add(referencedType);
+                                getLog().debug("Found referenced entity type: " + referencedType + " from field " + field.name());
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                getLog().warn("Failed to parse entity class " + entityClass.className() + " for proxy generation: " + e.getMessage());
+            }
+        }
+        
+        // Second pass: generate proxies for each referenced entity
+        for (String referencedType : referencedEntityTypes) {
+            generateLazyProxyForEntity(referencedType, entityClasses);
+        }
+    }
+    
+    /**
+     * Generates a lazy proxy subclass for a single entity type.
+     *
+     * @param entityType the fully qualified entity class name
+     * @param allEntityClasses all entity classes found in the project
+     */
+    private void generateLazyProxyForEntity(String entityType, List<EntityClassInfo> allEntityClasses) {
+        try {
+            // Find the entity class info for this type
+            EntityClassInfo entityClassInfo = null;
+            for (EntityClassInfo info : allEntityClasses) {
+                if (info.className().equals(entityType)) {
+                    entityClassInfo = info;
+                    break;
+                }
+            }
+            
+            if (entityClassInfo == null) {
+                getLog().warn("Could not find class file for referenced entity: " + entityType);
+                return;
+            }
+            
+            // Parse the entity to get its fields
+            ClassFileParser.EntityMetadata metadata = ClassFileParser.parseEntityClass(entityClassInfo.path(), entityClassInfo.className());
+            if (metadata == null) {
+                getLog().warn("Failed to parse entity metadata for: " + entityType);
+                return;
+            }
+            
+            // Generate the proxy Java source
+            String proxyContent = generateLazyProxyJava(metadata);
+            
+            // Write to file
+            String packageName = metadata.packageName();
+            String simpleName = metadata.entityName();
+            String proxyClassName = simpleName + "_Lazy";
+            
+            Path outputFile = Path.of(generatedSourcesDirectory.toString(), 
+                                     packageName.replace('.', '/'), 
+                                     proxyClassName + ".java");
+            Files.createDirectories(outputFile.getParent());
+            Files.writeString(outputFile, proxyContent);
+            
+            getLog().info("Generated lazy proxy class: " + packageName + "." + proxyClassName);
+            
+        } catch (IOException e) {
+            getLog().warn("Failed to write proxy file for entity " + entityType + ": " + e.getMessage());
+        } catch (Exception e) {
+            getLog().warn("Failed to generate proxy for entity " + entityType + ": " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Generates the Java source code for a lazy proxy subclass.
+     *
+     * @param metadata the entity metadata
+     * @return the generated Java source code
+     */
+    private String generateLazyProxyJava(ClassFileParser.EntityMetadata metadata) {
+        String pkg = metadata.packageName();
+        String entityName = metadata.entityName();
+        String proxyClassName = entityName + "_Lazy";
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append("package ").append(pkg).append(";\n\n");
+        sb.append("import io.vidocq.mansart.persistence.spi.LazyEntityProxy;\n");
+        sb.append("import io.vidocq.mansart.persistence.spi.LazyInitializer;\n\n");
+        sb.append("public final class ").append(proxyClassName).append(" extends ").append(entityName)
+          .append(" implements LazyEntityProxy {\n\n");
+        
+        sb.append("    private LazyInitializer lazyInitializer;\n");
+        sb.append("    private boolean loaded = false;\n\n");
+        
+        // Generate ensureLoaded method
+        sb.append("    private void ensureLoaded() {\n");
+        sb.append("        if (!loaded && lazyInitializer != null) {\n");
+        sb.append("            lazyInitializer.initialize();\n");
+        sb.append("            loaded = true;\n");
+        sb.append("        }\n");
+        sb.append("    }\n\n");
+        
+        // Generate isLoaded method
+        sb.append("    @Override\n");
+        sb.append("    public boolean isLoaded() {\n");
+        sb.append("        return loaded;\n");
+        sb.append("    }\n\n");
+        
+        // Generate setLazyInitializer method
+        sb.append("    @Override\n");
+        sb.append("    public void setLazyInitializer(LazyInitializer initializer) {\n");
+        sb.append("        this.lazyInitializer = initializer;\n");
+        sb.append("    }\n\n");
+        
+        // Generate getter overrides for all non-id fields
+        for (ClassFileParser.FieldMetadata field : metadata.fields()) {
+            if (field.isId()) {
+                continue; // Skip getId() - it's always available
+            }
+            
+            String javaType = toJavaType(field.type());
+            // Strip java.lang. prefix for common types to match expected format
+            javaType = stripJavaLangPrefix(javaType);
+            String capitalizedFieldName = capitalize(field.name());
+            String getterName = "get" + capitalizedFieldName;
+            
+            // Generate getter override
+            sb.append("    @Override\n");
+            sb.append("    public ").append(javaType).append(" ").append(getterName).append("() {\n");
+            sb.append("        ensureLoaded();\n");
+            sb.append("        return super.").append(getterName).append("();\n");
+            sb.append("    }\n\n");
+        }
+        
+        sb.append("}\n");
+        
+        return sb.toString();
+    }
+    
+    /**
+     * Capitalizes the first letter of a string.
+     *
+     * @param str the input string
+     * @return the string with first letter capitalized
+     */
+    private String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+    
+    /**
+     * Strips the java.lang. prefix from common types to match expected format.
+     * For example: "java.lang.String" -> "String", "java.lang.Integer" -> "Integer"
+     *
+     * @param typeName the type name
+     * @return the type name without java.lang. prefix
+     */
+    private String stripJavaLangPrefix(String typeName) {
+        if (typeName == null || typeName.isEmpty()) {
+            return typeName;
+        }
+        
+        // Common types that should have java.lang. prefix stripped
+        if (typeName.startsWith("java.lang.")) {
+            String simpleName = typeName.substring("java.lang.".length());
+            // Only strip if it's a simple type name (no further dots)
+            if (simpleName.indexOf('.') == -1) {
+                return simpleName;
+            }
+        }
+        
+        return typeName;
     }
 
     private record EntityClassInfo(Path path, String className) {}
