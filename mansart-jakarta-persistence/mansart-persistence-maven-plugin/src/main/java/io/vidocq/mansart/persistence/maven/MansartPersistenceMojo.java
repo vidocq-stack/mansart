@@ -82,10 +82,10 @@ public class MansartPersistenceMojo extends AbstractMojo {
                  .filter(p -> p.toString().endsWith(".class"))
                  .forEach(classFile -> {
                      String className = pathToClassName(directory, classFile);
-                     // TODO: Implement Class-File API annotation scanning in M2-JP-15
-                     // For now, assume all class files are entity classes
-                     getLog().debug("Found class: " + className);
-                     entityClasses.add(new EntityClassInfo(classFile, className));
+                     if (isEntityClass(classFile)) {
+                         getLog().debug("Found @Entity class: " + className);
+                         entityClasses.add(new EntityClassInfo(classFile, className));
+                     }
                  });
         }
     }
@@ -95,10 +95,27 @@ public class MansartPersistenceMojo extends AbstractMojo {
         return relativePath.replace('/', '.').replace('\\', '.').replace(".class", "");
     }
 
+    private boolean isEntityClass(Path classFile) {
+        try {
+            return ClassFileParser.hasEntityAnnotation(classFile);
+        } catch (Exception e) {
+            getLog().debug("Failed to check if class is @Entity: " + classFile + ": " + e.getMessage());
+            return false;
+        }
+    }
+
     private void processEntityClass(Path classFile, String className) {
         getLog().info("Processing entity class: " + className);
-        // TODO: Implement entity class processing using Class-File API in M2-JP-15
-        // This would parse the class file and generate _Entity and Entity_ classes
+        try {
+            ClassFileParser.EntityMetadata metadata = ClassFileParser.parseEntityClass(classFile, className);
+            if (metadata != null) {
+                getLog().info("Successfully parsed entity: " + metadata.entityName() + 
+                           " with " + metadata.fields().size() + " fields");
+                // TODO: Generate _Entity and Entity_ classes in M2-JP-15
+            }
+        } catch (Exception e) {
+            getLog().warn("Failed to process entity class " + className + ": " + e.getMessage());
+        }
     }
 
     private record EntityClassInfo(Path path, String className) {}
