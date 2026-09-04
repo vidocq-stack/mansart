@@ -59,29 +59,29 @@ tck ────────── core, cdi, processor (out of reactor)
 
 ## Milestones
 
-| Milestone | Goal | Ends When | Status |
-|-----------|------|-----------|--------|
-| M0 | Skeleton + Real TCK Harness Baseline | 0/X/1745 baseline with real setup*Data errors | TO_DEFINE |
-| M1 | Entity Metamodel + APT Generation | APT generates _Entity + Entity_ correctly | TO_DEFINE |
-| M2 | Maven Plugin (Tier 2) + External Library Support | external-it proves tier-1 ≈ tier-2 | TO_DEFINE |
-| M3 | Runtime Class-File API (Tier 3) Fallback | escape hatch works, warnings logged | TO_DEFINE |
-| M4 | Core Runtime: EntityManagerFactory + EntityManager | basic lifecycle + transaction integration works | TO_DEFINE |
-| M5 | Object-Relational Mapping (Basic) | CRUD + basic annotations work | TO_DEFINE |
-| M6 | Query Execution (JPQL) | JPQL parser + execution works | TO_DEFINE |
-| M7 | Advanced Mapping | relationships, inheritance, enums work | TO_DEFINE |
-| M8 | Entity Lifecycle + Callbacks | all lifecycle annotations supported | TO_DEFINE |
-| M9 | Cascading + Orphan Removal | cascade types + orphan removal work | TO_DEFINE |
-| M10 | Fetch Types + Lazy Loading | lazy loading + fetch types work | TO_DEFINE |
-| M11 | Criteria API | full Criteria API supported | TO_DEFINE |
-| M12 | Named Queries + Native Queries | named/native queries work | TO_DEFINE |
-| M13 | Persistence Context + Caching | context lifecycle + caching work | TO_DEFINE |
-| M14 | Transaction Management + Synchronization | full transaction integration | TO_DEFINE |
-| M15 | CDI Integration (Vauban) | CDI injection + scoping work | TO_DEFINE |
-| M16 | PostgreSQL Dialect Support | PostgreSQL works + TCK passes | TO_DEFINE |
-| M17 | Error Handling + Exceptions | all JPA exceptions mapped correctly | TO_DEFINE |
-| M18 | Validation + Schema Generation | schema validation + DDL generation work | TO_DEFINE |
-| M19 | Performance + Benchmarks | BENCH.md + benchmarks established | TO_DEFINE |
-| M20 | Official Jakarta Persistence 3.2 TCK | 1745/1745 PASS on H2 + PostgreSQL | TO_DEFINE |
+| Milestone | Goal | Ends When |
+|-----------|------|-----------|
+| M0 | Skeleton + Real TCK Harness Baseline | 0/X/1745 baseline with real setup*Data errors |
+| M1 | Entity Metamodel + APT Generation | APT generates _Entity + Entity_ correctly |
+| M2 | Maven Plugin (Tier 2) + External Library Support | external-it proves tier-1 ≈ tier-2 |
+| M3 | Runtime Class-File API (Tier 3) Fallback | escape hatch works, warnings logged |
+| M4 | Core Runtime: EntityManagerFactory + EntityManager | basic lifecycle + transaction integration works |
+| M5 | Object-Relational Mapping (Basic) | CRUD + basic annotations work |
+| M6 | Query Execution (JPQL) | JPQL parser + execution works |
+| M7 | Advanced Mapping | relationships, inheritance, enums work |
+| M8 | Entity Lifecycle + Callbacks | all lifecycle annotations supported |
+| M9 | Cascading + Orphan Removal | cascade types + orphan removal work |
+| M10 | Fetch Types + Lazy Loading | lazy loading + fetch types work |
+| M11 | Criteria API | full Criteria API supported |
+| M12 | Named Queries + Native Queries | named/native queries work |
+| M13 | Persistence Context + Caching | context lifecycle + caching work |
+| M14 | Transaction Management + Synchronization | full transaction integration |
+| M15 | CDI Integration (Vauban) | CDI injection + scoping work |
+| M16 | PostgreSQL Dialect Support | PostgreSQL works + TCK passes |
+| M17 | Error Handling + Exceptions | all JPA exceptions mapped correctly |
+| M18 | Validation + Schema Generation | schema validation + DDL generation work |
+| M19 | Performance + Benchmarks | BENCH.md + benchmarks established |
+| M20 | Official Jakarta Persistence 3.2 TCK | 1745/1745 PASS on H2 + PostgreSQL |
 
 ## Expanded Cards for M0 (current milestone)
 
@@ -127,7 +127,7 @@ tck ────────── core, cdi, processor (out of reactor)
 - proof:  ./run-official-tck-persistence-3.2.sh reports 0/X/1745 with all errors in setup*Data or provider wiring
 - notes:  document baseline in STATUS.md, X should be mostly setup*Data errors, not harness failures
 
-## Later Milestones (TO_DEFINE)
+## Later Milestones
 
 ### M1 — Entity Metamodel + APT Generation
 - M1-JP-08: `MansartPersistenceProcessor` (`SourceVersion.RELEASE_25`, `@SupportedAnnotationTypes` for JPA annotations)
