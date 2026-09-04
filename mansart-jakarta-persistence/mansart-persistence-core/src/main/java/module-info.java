@@ -11,6 +11,7 @@ module io.vidocq.mansart.persistence.core {
     requires transitive io.vidocq.mansart.data.dialect.spi;
 
     exports io.vidocq.mansart.persistence.core;
+    exports io.vidocq.mansart.persistence.core.runtime;
 
     provides jakarta.persistence.spi.PersistenceProvider
         with io.vidocq.mansart.persistence.core.MansartPersistenceProvider;
