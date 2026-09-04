@@ -1,7 +1,7 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M4-JP-25 — MansartEntityManager
+- **Card**: M4-JP-26 — Persistence context, tracks entity states
 - **Milestone**: M4
 
 ## 📊 Milestone Progress Overview
@@ -12,7 +12,7 @@
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
 | **M2** | 5 | 5 | **100%** | ✅ DONE |
 | **M3** | 4 | 4 | 100% | ✅ DONE |
-| **M4** | 6 | 2 | **~33%** | ✅ IN_PROGRESS |
+| **M4** | 6 | 3 | **~50%** | ✅ IN_PROGRESS |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
 | **M7** | 12 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **23** | **~20.5%** | |
+| **TOTAL** | **112** | **24** | **~21.4%** | |
 
 ---
 
@@ -47,6 +47,8 @@
 - **M4-JP-23** ✅ **DONE** — MansartPersistenceProvider implements PersistenceProvider, parses persistence.xml, creates EntityManagerFactory. 7/7 tests pass. Measured: MansartPersistenceProviderTest 7/7 PASS, full mansart-persistence-tests module 24/24 PASS. SonarQube: 0 bugs/0 smells/0 vulnerabilities/0 hotspots on new code. Pre-existing debt noted (112 open issues in untouched files, jacoco coverage gap).
 
 - **M4-JP-24** ✅ **DONE** — MansartEntityManagerFactory now manages EntityManager instances: tracks all created EMs in a ConcurrentLinkedQueue, cascades close on factory close (all EMs marked closed). Double-check pattern in createTrackedEm guards against TOCTOU race between ensureOpen and EM registration. Bootstrap metadata: EMF now stores PersistenceUnitTransactionType (passed from both XML descriptor path and PersistenceConfiguration path). getTransactionType() returns it without a closed check (per spec, no @throws IllegalStateException). Closed-state contract: createEntityManager throws IllegalStateException if factory closed. getProperties, getCache, getPersistenceUnitUtil, unwrap all throw IllegalStateException if closed (per their @throws declarations). getCache returns null (spec-sanctioned for no L2 cache). unwrap supports MansartEntityManagerFactory and EntityManagerFactory, throws PersistenceException for unsupported types. MansartPersistenceUnitUtil (new): implements PersistenceUnitUtil, all methods throw UnsupportedOperationException (entity model not built yet — that's M5+). MansartEntityManager: added open/closed state (AtomicBoolean). isOpen() checks both EM state and factory state. close() deregisters from factory. markClosed() (package-private) called by factory cascade. Persistence operations remain UnsupportedOperationException (M4-JP-25 scope). MansartPersistenceProvider: both createEntityManagerFactory paths now pass transactionType to the EMF constructor. Measured: MansartEntityManagerFactoryTest: 19/19 PASS, Full mansart-persistence-tests module: 43/43 PASS (was 24, +19 new tests). Build: green on all modules (including external-it). Auditor: clean on diff (2 minor findings fixed: dead registerEntityManager method removed, null guard on constructor properties added). SonarQube: 0 bugs, 0 vulnerabilities, 0 security hotspots, 0 violations on M4-JP-24 changed files. Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both are pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeAttribute.java, RuntimeEntityModel.java, RuntimeEntityModelBuilder.java), same pattern as M4-JP-23.
+
+- **M4-JP-25** ✅ **DONE** — MansartEntityManager implements the EntityManager interface, delegates entity-state operations to a persistence context. ensureOpen() closed-state guard on all EM methods except the three spec exemptions (isOpen, getProperties, getTransaction). Per EntityManager.close() Javadoc: after close every method throws IllegalStateException except isOpen(), getProperties() and getTransaction(). Configuration storage: flush mode (default FlushModeType.AUTO), cache retrieve mode (default CacheRetrieveMode.USE), cache store mode (default CacheStoreMode.USE), all retained via set/get with ensureOpen. Property overrides: setProperty(name,value) stored in a ConcurrentHashMap overlay; getProperties() returns an unmodifiable merge of factory properties + overrides (exempt from closed-state, does not throw when closed). unwrap(Class): supports MansartEntityManager and EntityManager (returns this), throws PersistenceException for unsupported types, with ensureOpen. getDelegate(): returns this, with ensureOpen. getEntityManagerFactory(): returns the creating factory, with ensureOpen. New internal (non-exported) package io.vidocq.mansart.persistence.core.context with MansartPersistenceContext — the persistence-context seam. EM delegates all entity-state operations (persist, merge, remove, find + overloads, getReference + overloads, flush, refresh + overloads, clear, detach, contains, lock + overloads, getLockMode) to it after ensureOpen. The context's methods throw UnsupportedOperationException("not implemented: <op>") — the state machine (NEW/MANAGED/DETACHED/REMOVED identity map) is card M4-JP-26. Query operations (createQuery/createNamedQuery/createNativeQuery/stored procs), getCriteriaBuilder, getMetamodel, entity graph ops, joinTransaction/isJoinedToTransaction, getTransaction, runWithConnection/callWithConnection: ensureOpen + UnsupportedOperationException (later milestones). module-info.java: unchanged (new context package intentionally NOT exported — internal). Measured tests: MansartEntityManagerTest: 28/28 PASS (new test class), Full mansart-persistence-tests module: 71/71 PASS (was 43, +28). Build: green on all 9 modules of the mansart-jakarta-persistence reactor (install -DskipTests + verify). Auditor: clean on diff restricted to the sub-module — no anti-drift findings (no fake implementations, no reflection on user types, no TCK leakage, no disabled tests, no module-export leakage). SonarQube (projectKey io.vidocq.mansart:mansart-jakarta-persistence): quality gate OK (PASS). On M4-JP-25 changed files: 0 bugs, 0 vulnerabilities, 0 security hotspots. 57 code smells (22 S1172 "unused parameter" on MansartPersistenceContext interface-stub methods — unavoidable since parameters are mandated by the EntityManager signature; 35 on the test file: S5786 "remove public modifier" + lambda/assert style nits, matching the existing MansartEntityManagerFactoryTest style). New-code metrics came back empty because the files are uncommitted at scan time (same situation as prior cards — git blame unavailable); the gate reports OK. Note: the actual Sonar projectKey is io.vidocq.mansart:mansart-jakarta-persistence (Maven groupId:artifactId), not vidocq-mansart-persistence, because the POM defines no explicit sonar.projectKey.
 
 ### M3 — Runtime Metadata and Repository Generation
 - **M3-JP-19** ✅ **DONE** — RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 tests pass.

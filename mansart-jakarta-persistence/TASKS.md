@@ -153,7 +153,7 @@ tck ────────── core, cdi, processor (out of reactor)
 ### M4 — Core Runtime: EntityManagerFactory + EntityManager
 - M4-JP-23: `MansartPersistenceProvider` — implements `PersistenceProvider`, parses `persistence.xml`, creates `EntityManagerFactory`
 - M4-JP-24: `MansartEntityManagerFactory` — manages `EntityManager` instances, bootstrap, metadata
-- M4-JP-25: `MansartEntityManager` — implements `EntityManager` interface, delegates to persistence context
+- M4-JP-25: `MansartEntityManager` — implements `EntityManager` interface, delegates to persistence context ✅ **DONE**
 - M4-JP-26: Persistence context — tracks entity states (NEW, MANAGED, DETACHED, REMOVED)
 - M4-JP-27: Transaction integration — binds to `mansart-transactions` via `ScopedValue<Transaction>`
 - M4-JP-28: Connection management — uses `ScopedValue<Connection>` (no `ThreadLocal`)

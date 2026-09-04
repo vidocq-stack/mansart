@@ -3,11 +3,15 @@
  */
 package io.vidocq.mansart.persistence.core;
 
+import io.vidocq.mansart.persistence.core.context.MansartPersistenceContext;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Metamodel;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -15,71 +19,145 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>Lifecycle is managed jointly with the owning {@link MansartEntityManagerFactory}:
  * when the factory closes, all tracked EMs are marked closed via {@link #markClosed()}.
- * Persistence operations (persist, find, etc.) are implemented in M4-JP-25.
+ *
+ * <p>Closed-state contract (per the {@code EntityManager.close()} Javadoc): after
+ * {@link #close()} every method throws {@link IllegalStateException} except
+ * {@link #isOpen()}, {@link #getProperties()} and {@link #getTransaction()}.
+ *
+ * <p>Entity-state operations (persist, find, merge, remove, refresh, flush, contains,
+ * detach, clear, lock) are delegated to the {@link MansartPersistenceContext}; the
+ * state machine itself is implemented in card M4-JP-26.
  */
 public class MansartEntityManager implements EntityManager {
 
     private final MansartEntityManagerFactory entityManagerFactory;
     private final Map<String, Object> properties;
     private final AtomicBoolean open = new AtomicBoolean(true);
+    private final ConcurrentHashMap<String, Object> propertyOverrides = new ConcurrentHashMap<>();
+    private final MansartPersistenceContext persistenceContext = new MansartPersistenceContext();
+
+    private volatile FlushModeType flushMode = FlushModeType.AUTO;
+    private volatile CacheRetrieveMode cacheRetrieveMode = CacheRetrieveMode.USE;
+    private volatile CacheStoreMode cacheStoreMode = CacheStoreMode.USE;
 
     public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties) {
         this.entityManagerFactory = entityManagerFactory;
         this.properties = properties;
     }
 
-    @Override public void persist(Object entity) { throw new UnsupportedOperationException("not implemented: persist"); }
-    @Override public <T> T merge(T entity) { throw new UnsupportedOperationException("not implemented: merge"); }
-    @Override public void remove(Object entity) { throw new UnsupportedOperationException("not implemented: remove"); }
-    @Override public <T> T find(Class<T> entityClass, Object primaryKey) { throw new UnsupportedOperationException("not implemented: find"); }
-    @Override public <T> T find(Class<T> entityClass, Object primaryKey, Map<String, Object> properties) { throw new UnsupportedOperationException("not implemented: find"); }
-    @Override public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode) { throw new UnsupportedOperationException("not implemented: find"); }
-    @Override public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode, Map<String, Object> properties) { throw new UnsupportedOperationException("not implemented: find"); }
-    @Override public <T> T find(Class<T> entityClass, Object primaryKey, FindOption... options) { throw new UnsupportedOperationException("not implemented: find"); }
-    @Override public <T> T find(EntityGraph<T> entityGraph, Object primaryKey, FindOption... options) { throw new UnsupportedOperationException("not implemented: find"); }
-    @Override public <T> T getReference(Class<T> entityClass, Object primaryKey) { throw new UnsupportedOperationException("not implemented: getReference"); }
-    @Override public <T> T getReference(T entity) { throw new UnsupportedOperationException("not implemented: getReference"); }
-    @Override public void flush() { throw new UnsupportedOperationException("not implemented: flush"); }
-    @Override public void setFlushMode(FlushModeType flushModeType) { throw new UnsupportedOperationException("not implemented: setFlushMode"); }
-    @Override public FlushModeType getFlushMode() { throw new UnsupportedOperationException("not implemented: getFlushMode"); }
-    @Override public void lock(Object entity, LockModeType lockMode) { throw new UnsupportedOperationException("not implemented: lock"); }
-    @Override public void lock(Object entity, LockModeType lockMode, Map<String, Object> properties) { throw new UnsupportedOperationException("not implemented: lock"); }
-    @Override public void lock(Object entity, LockModeType lockMode, LockOption... options) { throw new UnsupportedOperationException("not implemented: lock"); }
-    @Override public void refresh(Object entity) { throw new UnsupportedOperationException("not implemented: refresh"); }
-    @Override public void refresh(Object entity, Map<String, Object> properties) { throw new UnsupportedOperationException("not implemented: refresh"); }
-    @Override public void refresh(Object entity, LockModeType lockMode) { throw new UnsupportedOperationException("not implemented: refresh"); }
-    @Override public void refresh(Object entity, LockModeType lockMode, Map<String, Object> properties) { throw new UnsupportedOperationException("not implemented: refresh"); }
-    @Override public void refresh(Object entity, RefreshOption... options) { throw new UnsupportedOperationException("not implemented: refresh"); }
-    @Override public void clear() { throw new UnsupportedOperationException("not implemented: clear"); }
-    @Override public void detach(Object entity) { throw new UnsupportedOperationException("not implemented: detach"); }
-    @Override public boolean contains(Object entity) { throw new UnsupportedOperationException("not implemented: contains"); }
-    @Override public LockModeType getLockMode(Object entity) { throw new UnsupportedOperationException("not implemented: getLockMode"); }
-    @Override public void setCacheRetrieveMode(CacheRetrieveMode cacheRetrieveMode) { throw new UnsupportedOperationException("not implemented: setCacheRetrieveMode"); }
-    @Override public void setCacheStoreMode(CacheStoreMode cacheStoreMode) { throw new UnsupportedOperationException("not implemented: setCacheStoreMode"); }
-    @Override public CacheRetrieveMode getCacheRetrieveMode() { throw new UnsupportedOperationException("not implemented: getCacheRetrieveMode"); }
-    @Override public CacheStoreMode getCacheStoreMode() { throw new UnsupportedOperationException("not implemented: getCacheStoreMode"); }
-    @Override public void setProperty(String name, Object value) { throw new UnsupportedOperationException("not implemented: setProperty"); }
-    @Override public Map<String, Object> getProperties() { return properties; }
-    @Override public Query createQuery(String qlString) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public <T> TypedQuery<T> createQuery(CriteriaSelect<T> criteriaSelect) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public Query createQuery(CriteriaUpdate<?> criteriaUpdate) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public Query createQuery(CriteriaDelete<?> criteriaDelete) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public Query createNamedQuery(String name) { throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
-    @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> resultClass) { throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
-    @Override public <T> TypedQuery<T> createQuery(TypedQueryReference<T> typedQueryReference) { throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public Query createNativeQuery(String sqlString) { throw new UnsupportedOperationException("not implemented: createNativeQuery"); }
-    @Override public <T> Query createNativeQuery(String sqlString, Class<T> resultClass) { throw new UnsupportedOperationException("not implemented: createNativeQuery"); }
-    @Override public Query createNativeQuery(String sqlString, String resultSetMapping) { throw new UnsupportedOperationException("not implemented: createNativeQuery"); }
-    @Override public StoredProcedureQuery createNamedStoredProcedureQuery(String name) { throw new UnsupportedOperationException("not implemented: createNamedStoredProcedureQuery"); }
-    @Override public StoredProcedureQuery createStoredProcedureQuery(String procedureName) { throw new UnsupportedOperationException("not implemented: createStoredProcedureQuery"); }
-    @Override public StoredProcedureQuery createStoredProcedureQuery(String procedureName, Class<?>... resultClasses) { throw new UnsupportedOperationException("not implemented: createStoredProcedureQuery"); }
-    @Override public StoredProcedureQuery createStoredProcedureQuery(String procedureName, String... resultSetMappings) { throw new UnsupportedOperationException("not implemented: createStoredProcedureQuery"); }
-    @Override public void joinTransaction() { throw new UnsupportedOperationException("not implemented: joinTransaction"); }
-    @Override public boolean isJoinedToTransaction() { throw new UnsupportedOperationException("not implemented: isJoinedToTransaction"); }
-    @Override public <T> T unwrap(Class<T> cls) { throw new UnsupportedOperationException("not implemented: unwrap"); }
-    @Override public Object getDelegate() { throw new UnsupportedOperationException("not implemented: getDelegate"); }
+    private void ensureOpen() {
+        if (!open.get()) {
+            throw new IllegalStateException("EntityManager is closed");
+        }
+    }
+
+    // ── Entity-state operations: delegated to the persistence context ────
+
+    @Override public void persist(Object entity) { ensureOpen(); persistenceContext.persist(entity); }
+    @Override public <T> T merge(T entity) { ensureOpen(); return persistenceContext.merge(entity); }
+    @Override public void remove(Object entity) { ensureOpen(); persistenceContext.remove(entity); }
+    @Override public <T> T find(Class<T> entityClass, Object primaryKey) { ensureOpen(); return persistenceContext.find(entityClass, primaryKey); }
+    @Override public <T> T find(Class<T> entityClass, Object primaryKey, Map<String, Object> props) { ensureOpen(); return persistenceContext.find(entityClass, primaryKey, props); }
+    @Override public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode) { ensureOpen(); return persistenceContext.find(entityClass, primaryKey, lockMode); }
+    @Override public <T> T find(Class<T> entityClass, Object primaryKey, LockModeType lockMode, Map<String, Object> props) { ensureOpen(); return persistenceContext.find(entityClass, primaryKey, lockMode, props); }
+    @Override public <T> T find(Class<T> entityClass, Object primaryKey, FindOption... options) { ensureOpen(); return persistenceContext.find(entityClass, primaryKey, options); }
+    @Override public <T> T find(EntityGraph<T> entityGraph, Object primaryKey, FindOption... options) { ensureOpen(); return persistenceContext.find(entityGraph, primaryKey, options); }
+    @Override public <T> T getReference(Class<T> entityClass, Object primaryKey) { ensureOpen(); return persistenceContext.getReference(entityClass, primaryKey); }
+    @Override public <T> T getReference(T entity) { ensureOpen(); return persistenceContext.getReference(entity); }
+    @Override public void flush() { ensureOpen(); persistenceContext.flush(); }
+    @Override public void refresh(Object entity) { ensureOpen(); persistenceContext.refresh(entity); }
+    @Override public void refresh(Object entity, Map<String, Object> props) { ensureOpen(); persistenceContext.refresh(entity, props); }
+    @Override public void refresh(Object entity, LockModeType lockMode) { ensureOpen(); persistenceContext.refresh(entity, lockMode); }
+    @Override public void refresh(Object entity, LockModeType lockMode, Map<String, Object> props) { ensureOpen(); persistenceContext.refresh(entity, lockMode, props); }
+    @Override public void refresh(Object entity, RefreshOption... options) { ensureOpen(); persistenceContext.refresh(entity, options); }
+    @Override public void clear() { ensureOpen(); persistenceContext.clear(); }
+    @Override public void detach(Object entity) { ensureOpen(); persistenceContext.detach(entity); }
+    @Override public boolean contains(Object entity) { ensureOpen(); return persistenceContext.contains(entity); }
+    @Override public void lock(Object entity, LockModeType lockMode) { ensureOpen(); persistenceContext.lock(entity, lockMode); }
+    @Override public void lock(Object entity, LockModeType lockMode, Map<String, Object> props) { ensureOpen(); persistenceContext.lock(entity, lockMode, props); }
+    @Override public void lock(Object entity, LockModeType lockMode, LockOption... options) { ensureOpen(); persistenceContext.lock(entity, lockMode, options); }
+    @Override public LockModeType getLockMode(Object entity) { ensureOpen(); return persistenceContext.getLockMode(entity); }
+
+    // ── Configuration: flush and cache modes ─────────────────────────────
+
+    @Override public void setFlushMode(FlushModeType flushModeType) {
+        ensureOpen();
+        this.flushMode = flushModeType;
+    }
+    @Override public FlushModeType getFlushMode() {
+        ensureOpen();
+        return this.flushMode;
+    }
+    @Override public void setCacheRetrieveMode(CacheRetrieveMode cacheRetrieveMode) {
+        ensureOpen();
+        this.cacheRetrieveMode = cacheRetrieveMode;
+    }
+    @Override public CacheRetrieveMode getCacheRetrieveMode() {
+        ensureOpen();
+        return this.cacheRetrieveMode;
+    }
+    @Override public void setCacheStoreMode(CacheStoreMode cacheStoreMode) {
+        ensureOpen();
+        this.cacheStoreMode = cacheStoreMode;
+    }
+    @Override public CacheStoreMode getCacheStoreMode() {
+        ensureOpen();
+        return this.cacheStoreMode;
+    }
+
+    // ── Properties ──────────────────────────────────────────────────────
+
+    @Override public void setProperty(String name, Object value) {
+        ensureOpen();
+        propertyOverrides.put(name, value);
+    }
+
+    /**
+     * Returns the properties in effect for this EntityManager: the factory
+     * properties overlaid with any overrides set via {@link #setProperty}.
+     * Exempt from the closed-state contract, so this does not throw if the
+     * EntityManager has been closed.
+     */
+    @Override public Map<String, Object> getProperties() {
+        Map<String, Object> merged = new LinkedHashMap<>(properties == null ? Map.of() : properties);
+        merged.putAll(propertyOverrides);
+        return Collections.unmodifiableMap(merged);
+    }
+
+    // ── Query operations (JPQL/Criteria — M6, native — M12) ──────────────
+
+    @Override public Query createQuery(String qlString) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public <T> TypedQuery<T> createQuery(CriteriaSelect<T> criteriaSelect) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public Query createQuery(CriteriaUpdate<?> criteriaUpdate) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public Query createQuery(CriteriaDelete<?> criteriaDelete) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public Query createNamedQuery(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
+    @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> resultClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
+    @Override public <T> TypedQuery<T> createQuery(TypedQueryReference<T> typedQueryReference) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public Query createNativeQuery(String sqlString) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNativeQuery"); }
+    @Override public <T> Query createNativeQuery(String sqlString, Class<T> resultClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNativeQuery"); }
+    @Override public Query createNativeQuery(String sqlString, String resultSetMapping) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNativeQuery"); }
+    @Override public StoredProcedureQuery createNamedStoredProcedureQuery(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedStoredProcedureQuery"); }
+    @Override public StoredProcedureQuery createStoredProcedureQuery(String procedureName) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createStoredProcedureQuery"); }
+    @Override public StoredProcedureQuery createStoredProcedureQuery(String procedureName, Class<?>... resultClasses) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createStoredProcedureQuery"); }
+    @Override public StoredProcedureQuery createStoredProcedureQuery(String procedureName, String... resultSetMappings) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createStoredProcedureQuery"); }
+
+    // ── Transaction integration (M4-JP-27) / unwrap / delegate ────────────
+
+    @Override public void joinTransaction() { ensureOpen(); throw new UnsupportedOperationException("not implemented: joinTransaction"); }
+    @Override public boolean isJoinedToTransaction() { ensureOpen(); throw new UnsupportedOperationException("not implemented: isJoinedToTransaction"); }
+    @Override public Object getDelegate() { ensureOpen(); return this; }
+    @Override public <T> T unwrap(Class<T> cls) {
+        ensureOpen();
+        if (cls.isInstance(this)) {
+            return cls.cast(this);
+        }
+        throw new PersistenceException("Cannot unwrap to " + cls.getName());
+    }
+
+    // ── Lifecycle ───────────────────────────────────────────────────────
+
     @Override public void close() {
         if (!open.compareAndSet(true, false)) {
             throw new IllegalStateException("EntityManager is closed");
@@ -98,14 +176,17 @@ public class MansartEntityManager implements EntityManager {
     void markClosed() {
         open.set(false);
     }
+
+    // ── Metadata accessors ──────────────────────────────────────────────
+
     @Override public EntityTransaction getTransaction() { throw new UnsupportedOperationException("not implemented: getTransaction"); }
-    @Override public EntityManagerFactory getEntityManagerFactory() { return entityManagerFactory; }
-    @Override public CriteriaBuilder getCriteriaBuilder() { throw new UnsupportedOperationException("not implemented: getCriteriaBuilder"); }
-    @Override public Metamodel getMetamodel() { throw new UnsupportedOperationException("not implemented: getMetamodel"); }
-    @Override public <T> EntityGraph<T> createEntityGraph(Class<T> entityClass) { throw new UnsupportedOperationException("not implemented: createEntityGraph"); }
-    @Override public EntityGraph<?> createEntityGraph(String graphName) { throw new UnsupportedOperationException("not implemented: createEntityGraph"); }
-    @Override public EntityGraph<?> getEntityGraph(String name) { throw new UnsupportedOperationException("not implemented: getEntityGraph"); }
-    @Override public <T> List<EntityGraph<? super T>> getEntityGraphs(Class<T> entityClass) { throw new UnsupportedOperationException("not implemented: getEntityGraphs"); }
-    @Override public <C> void runWithConnection(ConnectionConsumer<C> consumer) { throw new UnsupportedOperationException("not implemented: runWithConnection"); }
-    @Override public <C, T> T callWithConnection(ConnectionFunction<C, T> function) { throw new UnsupportedOperationException("not implemented: callWithConnection"); }
+    @Override public EntityManagerFactory getEntityManagerFactory() { ensureOpen(); return entityManagerFactory; }
+    @Override public CriteriaBuilder getCriteriaBuilder() { ensureOpen(); throw new UnsupportedOperationException("not implemented: getCriteriaBuilder"); }
+    @Override public Metamodel getMetamodel() { ensureOpen(); throw new UnsupportedOperationException("not implemented: getMetamodel"); }
+    @Override public <T> EntityGraph<T> createEntityGraph(Class<T> entityClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createEntityGraph"); }
+    @Override public EntityGraph<?> createEntityGraph(String graphName) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createEntityGraph"); }
+    @Override public EntityGraph<?> getEntityGraph(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: getEntityGraph"); }
+    @Override public <T> List<EntityGraph<? super T>> getEntityGraphs(Class<T> entityClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: getEntityGraphs"); }
+    @Override public <C> void runWithConnection(ConnectionConsumer<C> consumer) { ensureOpen(); throw new UnsupportedOperationException("not implemented: runWithConnection"); }
+    @Override public <C, T> T callWithConnection(ConnectionFunction<C, T> function) { ensureOpen(); throw new UnsupportedOperationException("not implemented: callWithConnection"); }
 }
