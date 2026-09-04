@@ -74,6 +74,9 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             return false;
         }
 
+        // Check if jakarta.persistence-api is on classpath for standard metamodel generation
+        boolean hasJpaApi = elementUtils.getTypeElement("jakarta.persistence.metamodel.SingularAttribute") != null;
+
         Set<? extends Element> entityElements = roundEnv.getElementsAnnotatedWith(entityAnnotation);
         for (Element element : entityElements) {
             if (element instanceof TypeElement typeElement) {
@@ -85,6 +88,9 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             EntityMetadata metadata = scanEntity(entity);
             if (metadata != null) {
                 generateEntityClass(metadata);
+                if (hasJpaApi) {
+                    generateStandardMetamodelClass(metadata);
+                }
             }
         }
 
@@ -345,6 +351,57 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("    }\n");
 
         w.write("}\n");
+    }
+
+    private void generateStandardMetamodelClass(EntityMetadata metadata) {
+        String className = metadata.entityName() + "_";
+        String pkg = metadata.packageName();
+        String fullName = pkg + "." + className;
+
+        try {
+            JavaFileObject file = filer.createSourceFile(fullName);
+            try (Writer w = file.openWriter()) {
+                generateMetamodelClassContent(w, className, pkg, metadata);
+            }
+        } catch (IOException e) {
+            messager.printMessage(Diagnostic.Kind.ERROR, "Failed to generate " + className + ": " + e.getMessage());
+        }
+    }
+
+    private void generateMetamodelClassContent(Writer w, String className, String pkg, EntityMetadata metadata) throws IOException {
+        String entityClassName = metadata.entityName();
+
+        w.write("package " + pkg + ";\n\n");
+        w.write("import jakarta.annotation.Generated;\n");
+        w.write("import jakarta.persistence.metamodel.SingularAttribute;\n");
+        w.write("import jakarta.persistence.metamodel.StaticMetamodel;\n\n");
+
+        w.write("@Generated(value = \"io.vidocq.mansart.persistence.processor.MansartPersistenceProcessor\")\n");
+        w.write("@StaticMetamodel(value = " + pkg + "." + entityClassName + ".class)\n");
+        w.write("public abstract class " + className + " {\n\n");
+
+        for (FieldMetadata f : metadata.fields()) {
+            w.write("    public static volatile SingularAttribute<" + entityClassName + ", " + f.type() + "> " + f.name() + ";\n");
+        }
+
+        w.write("\n");
+        w.write("    public static final String ID = \"" + getIdFieldName(metadata) + "\";\n\n");
+
+        w.write("    @SuppressWarnings(\"all\")\n");
+        w.write("    public static void setAccessors() {\n");
+        w.write("        // MethodHandles will be set via reflection by the persistence provider\n");
+        w.write("    }\n");
+
+        w.write("}\n");
+    }
+
+    private String getIdFieldName(EntityMetadata metadata) {
+        for (FieldMetadata f : metadata.fields()) {
+            if (f.isId()) {
+                return f.name();
+            }
+        }
+        return "";
     }
 
     private String getAttrImplClass(FieldMetadata f) {
