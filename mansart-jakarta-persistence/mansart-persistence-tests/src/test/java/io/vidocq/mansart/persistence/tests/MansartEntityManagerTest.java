@@ -408,18 +408,17 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void joinTransactionOnOpenEmThrowsUnsupportedOperationException() {
+    void joinTransactionOnOpenEmIsNoOpForResourceLocal() {
         EntityManager em = openEm();
-        assertThatThrownBy(em::joinTransaction)
-                .isInstanceOf(UnsupportedOperationException.class);
+        // RESOURCE_LOCAL: joinTransaction is a no-op, does not throw
+        em.joinTransaction();
         em.close();
     }
 
     @Test
-    void isJoinedToTransactionOnOpenEmThrowsUnsupportedOperationException() {
+    void isJoinedToTransactionReturnsFalseWhenNoActiveTransaction() {
         EntityManager em = openEm();
-        assertThatThrownBy(em::isJoinedToTransaction)
-                .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(em.isJoinedToTransaction()).isFalse();
         em.close();
     }
 
@@ -488,10 +487,11 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void getTransactionOnOpenEmThrowsUnsupportedOperationException() {
+    void getTransactionReturnsEntityTransactionForResourceLocal() {
         EntityManager em = openEm();
-        assertThatThrownBy(em::getTransaction)
-                .isInstanceOf(UnsupportedOperationException.class);
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        assertThat(tx).isNotNull();
+        assertThat(tx.isActive()).isFalse();
         em.close();
     }
 
@@ -546,6 +546,64 @@ class MansartEntityManagerTest {
         Object entity = new Object();
         assertThatThrownBy(() -> em.getLockMode(entity))
                 .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void entityTransactionBeginCommitCycle() {
+        EntityManager em = openEm();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        assertThat(tx.isActive()).isFalse();
+        tx.begin();
+        assertThat(tx.isActive()).isTrue();
+        assertThat(em.isJoinedToTransaction()).isTrue();
+        tx.commit();
+        assertThat(tx.isActive()).isFalse();
+        assertThat(em.isJoinedToTransaction()).isFalse();
+        em.close();
+    }
+
+    @Test
+    void entityTransactionBeginRollbackCycle() {
+        EntityManager em = openEm();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        assertThat(tx.isActive()).isTrue();
+        tx.rollback();
+        assertThat(tx.isActive()).isFalse();
+        em.close();
+    }
+
+    @Test
+    void entityTransactionBeginWhenActiveThrowsIllegalStateException() {
+        EntityManager em = openEm();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        assertThatThrownBy(tx::begin)
+                .isInstanceOf(IllegalStateException.class);
+        tx.rollback();
+        em.close();
+    }
+
+    @Test
+    void entityTransactionCommitWhenNotActiveThrowsIllegalStateException() {
+        EntityManager em = openEm();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        assertThatThrownBy(tx::commit)
+                .isInstanceOf(IllegalStateException.class);
+        em.close();
+    }
+
+    @Test
+    void entityTransactionSetRollbackOnlyThenCommitThrowsRollbackException() {
+        EntityManager em = openEm();
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        tx.begin();
+        tx.setRollbackOnly();
+        assertThat(tx.getRollbackOnly()).isTrue();
+        assertThatThrownBy(tx::commit)
+                .isInstanceOf(jakarta.persistence.RollbackException.class);
+        assertThat(tx.isActive()).isFalse();
         em.close();
     }
 
@@ -861,6 +919,15 @@ class MansartEntityManagerTest {
         em.close();
         assertThatThrownBy(em::isJoinedToTransaction)
                 .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void getTransactionOnClosedEmDoesNotThrow() {
+        EntityManager em = openEm();
+        em.close();
+        // getTransaction is exempt from the closed-state contract
+        jakarta.persistence.EntityTransaction tx = em.getTransaction();
+        assertThat(tx).isNotNull();
     }
 
     @Test

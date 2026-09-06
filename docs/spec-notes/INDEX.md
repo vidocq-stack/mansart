@@ -17,7 +17,7 @@ Only the `spec` agent writes in this directory. Format and per-note template:
 | 04 | JPQL: syntax, path expressions, joins, functions | `04-query-language.md` | empty | — |
 | 05 | Metamodel API, static metamodel generation | `05-metamodel.md` | empty | — |
 | 06 | Criteria API construction and typing | `06-criteria-api.md` | empty | — |
-| 07 | `EntityManagerFactory`, container vs application-managed, transaction association | `07-entity-managers.md` | empty | — |
+| 07 | `EntityManagerFactory`, container vs application-managed, transaction association | `07-entity-managers.md` | partial | 86 |
 | 08 | `persistence.xml`, persistence units, class discovery | `08-entity-packaging.md` | empty | — |
 | 09 | Entity listeners, callback methods, invocation order | `09-lifecycle-callbacks.md` | empty | — |
 | 10 | Mapping annotations, defaults, overrides | `10-metadata-annotations.md` | empty | — |

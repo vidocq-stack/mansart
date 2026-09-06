@@ -8,6 +8,8 @@ import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Metamodel;
+import jakarta.transaction.Status;
+import jakarta.transaction.TransactionManager;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,20 +38,33 @@ public class MansartEntityManager implements EntityManager {
     private final AtomicBoolean open = new AtomicBoolean(true);
     private final ConcurrentHashMap<String, Object> propertyOverrides = new ConcurrentHashMap<>();
     private final MansartPersistenceContext persistenceContext;
+    private final PersistenceUnitTransactionType transactionType;
+    private final MansartEntityTransaction entityTransaction;
+    private final TransactionManager transactionManager;
+    private volatile boolean joinedToJtaTransaction = false;
 
     private volatile FlushModeType flushMode = FlushModeType.AUTO;
     private volatile CacheRetrieveMode cacheRetrieveMode = CacheRetrieveMode.USE;
     private volatile CacheStoreMode cacheStoreMode = CacheStoreMode.USE;
 
     public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties) {
-        this(entityManagerFactory, properties, null);
+        this(entityManagerFactory, properties, null, PersistenceUnitTransactionType.RESOURCE_LOCAL, null);
     }
 
     public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties,
                                MansartCallback callback) {
+        this(entityManagerFactory, properties, callback, PersistenceUnitTransactionType.RESOURCE_LOCAL, null);
+    }
+
+    public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties,
+                               MansartCallback callback, PersistenceUnitTransactionType transactionType,
+                               TransactionManager transactionManager) {
         this.entityManagerFactory = entityManagerFactory;
         this.properties = properties;
         this.persistenceContext = new MansartPersistenceContext(callback);
+        this.transactionType = transactionType;
+        this.transactionManager = transactionManager;
+        this.entityTransaction = new MansartEntityTransaction();
     }
 
     private void ensureOpen() {
@@ -152,8 +167,47 @@ public class MansartEntityManager implements EntityManager {
 
     // ── Transaction integration (M4-JP-27) / unwrap / delegate ────────────
 
-    @Override public void joinTransaction() { ensureOpen(); throw new UnsupportedOperationException("not implemented: joinTransaction"); }
-    @Override public boolean isJoinedToTransaction() { ensureOpen(); throw new UnsupportedOperationException("not implemented: isJoinedToTransaction"); }
+    @Override
+    public void joinTransaction() {
+        ensureOpen();
+        if (transactionType == PersistenceUnitTransactionType.RESOURCE_LOCAL) {
+            // RESOURCE_LOCAL: joinTransaction is a no-op; the EM is always associated with its own resource transaction
+            return;
+        }
+        // JTA: must join the active JTA transaction
+        if (transactionManager == null) {
+            throw new TransactionRequiredException("no JTA transaction manager available");
+        }
+        try {
+            int status = transactionManager.getStatus();
+            if (status == Status.STATUS_ACTIVE || status == Status.STATUS_MARKED_ROLLBACK) {
+                joinedToJtaTransaction = true;
+            } else {
+                throw new TransactionRequiredException("no JTA transaction active");
+            }
+        } catch (Exception e) {
+            throw new TransactionRequiredException("failed to join JTA transaction: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public boolean isJoinedToTransaction() {
+        ensureOpen();
+        if (transactionType == PersistenceUnitTransactionType.RESOURCE_LOCAL) {
+            return entityTransaction.isActive();
+        }
+        // JTA: return whether we are joined to an active JTA transaction
+        if (transactionManager == null) {
+            return false;
+        }
+        try {
+            int status = transactionManager.getStatus();
+            return status == Status.STATUS_ACTIVE && joinedToJtaTransaction;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     @Override public Object getDelegate() { ensureOpen(); return this; }
     @Override public <T> T unwrap(Class<T> cls) {
         ensureOpen();
@@ -186,7 +240,14 @@ public class MansartEntityManager implements EntityManager {
 
     // ── Metadata accessors ──────────────────────────────────────────────
 
-    @Override public EntityTransaction getTransaction() { throw new UnsupportedOperationException("not implemented: getTransaction"); }
+    @Override
+    public EntityTransaction getTransaction() {
+        // NO ensureOpen() call — this method is exempt from the closed-state contract per the EntityManager.close() Javadoc
+        if (transactionType == PersistenceUnitTransactionType.JTA) {
+            throw new IllegalStateException("getTransaction() not allowed for JTA persistence unit");
+        }
+        return this.entityTransaction;
+    }
     @Override public EntityManagerFactory getEntityManagerFactory() { ensureOpen(); return entityManagerFactory; }
     @Override public CriteriaBuilder getCriteriaBuilder() { ensureOpen(); throw new UnsupportedOperationException("not implemented: getCriteriaBuilder"); }
     @Override public Metamodel getMetamodel() { ensureOpen(); throw new UnsupportedOperationException("not implemented: getMetamodel"); }

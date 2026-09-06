@@ -8,6 +8,7 @@ import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
+import jakarta.transaction.TransactionManager;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -31,14 +32,23 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private final AtomicBoolean open = new AtomicBoolean(true);
     private final ConcurrentLinkedQueue<MansartEntityManager> entityManagers = new ConcurrentLinkedQueue<>();
     private final MansartCallback callback = new MansartCallback();
+    private final TransactionManager transactionManager;
 
     public MansartEntityManagerFactory(String persistenceUnitName,
                                        PersistenceUnitTransactionType transactionType,
                                        Map<String, Object> properties) {
+        this(persistenceUnitName, transactionType, properties, null);
+    }
+
+    public MansartEntityManagerFactory(String persistenceUnitName,
+                                       PersistenceUnitTransactionType transactionType,
+                                       Map<String, Object> properties,
+                                       TransactionManager transactionManager) {
         this.persistenceUnitName = persistenceUnitName;
         this.transactionType = transactionType;
         this.properties = Collections.unmodifiableMap(
                 new LinkedHashMap<>(properties == null ? Map.of() : properties));
+        this.transactionManager = transactionManager;
     }
 
     private void ensureOpen() {
@@ -79,7 +89,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     private MansartEntityManager createTrackedEm(Map<String, Object> emProps) {
         ensureOpen();
-        MansartEntityManager em = new MansartEntityManager(this, emProps, callback);
+        MansartEntityManager em = new MansartEntityManager(this, emProps, callback, transactionType, transactionManager);
         entityManagers.add(em);
         // Guard against a race where the factory closes between ensureOpen and add
         if (!open.get()) {
