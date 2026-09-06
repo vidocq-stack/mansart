@@ -17,8 +17,7 @@ record EntityKey(Class<?> entityClass, Object id) {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof EntityKey that)) return false;
-        return entityClass.equals(that.entityClass) && Objects.equals(id, that.id);
+        return o instanceof EntityKey(var cls, var oid) && entityClass.equals(cls) && Objects.equals(id, oid);
     }
 
     @Override

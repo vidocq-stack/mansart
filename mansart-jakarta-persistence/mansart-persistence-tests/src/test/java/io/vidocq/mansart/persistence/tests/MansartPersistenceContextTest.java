@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * verified by observable behaviour: {@code contains}, {@code find},
  * and the exceptions thrown by illegal transitions.
  */
-public class MansartPersistenceContextTest {
+class MansartPersistenceContextTest {
 
     private static EntityManager openEm() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
@@ -37,7 +37,7 @@ public class MansartPersistenceContextTest {
     // ── persist: NEW → MANAGED ───────────────────────────────────────────
 
     @Test
-    public void persistNewBecomesManagedAndContains() {
+    void persistNewBecomesManagedAndContains() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(1L, "alpha");
         em.persist(e);
@@ -45,7 +45,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void persistManagedIsNoop() {
+    void persistManagedIsNoop() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(2L, "beta");
         em.persist(e);
@@ -54,7 +54,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void persistRemovedBecomesManaged() {
+    void persistRemovedBecomesManaged() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(3L, "gamma");
         em.persist(e);
@@ -65,7 +65,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void persistNullThrowsIllegalArgumentException() {
+    void persistNullThrowsIllegalArgumentException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.persist(null))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -74,7 +74,7 @@ public class MansartPersistenceContextTest {
     // ── remove: MANAGED → REMOVED ───────────────────────────────────────
 
     @Test
-    public void removeManagedBecomesRemoved() {
+    void removeManagedBecomesRemoved() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(4L, "delta");
         em.persist(e);
@@ -83,7 +83,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void removeNewThrowsIllegalArgumentException() {
+    void removeNewThrowsIllegalArgumentException() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(5L, "epsilon");
         assertThatThrownBy(() -> em.remove(e))
@@ -91,7 +91,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void removeDetachedThrowsIllegalArgumentException() {
+    void removeDetachedThrowsIllegalArgumentException() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(6L, "zeta");
         em.persist(e);
@@ -101,7 +101,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void removeRemovedIsNoop() {
+    void removeRemovedIsNoop() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(7L, "eta");
         em.persist(e);
@@ -113,7 +113,7 @@ public class MansartPersistenceContextTest {
     // ── detach: MANAGED → DETACHED ──────────────────────────────────────
 
     @Test
-    public void detachManagedBecomesDetached() {
+    void detachManagedBecomesDetached() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(8L, "theta");
         em.persist(e);
@@ -122,7 +122,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void detachDetachedIsNoop() {
+    void detachDetachedIsNoop() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(9L, "iota");
         em.persist(e);
@@ -134,7 +134,7 @@ public class MansartPersistenceContextTest {
     // ── clear: all → DETACHED ───────────────────────────────────────────
 
     @Test
-    public void clearMakesAllDetached() {
+    void clearMakesAllDetached() {
         EntityManager em = openEm();
         SimpleEntity e1 = newEntity(10L, "kappa");
         SimpleEntity e2 = newEntity(11L, "lambda");
@@ -148,7 +148,7 @@ public class MansartPersistenceContextTest {
     // ── contains ────────────────────────────────────────────────────────
 
     @Test
-    public void containsReturnsTrueForManagedAndRemoved() {
+    void containsReturnsTrueForManagedAndRemoved() {
         EntityManager em = openEm();
         SimpleEntity managed = newEntity(12L, "mu");
         em.persist(managed);
@@ -161,7 +161,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void containsReturnsFalseForDetachedAndNew() {
+    void containsReturnsFalseForDetachedAndNew() {
         EntityManager em = openEm();
         SimpleEntity detached = newEntity(14L, "xi");
         em.persist(detached);
@@ -175,7 +175,7 @@ public class MansartPersistenceContextTest {
     // ── merge ───────────────────────────────────────────────────────────
 
     @Test
-    public void mergeReturnsManagedCopy() {
+    void mergeReturnsManagedCopy() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(16L, "pi");
         SimpleEntity merged = em.merge(e);
@@ -184,7 +184,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void mergeManagedReturnsSameInstance() {
+    void mergeManagedReturnsSameInstance() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(17L, "rho");
         em.persist(e);
@@ -195,7 +195,7 @@ public class MansartPersistenceContextTest {
     // ── find: identity map lookup ───────────────────────────────────────
 
     @Test
-    public void findReturnsCachedInstance() {
+    void findReturnsCachedInstance() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(18L, "sigma");
         em.persist(e);
@@ -204,7 +204,7 @@ public class MansartPersistenceContextTest {
     }
 
     @Test
-    public void findReturnsNullWhenNotInContext() {
+    void findReturnsNullWhenNotInContext() {
         EntityManager em = openEm();
         SimpleEntity found = em.find(SimpleEntity.class, 999L);
         assertThat(found).isNull();
@@ -213,7 +213,7 @@ public class MansartPersistenceContextTest {
     // ── flush: no-op (no database) ──────────────────────────────────────
 
     @Test
-    public void flushIsNoop() {
+    void flushIsNoop() {
         EntityManager em = openEm();
         SimpleEntity e = newEntity(19L, "tau");
         em.persist(e);

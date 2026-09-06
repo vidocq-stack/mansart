@@ -7,13 +7,10 @@ import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 import io.vidocq.mansart.persistence.spi.EntityAccessor;
 import io.vidocq.mansart.persistence.spi.EntityModel;
 
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.FindOption;
 import jakarta.persistence.LockOption;
 import jakarta.persistence.RefreshOption;
-
-import java.lang.IllegalArgumentException;
 
 import java.util.Collections;
 import java.util.Map;
@@ -77,8 +74,7 @@ public final class MansartPersistenceContext {
                 EntityKey key = new EntityKey(entity.getClass(), id);
                 identityMap.put(key, entity);
                 break;
-            case EntityState.NEW:
-            case EntityState.DETACHED:
+            case EntityState.NEW, EntityState.DETACHED, EntityState.REMOVED:
                 // Transition to MANAGED
                 setState(entity, EntityState.MANAGED);
                 id = extractId(entity.getClass(), entity);
@@ -88,13 +84,6 @@ public final class MansartPersistenceContext {
             case EntityState.MANAGED:
                 // Already managed - no-op
                 return;
-            case EntityState.REMOVED:
-                // Transition from REMOVED to MANAGED
-                setState(entity, EntityState.MANAGED);
-                id = extractId(entity.getClass(), entity);
-                key = new EntityKey(entity.getClass(), id);
-                identityMap.put(key, entity);
-                break;
         }
     }
 
@@ -130,16 +119,16 @@ public final class MansartPersistenceContext {
         EntityState currentState = entityStates.get(entity);
         
         switch (currentState) {
-            case null:
-            case EntityState.NEW:
-            case EntityState.DETACHED:
-                throw new IllegalArgumentException("Entity must be MANAGED or REMOVED to be removed");
             case EntityState.MANAGED:
                 setState(entity, EntityState.REMOVED);
                 break;
             case EntityState.REMOVED:
                 // Already removed - no-op
                 return;
+            case null:
+            case EntityState.NEW:
+            case EntityState.DETACHED:
+                throw new IllegalArgumentException("Entity must be MANAGED or REMOVED to be removed");
         }
     }
 

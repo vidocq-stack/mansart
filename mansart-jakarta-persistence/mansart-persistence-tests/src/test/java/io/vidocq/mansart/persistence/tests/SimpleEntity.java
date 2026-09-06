@@ -22,6 +22,7 @@ public class SimpleEntity {
     private String name;
 
     public SimpleEntity() {
+        // no-arg constructor required by JPA entity contract
     }
 
     public Long getId() {
