@@ -156,7 +156,7 @@ tck ────────── core, cdi, processor (out of reactor)
 - M4-JP-25: `MansartEntityManager` — implements `EntityManager` interface, delegates to persistence context ✅ **DONE**
 - M4-JP-26: Persistence context — tracks entity states (NEW, MANAGED, DETACHED, REMOVED) ✅ **DONE**
 - M4-JP-27: Transaction integration — binds to `mansart-transactions` via `ScopedValue<Transaction>` ✅ **DONE**
-- M4-JP-28: Connection management — uses `ScopedValue<Connection>` (no `ThreadLocal`)
+- M4-JP-28: Connection management — uses `ScopedValue<Connection>` (no `ThreadLocal`) ✅ **DONE**
 
 ### M5 — Object-Relational Mapping (Basic)
 - M5-JP-29: `EntityMapper` — maps entity instances to SQL INSERT/UPDATE/DELETE via dialect SPI

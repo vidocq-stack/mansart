@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M4-JP-27 — Transaction integration, binds EntityManager to mansart-transactions
-- **Milestone**: M4
+- **Card**: M4-JP-28 — Connection management (runWithConnection/callWithConnection) — DONE, milestone M4 complete
+- **Milestone**: M4 (complete)
 
 ## 📊 Milestone Progress Overview
 
@@ -12,7 +12,7 @@
 | **M1** | 6 | 6 | **100%** | ✅ DONE |
 | **M2** | 5 | 5 | **100%** | ✅ DONE |
 | **M3** | 4 | 4 | 100% | ✅ DONE |
-| **M4** | 6 | 5 | **~83%** | ✅ IN_PROGRESS |
+| **M4** | 6 | 6 | **100%** | ✅ DONE |
 | **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
 | **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
 | **M7** | 12 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **26** | **~23.2%** | |
+| **TOTAL** | **112** | **27** | **~24.1%** | |
 
 ---
 
@@ -53,6 +53,8 @@
 - **M4-JP-26** ✅ **DONE** — MansartPersistenceContext implements the in-memory entity-state machine (NEW, MANAGED, DETACHED, REMOVED) with an identity map keyed by EntityKey(Class, primaryKey). State transitions: persist transitions NEW/DETACHED/REMOVED → MANAGED; remove transitions MANAGED → REMOVED (throws IllegalArgumentException for NEW/DETACHED); detach transitions MANAGED/REMOVED → DETACHED; clear detaches all. Identity map: persist and merge populate it; find returns the cached instance (same reference) or null if not in context; contains returns true only for MANAGED and REMOVED; merge returns the same instance if already MANAGED, or a managed copy for NEW/DETACHED. ID extraction uses the two-tier approach: EntityModel.getIdAttributes().get(0).getName() for the field name, then callback.getAccessor().get(entity, fieldName) for the value (tier-3 runtime Class-File API, calls public getters via invokevirtual — no reflection on user types). No APT needed for test entities. flush is a no-op (no database yet). Measured tests: MansartPersistenceContextTest: 18/18 PASS (new test class), MansartEntityManagerTest: 28/28 PASS (updated 2 tests to reflect implemented state machine — persist(new Object()) now throws IllegalArgumentException instead of UnsupportedOperationException, contains(new Object()) returns false), Full mansart-persistence-tests module: 89/89 PASS (was 71, +18). Build: green. SonarQube (projectKey io.vidocq.mansart:mansart-jakarta-persistence): quality gate ERROR — new_violations=0 (OK), new_duplicated_lines_density=0.0% (OK), 0 bugs, 0 vulnerabilities on new code. The only ERROR condition is new_coverage=0.0% (threshold 80%) — the same pre-existing JaCoCo coverage gap present since M4-JP-23 (production code and tests are in separate modules, JaCoCo reports 0 classes for the test module). One S6208 code smell (INFO) on the remove() switch was resolved with @SuppressWarnings — the rule asks to merge case null with enum constants into a comma-separated label, which Java 25 does not allow (compilation error).
 
 - **M4-JP-27** ✅ **DONE** — Transaction integration: MansartEntityManager binds to mansart-transactions. getTransaction() returns a MansartEntityTransaction for RESOURCE_LOCAL persistence units (begin/commit/rollback/setRollbackOnly/getRollbackOnly/setSavepoint/createSavepoint/releaseSavepoint/rollbackToSavepoint/getStoreAndFlushCommitOrder/isStoreAndFlushCommitOrder/isActive). For JTA persistence units, getTransaction() throws IllegalStateException (per spec: EntityTransaction API is only for RESOURCE_LOCAL). joinTransaction() registers the EntityManager with the active JTA transaction via MansartTransactionManager; if no JTA transaction is active, throws TransactionRequiredException. isJoinedToTransaction() returns true if the EM is associated with an active transaction. MansartEntityManagerFactory gained a 4th constructor parameter (MansartTransactionManager) — passed as null from MansartPersistenceProvider when no TM is available. MansartPersistenceProvider updated to pass null as the 4th arg. MansartEntityTransactionTest: 8/8 PASS (new test class covering EntityTransaction lifecycle for RESOURCE_LOCAL, JTA getTransaction IllegalStateException, JTA joinTransaction TransactionRequiredException, closed-EM getTransaction IllegalStateException). MansartEntityManagerTest: 28/28 PASS (updated 3 existing tests, added closed-EM getTransaction test). Full mansart-persistence-tests module: 221/221 PASS (was 89, +132 from prior session's other work + 8 new transaction tests). Build: green on all modules. SonarQube (projectKey io.vidocq.mansart:mansart-persistence): quality gate OK (PASS). new_coverage=91.3% (threshold 80%), new_violations=0, new_duplicated_lines_density=0.0%, 0 bugs, 0 vulnerabilities, 0 security hotspots on new code.
+
+- **M4-JP-28** ✅ **DONE** — Connection management: MansartEntityManager.runWithConnection(ConnectionConsumer) and callWithConnection(ConnectionFunction) execute user code with the underlying JDBC connection. Checked exceptions (SQLException and descendants) are wrapped in PersistenceException. On any failure, the transaction is marked for rollback. The connection is never closed by these methods (the DataSource/transaction manager owns its lifecycle). MansartEntityManagerFactory gained DataSource extraction from properties (jdbc.datasource property or jakarta.persistence.nonJtaDataSource). module-info.java: requires java.sql added. Measured tests: mansart-persistence-tests module 223/223 PASS (0 failures, 0 errors, 0 skipped). Per-class: MansartEntityManagerTest 110, MansartEntityManagerFactoryTest 37, MansartPersistenceContextTest 44, MansartEntityTransactionTest 8, MansartCallbackTest 5, MansartPersistenceProviderTest 7, RuntimeEntityModelBuilderTest 6, RuntimeEntityClassGeneratorTest 3, Tier3WarningTest 3. Build: green on all modules. SonarQube (projectKey io.vidocq.mansart:mansart-jakarta-persistence): quality gate OK (PASS). new_coverage=85.4% (threshold 80%), new_violations=0 (threshold 0), new_duplicated_lines_density=0.0% (threshold 3%), 0 vulnerabilities, 0 security hotspots on new code. Note: Mockito dependency added to mansart-persistence-tests for connection mocking — no known CVE check performed (Sonar Community Edition SCA gap).
 
 
 ### M3 — Runtime Metadata and Repository Generation
