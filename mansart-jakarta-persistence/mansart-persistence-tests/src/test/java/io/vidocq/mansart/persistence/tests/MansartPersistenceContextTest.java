@@ -220,4 +220,250 @@ class MansartPersistenceContextTest {
         em.flush();
         assertThat(em.contains(e)).isTrue();
     }
+
+    // ── find overloads ────────────────────────────────────────────────────
+
+    @Test
+    void findWithMapReturnsCachedInstance() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(20L, "upsilon");
+        em.persist(e);
+        SimpleEntity found = em.find(SimpleEntity.class, 20L, java.util.Map.of());
+        assertThat(found).isSameAs(e);
+        em.close();
+    }
+
+    @Test
+    void findWithLockModeTypeReturnsCachedInstance() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(21L, "phi");
+        em.persist(e);
+        SimpleEntity found = em.find(SimpleEntity.class, 21L, jakarta.persistence.LockModeType.NONE);
+        assertThat(found).isSameAs(e);
+        em.close();
+    }
+
+    @Test
+    void findWithLockModeTypeAndMapReturnsCachedInstance() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(22L, "chi");
+        em.persist(e);
+        SimpleEntity found = em.find(SimpleEntity.class, 22L, jakarta.persistence.LockModeType.NONE, java.util.Map.of());
+        assertThat(found).isSameAs(e);
+        em.close();
+    }
+
+    @Test
+    void findWithFindOptionsReturnsCachedInstance() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(23L, "psi");
+        em.persist(e);
+        SimpleEntity found = em.find(SimpleEntity.class, 23L, new jakarta.persistence.FindOption[0]);
+        assertThat(found).isSameAs(e);
+        em.close();
+    }
+
+    // ── refresh ───────────────────────────────────────────────────────────
+
+    @Test
+    void refreshManagedEntityDoesNotThrow() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(24L, "omega");
+        em.persist(e);
+        em.refresh(e);
+        assertThat(em.contains(e)).isTrue();
+        em.close();
+    }
+
+    @Test
+    void refreshDetachedEntityThrowsIllegalArgumentException() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(25L, "alpha2");
+        em.persist(e);
+        em.detach(e);
+        assertThatThrownBy(() -> em.refresh(e))
+                .isInstanceOf(IllegalArgumentException.class);
+        em.close();
+    }
+
+    @Test
+    void refreshNullThrowsIllegalArgumentException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.refresh(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        em.close();
+    }
+
+    // ── detach(null) is a no-op ───────────────────────────────────────────
+
+    @Test
+    void detachNullIsNoop() {
+        EntityManager em = openEm();
+        em.detach(null);
+        assertThat(em.isOpen()).isTrue();
+        em.close();
+    }
+
+    @Test
+    void containsNullReturnsFalse() {
+        EntityManager em = openEm();
+        assertThat(em.contains(null)).isFalse();
+        em.close();
+    }
+
+    // ── merge on DETACHED and REMOVED ─────────────────────────────────────
+
+    @Test
+    void mergeDetachedReturnsManagedCopy() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(26L, "beta2");
+        em.persist(e);
+        em.detach(e);
+        SimpleEntity merged = em.merge(e);
+        assertThat(merged).isNotNull();
+        assertThat(em.contains(merged)).isTrue();
+        em.close();
+    }
+
+    @Test
+    void mergeRemovedReturnsManagedCopy() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(27L, "gamma2");
+        em.persist(e);
+        em.remove(e);
+        SimpleEntity merged = em.merge(e);
+        assertThat(merged).isNotNull();
+        assertThat(em.contains(merged)).isTrue();
+        em.close();
+    }
+
+    @Test
+    void mergeNullThrowsIllegalArgumentException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.merge(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        em.close();
+    }
+
+    @Test
+    void removeNullThrowsIllegalArgumentException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.remove(null))
+                .isInstanceOf(IllegalArgumentException.class);
+        em.close();
+    }
+
+    // ── clear and detach identity map effects ────────────────────────────
+
+    @Test
+    void afterClearFindReturnsNull() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(28L, "delta2");
+        em.persist(e);
+        em.clear();
+        SimpleEntity found = em.find(SimpleEntity.class, 28L);
+        assertThat(found).isNull();
+        em.close();
+    }
+
+    @Test
+    void afterDetachFindReturnsNull() {
+        EntityManager em = openEm();
+        SimpleEntity e = newEntity(29L, "epsilon2");
+        em.persist(e);
+        em.detach(e);
+        SimpleEntity found = em.find(SimpleEntity.class, 29L);
+        assertThat(found).isNull();
+        em.close();
+    }
+
+    // ── UnsupportedOperationException through EM delegation ──────────────
+
+    @Test
+    void getReferenceClassObjectOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.getReference(Object.class, 1L))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void getReferenceEntityOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.getReference(new Object()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void lockObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void lockObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE, java.util.Map.of()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void lockObjectLockModeTypeLockOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void getLockModeOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.getLockMode(new Object()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void refreshObjectMapOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.refresh(new Object(), java.util.Map.of()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void refreshObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.refresh(new Object(), jakarta.persistence.LockModeType.NONE))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void refreshObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.refresh(new Object(), jakarta.persistence.LockModeType.NONE, java.util.Map.of()))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void refreshObjectRefreshOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.refresh(new Object(), new jakarta.persistence.RefreshOption[0]))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
+
+    @Test
+    void findEntityGraphObjectFindOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
+        EntityManager em = openEm();
+        assertThatThrownBy(() -> em.find(em.createEntityGraph(Object.class), 1L))
+                .isInstanceOf(UnsupportedOperationException.class);
+        em.close();
+    }
 }

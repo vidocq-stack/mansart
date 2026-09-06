@@ -230,4 +230,153 @@ public class MansartEntityManagerFactoryTest {
         assertThatThrownBy(() -> emf.unwrap(MansartEntityManagerFactory.class))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    // ── UnsupportedOperationException on open EMF ────────────────────────
+
+    @Test
+    public void getCriteriaBuilderOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(emf::getCriteriaBuilder)
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void getMetamodelOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(emf::getMetamodel)
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void getSchemaManagerOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(emf::getSchemaManager)
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void addNamedQueryOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.addNamedQuery("q", null))
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void addNamedEntityGraphOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.addNamedEntityGraph("g", null))
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void getNamedQueriesOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.getNamedQueries(Object.class))
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void getNamedEntityGraphsOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.getNamedEntityGraphs(Object.class))
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void runInTransactionOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.runInTransaction(c -> {}))
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    @Test
+    public void callInTransactionOnOpenEmfThrowsUnsupportedOperationException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.callInTransaction(f -> null))
+                .isInstanceOf(UnsupportedOperationException.class);
+        emf.close();
+    }
+
+    // ── Functional behavior ────────────────────────────────────────────
+
+    @Test
+    public void getNameReturnsPersistenceUnitName() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThat(emf.getName()).isEqualTo("test-pu");
+        emf.close();
+    }
+
+    @Test
+    public void closeCalledTwiceThrowsIllegalStateException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        emf.close();
+        assertThatThrownBy(emf::close)
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void createEntityManagerWithCustomPropertiesIncludesThemInGetProperties() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        EntityManager em = emf.createEntityManager(java.util.Map.of("custom.key", "custom.value"));
+        assertThat(em.getProperties().get("custom.key")).isEqualTo("custom.value");
+        em.close();
+        emf.close();
+    }
+
+    @Test
+    public void createEntityManagerWithSynchronizationTypeJtaOnJtaPuReturnsOpenEm() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("second-pu");
+        EntityManager em = emf.createEntityManager(jakarta.persistence.SynchronizationType.SYNCHRONIZED);
+        assertThat(em.isOpen()).isTrue();
+        em.close();
+        emf.close();
+    }
+
+    @Test
+    public void createEntityManagerWithSynchronizationTypeResourceLocalOnResourceLocalPuThrowsIllegalStateException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.createEntityManager(jakarta.persistence.SynchronizationType.SYNCHRONIZED))
+                .isInstanceOf(IllegalStateException.class);
+        emf.close();
+    }
+
+    @Test
+    public void createEntityManagerWithSynchronizationTypeAndMapJtaOnJtaPuReturnsOpenEm() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("second-pu");
+        EntityManager em = emf.createEntityManager(jakarta.persistence.SynchronizationType.SYNCHRONIZED, java.util.Map.of());
+        assertThat(em.isOpen()).isTrue();
+        em.close();
+        emf.close();
+    }
+
+    @Test
+    public void createEntityManagerWithSynchronizationTypeAndMapResourceLocalOnResourceLocalPuThrowsIllegalStateException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThatThrownBy(() -> emf.createEntityManager(jakarta.persistence.SynchronizationType.SYNCHRONIZED, java.util.Map.of()))
+                .isInstanceOf(IllegalStateException.class);
+        emf.close();
+    }
+
+    @Test
+    public void createEntityManagerWithSynchronizationTypeOnClosedEmfThrowsIllegalStateException() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        emf.close();
+        assertThatThrownBy(() -> emf.createEntityManager(jakarta.persistence.SynchronizationType.SYNCHRONIZED))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    public void getPropertiesOnOpenEmfIncludesFactoryProperties() {
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
+        assertThat(emf.getProperties().get("io.vidocq.mansart.test.marker")).isEqualTo("from-xml");
+        emf.close();
+    }
 }

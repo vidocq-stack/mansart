@@ -72,6 +72,16 @@
         <h2.version>2.3.232</h2.version>
         <postgresql.version>42.7.4</postgresql.version>
         <testcontainers.version>1.20.4</testcontainers.version>
+
+        <!-- JaCoCo multi-module aggregation: the test module runs jacoco:report-aggregate
+             and produces a single report covering all reactor modules. Using
+             ${maven.multiModuleProjectDirectory} (the reactor root) so the path
+             resolves correctly from every module, not just the aggregator. -->
+        <sonar.coverage.jacoco.xmlReportPaths>
+            ${maven.multiModuleProjectDirectory}/mansart-jakarta-persistence/mansart-persistence-tests/target/site/jacoco-aggregate/jacoco.xml
+        </sonar.coverage.jacoco.xmlReportPaths>
+        <sonar.projectKey>io.vidocq.mansart:mansart-jakarta-persistence</sonar.projectKey>
+        <sonar.exclusions>**/generated/**,**/generated-sources/**,**/target/**</sonar.exclusions>
     </properties>
 
     <modules>
