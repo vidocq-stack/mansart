@@ -66,7 +66,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
             if (ds == null) {
                 ds = properties == null ? null : properties.get("jakarta.persistence.jtaDataSource");
             }
-            this.dataSource = ds instanceof DataSource ? (DataSource) ds : null;
+            this.dataSource = ds instanceof DataSource ds_ ? ds_ : null;
         } else {
             this.dataSource = dataSource;
         }

@@ -196,8 +196,8 @@ public class MansartEntityManager implements EntityManager {
             } else {
                 throw new TransactionRequiredException("no JTA transaction active");
             }
-        } catch (Exception e) {
-            throw new TransactionRequiredException("failed to join JTA transaction: " + e.getMessage());
+        } catch (Exception ex) {
+            throw new TransactionRequiredException("failed to join JTA transaction: " + ex.getMessage());
         }
     }
 
@@ -214,7 +214,7 @@ public class MansartEntityManager implements EntityManager {
         try {
             int status = transactionManager.getStatus();
             return status == Status.STATUS_ACTIVE && joinedToJtaTransaction;
-        } catch (Exception e) {
+        } catch (Exception ex) {
             return false;
         }
     }
@@ -266,7 +266,20 @@ public class MansartEntityManager implements EntityManager {
     @Override public EntityGraph<?> createEntityGraph(String graphName) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createEntityGraph"); }
     @Override public EntityGraph<?> getEntityGraph(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: getEntityGraph"); }
     @Override public <T> List<EntityGraph<? super T>> getEntityGraphs(Class<T> entityClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: getEntityGraphs"); }
-    @Override
+    private <C> void executeWithConnection(ConnectionConsumer<C> consumer, Connection connection) {
+        try {
+            // Cast to C - the generic type is expected to be the connection type
+            @SuppressWarnings("unchecked")
+            C conn = (C) connection;
+            consumer.accept(conn);
+        } catch (Exception e) {
+            if (entityTransaction.isActive()) {
+                entityTransaction.setRollbackOnly();
+            }
+            throw new PersistenceException("Error in ConnectionConsumer", e);
+        }
+    }
+
     public <C> void runWithConnection(ConnectionConsumer<C> consumer) {
         ensureOpen();
         if (dataSource == null) {
@@ -275,22 +288,26 @@ public class MansartEntityManager implements EntityManager {
         Connection connection = null;
         try {
             connection = dataSource.getConnection();
-            try {
-                // Cast to C - the generic type is expected to be the connection type
-                @SuppressWarnings("unchecked")
-                C conn = (C) connection;
-                consumer.accept(conn);
-            } catch (Exception e) {
-                if (entityTransaction.isActive()) {
-                    entityTransaction.setRollbackOnly();
-                }
-                throw new PersistenceException("Error in ConnectionConsumer", e);
-            }
+            executeWithConnection(consumer, connection);
         } catch (SQLException e) {
             throw new PersistenceException("Error obtaining connection", e);
         } finally {
             // Do NOT close the connection - the spec says the action should not close it
             // The connection will be managed by the persistence context/transaction
+        }
+    }
+
+    private <C, T> T executeWithConnection(ConnectionFunction<C, T> function, Connection connection) {
+        try {
+            // Cast to C - the generic type is expected to be the connection type
+            @SuppressWarnings("unchecked")
+            C conn = (C) connection;
+            return function.apply(conn);
+        } catch (Exception e) {
+            if (entityTransaction.isActive()) {
+                entityTransaction.setRollbackOnly();
+            }
+            throw new PersistenceException("Error in ConnectionFunction", e);
         }
     }
 
@@ -303,22 +320,9 @@ public class MansartEntityManager implements EntityManager {
         Connection connection = null;
         try {
             connection = dataSource.getConnection();
-            try {
-                // Cast to C - the generic type is expected to be the connection type
-                @SuppressWarnings("unchecked")
-                C conn = (C) connection;
-                return function.apply(conn);
-            } catch (Exception e) {
-                if (entityTransaction.isActive()) {
-                    entityTransaction.setRollbackOnly();
-                }
-                throw new PersistenceException("Error in ConnectionFunction", e);
-            }
+            return executeWithConnection(function, connection);
         } catch (SQLException e) {
             throw new PersistenceException("Error obtaining connection", e);
-        } finally {
-            // Do NOT close the connection - the spec says the action should not close it
-            // The connection will be managed by the persistence context/transaction
         }
     }
 }

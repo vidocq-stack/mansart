@@ -15,7 +15,6 @@ import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.Test;
 
 import org.h2.jdbcx.JdbcDataSource;
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
@@ -416,6 +415,7 @@ class MansartEntityManagerTest {
         EntityManager em = openEm();
         // RESOURCE_LOCAL: joinTransaction is a no-op, does not throw
         em.joinTransaction();
+        assertThat(em.isJoinedToTransaction()).isFalse();
         em.close();
     }
 
@@ -503,7 +503,7 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void runWithConnectionWrapsCheckedExceptionInPersistenceException() throws SQLException {
+    void runWithConnectionWrapsCheckedExceptionInPersistenceException() {
         // Create a real H2 DataSource
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
@@ -532,7 +532,7 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void callWithConnectionReturnsResult() throws SQLException {
+    void callWithConnectionReturnsResult() {
         // Create a real H2 DataSource
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
@@ -555,7 +555,7 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void callWithConnectionWrapsCheckedExceptionInPersistenceException() throws SQLException {
+    void callWithConnectionWrapsCheckedExceptionInPersistenceException() {
         // Create a real H2 DataSource
         JdbcDataSource dataSource = new JdbcDataSource();
         dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");

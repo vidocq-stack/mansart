@@ -4,9 +4,7 @@ import io.vidocq.mansart.persistence.core.MansartEntityManager;
 import io.vidocq.mansart.persistence.core.MansartEntityManagerFactory;
 import io.vidocq.mansart.transactions.core.MansartTransactionManager;
 import jakarta.persistence.PersistenceUnitTransactionType;
-import jakarta.persistence.RollbackException;
 import jakarta.persistence.TransactionRequiredException;
-import jakarta.transaction.Status;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -49,6 +47,7 @@ class MansartEntityTransactionTest {
                 "test", PersistenceUnitTransactionType.RESOURCE_LOCAL, Map.of(), null);
         MansartEntityManager em = (MansartEntityManager) emf.createEntityManager();
         em.joinTransaction(); // should not throw
+        assertThat(em.isJoinedToTransaction()).isFalse();
         em.close();
         emf.close();
     }
