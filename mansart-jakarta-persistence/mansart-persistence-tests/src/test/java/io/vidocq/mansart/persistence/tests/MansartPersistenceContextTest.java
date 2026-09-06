@@ -3,6 +3,7 @@
  */
 package io.vidocq.mansart.persistence.tests;
 
+import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
@@ -390,7 +391,8 @@ class MansartPersistenceContextTest {
     @Test
     void getReferenceEntityOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.getReference(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.getReference(entity))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -398,7 +400,8 @@ class MansartPersistenceContextTest {
     @Test
     void lockObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -406,7 +409,9 @@ class MansartPersistenceContextTest {
     @Test
     void lockObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE, java.util.Map.of()))
+        Object entity = new Object();
+        java.util.Map<String, Object> props = java.util.Map.of();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE, props))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -414,7 +419,8 @@ class MansartPersistenceContextTest {
     @Test
     void lockObjectLockModeTypeLockOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE, (jakarta.persistence.LockOption[]) new jakarta.persistence.LockOption[0]))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -422,7 +428,8 @@ class MansartPersistenceContextTest {
     @Test
     void getLockModeOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.getLockMode(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.getLockMode(entity))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -430,7 +437,9 @@ class MansartPersistenceContextTest {
     @Test
     void refreshObjectMapOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), java.util.Map.of()))
+        Object entity = new Object();
+        java.util.Map<String, Object> props = java.util.Map.of();
+        assertThatThrownBy(() -> em.refresh(entity, props))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -438,7 +447,8 @@ class MansartPersistenceContextTest {
     @Test
     void refreshObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.refresh(entity, jakarta.persistence.LockModeType.NONE))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -446,7 +456,9 @@ class MansartPersistenceContextTest {
     @Test
     void refreshObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), jakarta.persistence.LockModeType.NONE, java.util.Map.of()))
+        Object entity = new Object();
+        java.util.Map<String, Object> props = java.util.Map.of();
+        assertThatThrownBy(() -> em.refresh(entity, jakarta.persistence.LockModeType.NONE, props))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -454,7 +466,9 @@ class MansartPersistenceContextTest {
     @Test
     void refreshObjectRefreshOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), new jakarta.persistence.RefreshOption[0]))
+        Object entity = new Object();
+        jakarta.persistence.RefreshOption[] options = new jakarta.persistence.RefreshOption[0];
+        assertThatThrownBy(() -> em.refresh(entity, options))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
@@ -462,7 +476,9 @@ class MansartPersistenceContextTest {
     @Test
     void findEntityGraphObjectFindOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.find(em.createEntityGraph(Object.class), 1L))
+        @SuppressWarnings("unchecked")
+        EntityGraph<Object> graph = (EntityGraph<Object>) null;
+        assertThatThrownBy(() -> em.find(graph, 1L))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }

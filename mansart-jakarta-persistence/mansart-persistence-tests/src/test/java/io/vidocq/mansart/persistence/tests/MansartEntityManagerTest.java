@@ -6,6 +6,7 @@ package io.vidocq.mansart.persistence.tests;
 import io.vidocq.mansart.persistence.core.MansartEntityManager;
 import jakarta.persistence.CacheRetrieveMode;
 import jakarta.persistence.CacheStoreMode;
+import jakarta.persistence.EntityGraph;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.FlushModeType;
@@ -28,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * configuration storage (flush/cache modes, property overrides), unwrap,
  * getDelegate, and the delegation seam to the persistence context.
  */
-public class MansartEntityManagerTest {
+class MansartEntityManagerTest {
 
     private static EntityManager openEm() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
@@ -38,15 +39,16 @@ public class MansartEntityManagerTest {
     // ── Closed-state contract: blanket IllegalStateException ─────────────
 
     @Test
-    public void persistOnClosedEmThrowsIllegalStateException() {
+    void persistOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.persist(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.persist(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void findOnClosedEmThrowsIllegalStateException() {
+    void findOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.find(Object.class, 1L))
@@ -54,7 +56,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryOnClosedEmThrowsIllegalStateException() {
+    void createQueryOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.createQuery("select e from E e"))
@@ -62,7 +64,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getEntityManagerFactoryOnClosedEmThrowsIllegalStateException() {
+    void getEntityManagerFactoryOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getEntityManagerFactory)
@@ -70,7 +72,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void setFlushModeOnClosedEmThrowsIllegalStateException() {
+    void setFlushModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.setFlushMode(FlushModeType.COMMIT))
@@ -78,7 +80,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getFlushModeOnClosedEmThrowsIllegalStateException() {
+    void getFlushModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getFlushMode)
@@ -86,7 +88,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void unwrapOnClosedEmThrowsIllegalStateException() {
+    void unwrapOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.unwrap(MansartEntityManager.class))
@@ -94,7 +96,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getDelegateOnClosedEmThrowsIllegalStateException() {
+    void getDelegateOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getDelegate)
@@ -102,7 +104,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void setCacheRetrieveModeOnClosedEmThrowsIllegalStateException() {
+    void setCacheRetrieveModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.setCacheRetrieveMode(CacheRetrieveMode.BYPASS))
@@ -112,14 +114,14 @@ public class MansartEntityManagerTest {
     // ── Closed-state contract: exemptions ───────────────────────────────
 
     @Test
-    public void isOpenOnClosedEmReturnsFalse() {
+    void isOpenOnClosedEmReturnsFalse() {
         EntityManager em = openEm();
         em.close();
         assertThat(em.isOpen()).isFalse();
     }
 
     @Test
-    public void getPropertiesOnClosedEmDoesNotThrow() {
+    void getPropertiesOnClosedEmDoesNotThrow() {
         EntityManager em = openEm();
         em.close();
         // Spec exemption: getProperties() is permitted on a closed EM
@@ -130,14 +132,14 @@ public class MansartEntityManagerTest {
     // ── Configuration storage: flush mode ───────────────────────────────
 
     @Test
-    public void getFlushModeDefaultsToAuto() {
+    void getFlushModeDefaultsToAuto() {
         EntityManager em = openEm();
         assertThat(em.getFlushMode()).isEqualTo(FlushModeType.AUTO);
         em.close();
     }
 
     @Test
-    public void setFlushModeIsRetained() {
+    void setFlushModeIsRetained() {
         EntityManager em = openEm();
         em.setFlushMode(FlushModeType.COMMIT);
         assertThat(em.getFlushMode()).isEqualTo(FlushModeType.COMMIT);
@@ -147,14 +149,14 @@ public class MansartEntityManagerTest {
     // ── Configuration storage: cache modes ──────────────────────────────
 
     @Test
-    public void getCacheRetrieveModeDefaultsToUse() {
+    void getCacheRetrieveModeDefaultsToUse() {
         EntityManager em = openEm();
         assertThat(em.getCacheRetrieveMode()).isEqualTo(CacheRetrieveMode.USE);
         em.close();
     }
 
     @Test
-    public void setCacheRetrieveModeIsRetained() {
+    void setCacheRetrieveModeIsRetained() {
         EntityManager em = openEm();
         em.setCacheRetrieveMode(CacheRetrieveMode.BYPASS);
         assertThat(em.getCacheRetrieveMode()).isEqualTo(CacheRetrieveMode.BYPASS);
@@ -162,14 +164,14 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getCacheStoreModeDefaultsToUse() {
+    void getCacheStoreModeDefaultsToUse() {
         EntityManager em = openEm();
         assertThat(em.getCacheStoreMode()).isEqualTo(CacheStoreMode.USE);
         em.close();
     }
 
     @Test
-    public void setCacheStoreModeIsRetained() {
+    void setCacheStoreModeIsRetained() {
         EntityManager em = openEm();
         em.setCacheStoreMode(CacheStoreMode.BYPASS);
         assertThat(em.getCacheStoreMode()).isEqualTo(CacheStoreMode.BYPASS);
@@ -179,7 +181,7 @@ public class MansartEntityManagerTest {
     // ── Configuration storage: properties ───────────────────────────────
 
     @Test
-    public void getPropertiesIncludesFactoryProperties() {
+    void getPropertiesIncludesFactoryProperties() {
         EntityManager em = openEm();
         assertThat(em.getProperties().get("io.vidocq.mansart.test.marker"))
                 .isEqualTo("from-xml");
@@ -187,7 +189,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void setPropertyIsVisibleInGetProperties() {
+    void setPropertyIsVisibleInGetProperties() {
         EntityManager em = openEm();
         em.setProperty("custom.key", "custom.value");
         assertThat(em.getProperties().get("custom.key")).isEqualTo("custom.value");
@@ -195,7 +197,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void setPropertyOverridesFactoryProperty() {
+    void setPropertyOverridesFactoryProperty() {
         EntityManager em = openEm();
         em.setProperty("io.vidocq.mansart.test.marker", "overridden");
         assertThat(em.getProperties().get("io.vidocq.mansart.test.marker"))
@@ -206,7 +208,7 @@ public class MansartEntityManagerTest {
     // ── unwrap / getDelegate / getEntityManagerFactory ───────────────────
 
     @Test
-    public void unwrapToMansartEntityManagerReturnsSameInstance() {
+    void unwrapToMansartEntityManagerReturnsSameInstance() {
         EntityManager em = openEm();
         MansartEntityManager unwrapped = em.unwrap(MansartEntityManager.class);
         assertThat(unwrapped).isSameAs(em);
@@ -214,7 +216,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void unwrapToEntityManagerReturnsSameInstance() {
+    void unwrapToEntityManagerReturnsSameInstance() {
         EntityManager em = openEm();
         EntityManager unwrapped = em.unwrap(EntityManager.class);
         assertThat(unwrapped).isSameAs(em);
@@ -222,7 +224,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void unwrapToUnsupportedTypeThrowsPersistenceException() {
+    void unwrapToUnsupportedTypeThrowsPersistenceException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.unwrap(String.class))
                 .isInstanceOf(PersistenceException.class);
@@ -230,14 +232,14 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getDelegateReturnsSameInstance() {
+    void getDelegateReturnsSameInstance() {
         EntityManager em = openEm();
         assertThat(em.getDelegate()).isSameAs(em);
         em.close();
     }
 
     @Test
-    public void getEntityManagerFactoryReturnsCreatingFactory() {
+    void getEntityManagerFactoryReturnsCreatingFactory() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
         EntityManager em = emf.createEntityManager();
         assertThat(em.getEntityManagerFactory()).isSameAs(emf);
@@ -248,18 +250,19 @@ public class MansartEntityManagerTest {
     // ── Delegation seam to persistence context ───────────────────────────
 
     @Test
-    public void persistOnOpenEmDelegatesToPersistenceContext() {
+    void persistOnOpenEmDelegatesToPersistenceContext() {
         // The persistence context state machine is M4-JP-26; the EM now delegates
         // to the persistence context which validates entities and throws
         // IllegalArgumentException for non-@Entity instances.
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.persist(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.persist(entity))
                 .isInstanceOf(IllegalArgumentException.class);
         em.close();
     }
 
     @Test
-    public void containsOnOpenEmDelegatesToPersistenceContext() {
+    void containsOnOpenEmDelegatesToPersistenceContext() {
         // The persistence context state machine is M4-JP-26; the EM now delegates
         // to the persistence context which returns false for non-managed entities.
         EntityManager em = openEm();
@@ -268,7 +271,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void closeIsIdempotentThrowsIllegalStateException() {
+    void closeIsIdempotentThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::close).isInstanceOf(IllegalStateException.class);
@@ -277,7 +280,7 @@ public class MansartEntityManagerTest {
     // ── UnsupportedOperationException on open EM ────────────────────────────
 
     @Test
-    public void createQueryStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery("select e from E e"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -285,7 +288,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryCriteriaQueryOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryCriteriaQueryOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery((jakarta.persistence.criteria.CriteriaQuery<?>) null))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -293,7 +296,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryCriteriaSelectOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryCriteriaSelectOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery((jakarta.persistence.criteria.CriteriaSelect<?>) null))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -301,7 +304,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryCriteriaUpdateOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryCriteriaUpdateOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery((jakarta.persistence.criteria.CriteriaUpdate<?>) null))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -309,7 +312,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryCriteriaDeleteOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryCriteriaDeleteOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery((jakarta.persistence.criteria.CriteriaDelete<?>) null))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -317,7 +320,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery("select e from E e", Object.class))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -325,7 +328,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNamedQueryStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createNamedQueryStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createNamedQuery("someNamedQuery"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -333,7 +336,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNamedQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
+    void createNamedQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createNamedQuery("someNamedQuery", Object.class))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -341,7 +344,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createQueryTypedQueryReferenceOnOpenEmThrowsUnsupportedOperationException() {
+    void createQueryTypedQueryReferenceOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery((jakarta.persistence.TypedQueryReference<?>) null))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -349,7 +352,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNativeQueryStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createNativeQueryStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createNativeQuery("select 1"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -357,7 +360,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNativeQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
+    void createNativeQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createNativeQuery("select 1", Object.class))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -365,7 +368,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNativeQueryStringStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createNativeQueryStringStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createNativeQuery("select 1", "alias"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -373,7 +376,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNamedStoredProcedureQueryStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createNamedStoredProcedureQueryStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createNamedStoredProcedureQuery("proc"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -381,7 +384,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createStoredProcedureQueryStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createStoredProcedureQueryStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createStoredProcedureQuery("proc"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -389,7 +392,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createStoredProcedureQueryStringClassArrayOnOpenEmThrowsUnsupportedOperationException() {
+    void createStoredProcedureQueryStringClassArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createStoredProcedureQuery("proc", Object.class))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -397,7 +400,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createStoredProcedureQueryStringStringArrayOnOpenEmThrowsUnsupportedOperationException() {
+    void createStoredProcedureQueryStringStringArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createStoredProcedureQuery("proc", "out1"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -405,7 +408,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void joinTransactionOnOpenEmThrowsUnsupportedOperationException() {
+    void joinTransactionOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(em::joinTransaction)
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -413,7 +416,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void isJoinedToTransactionOnOpenEmThrowsUnsupportedOperationException() {
+    void isJoinedToTransactionOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(em::isJoinedToTransaction)
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -421,7 +424,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getCriteriaBuilderOnOpenEmThrowsUnsupportedOperationException() {
+    void getCriteriaBuilderOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(em::getCriteriaBuilder)
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -429,7 +432,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getMetamodelOnOpenEmThrowsUnsupportedOperationException() {
+    void getMetamodelOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(em::getMetamodel)
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -437,7 +440,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createEntityGraphClassOnOpenEmThrowsUnsupportedOperationException() {
+    void createEntityGraphClassOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createEntityGraph(Object.class))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -445,7 +448,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createEntityGraphStringOnOpenEmThrowsUnsupportedOperationException() {
+    void createEntityGraphStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createEntityGraph("graph"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -453,7 +456,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getEntityGraphStringOnOpenEmThrowsUnsupportedOperationException() {
+    void getEntityGraphStringOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.getEntityGraph("graph"))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -461,7 +464,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getEntityGraphsClassOnOpenEmThrowsUnsupportedOperationException() {
+    void getEntityGraphsClassOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.getEntityGraphs(Object.class))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -469,7 +472,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void runWithConnectionOnOpenEmThrowsUnsupportedOperationException() {
+    void runWithConnectionOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.runWithConnection(con -> {}))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -477,7 +480,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void callWithConnectionOnOpenEmThrowsUnsupportedOperationException() {
+    void callWithConnectionOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.callWithConnection(con -> null))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -485,7 +488,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getTransactionOnOpenEmThrowsUnsupportedOperationException() {
+    void getTransactionOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(em::getTransaction)
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -493,7 +496,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getReferenceClassObjectOnOpenEmThrowsUnsupportedOperationException() {
+    void getReferenceClassObjectOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.getReference(Object.class, 1L))
                 .isInstanceOf(UnsupportedOperationException.class);
@@ -501,80 +504,92 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getReferenceEntityOnOpenEmThrowsUnsupportedOperationException() {
+    void getReferenceEntityOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.getReference(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.getReference(entity))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void lockObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
+    void lockObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void lockObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
+    void lockObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE, Map.of()))
+        Object entity = new Object();
+        Map<String, Object> props = Map.of();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE, props))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void lockObjectLockModeTypeLockOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
+    void lockObjectLockModeTypeLockOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE, (jakarta.persistence.LockOption[]) new jakarta.persistence.LockOption[0]))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void getLockModeOnOpenEmThrowsUnsupportedOperationException() {
+    void getLockModeOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.getLockMode(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.getLockMode(entity))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void refreshObjectMapOnOpenEmThrowsUnsupportedOperationException() {
+    void refreshObjectMapOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), Map.of()))
+        Object entity = new Object();
+        Map<String, Object> props = Map.of();
+        assertThatThrownBy(() -> em.refresh(entity, props))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void refreshObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
+    void refreshObjectLockModeTypeOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.refresh(entity, jakarta.persistence.LockModeType.NONE))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void refreshObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
+    void refreshObjectLockModeTypeMapOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.refresh(new Object(), jakarta.persistence.LockModeType.NONE, Map.of()))
+        Object entity = new Object();
+        Map<String, Object> props = Map.of();
+        assertThatThrownBy(() -> em.refresh(entity, jakarta.persistence.LockModeType.NONE, props))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void refreshObjectRefreshOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
+    void refreshObjectRefreshOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
+        Object entity = new Object();
         jakarta.persistence.RefreshOption[] options = new jakarta.persistence.RefreshOption[0];
-        assertThatThrownBy(() -> em.refresh(new Object(), options))
+        assertThatThrownBy(() -> em.refresh(entity, options))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void findClassObjectMapOnOpenEmReturnsEntity() {
+    void findClassObjectMapOnOpenEmReturnsEntity() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -586,7 +601,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void findClassObjectLockModeTypeOnOpenEmReturnsEntity() {
+    void findClassObjectLockModeTypeOnOpenEmReturnsEntity() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -598,7 +613,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void findClassObjectLockModeTypeMapOnOpenEmReturnsEntity() {
+    void findClassObjectLockModeTypeMapOnOpenEmReturnsEntity() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -610,7 +625,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void findClassObjectFindOptionArrayOnOpenEmReturnsEntity() {
+    void findClassObjectFindOptionArrayOnOpenEmReturnsEntity() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -622,15 +637,17 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void findEntityGraphObjectFindOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
+    void findEntityGraphObjectFindOptionArrayOnOpenEmThrowsUnsupportedOperationException() {
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.find(em.createEntityGraph(Object.class), 1L))
+        @SuppressWarnings("unchecked")
+        EntityGraph<Object> graph = (EntityGraph<Object>) null;
+        assertThatThrownBy(() -> em.find(graph, 1L))
                 .isInstanceOf(UnsupportedOperationException.class);
         em.close();
     }
 
     @Test
-    public void mergeOnOpenEmWithSimpleEntityReturnsManagedEntity() {
+    void mergeOnOpenEmWithSimpleEntityReturnsManagedEntity() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -643,7 +660,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void removeOnOpenEmWithManagedSimpleEntityWorks() {
+    void removeOnOpenEmWithManagedSimpleEntityWorks() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -655,7 +672,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void detachOnOpenEmWithManagedSimpleEntityMakesItNotContained() {
+    void detachOnOpenEmWithManagedSimpleEntityMakesItNotContained() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -667,7 +684,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void clearOnOpenEmMakesAllEntitiesNotContained() {
+    void clearOnOpenEmMakesAllEntitiesNotContained() {
         EntityManager em = openEm();
         SimpleEntity e = new SimpleEntity();
         e.setId(1L);
@@ -679,7 +696,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void isOpenOnFreshEmReturnsTrue() {
+    void isOpenOnFreshEmReturnsTrue() {
         EntityManager em = openEm();
         assertThat(em.isOpen()).isTrue();
         em.close();
@@ -688,31 +705,34 @@ public class MansartEntityManagerTest {
     // ── Closed-state contract: blanket IllegalStateException ─────────────
 
     @Test
-    public void mergeOnClosedEmThrowsIllegalStateException() {
+    void mergeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.merge(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.merge(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void removeOnClosedEmThrowsIllegalStateException() {
+    void removeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.remove(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.remove(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void refreshOnClosedEmThrowsIllegalStateException() {
+    void refreshOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.refresh(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.refresh(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void clearOnClosedEmThrowsIllegalStateException() {
+    void clearOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::clear)
@@ -720,39 +740,43 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void detachOnClosedEmThrowsIllegalStateException() {
+    void detachOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.detach(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.detach(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void containsOnClosedEmThrowsIllegalStateException() {
+    void containsOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.contains(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.contains(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void lockOnClosedEmThrowsIllegalStateException() {
+    void lockOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.lock(new Object(), jakarta.persistence.LockModeType.NONE))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.lock(entity, jakarta.persistence.LockModeType.NONE))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void getLockModeOnClosedEmThrowsIllegalStateException() {
+    void getLockModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.getLockMode(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.getLockMode(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    public void getReferenceOnClosedEmThrowsIllegalStateException() {
+    void getReferenceOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.getReference(Object.class, 1L))
@@ -760,7 +784,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void setCacheStoreModeOnClosedEmThrowsIllegalStateException() {
+    void setCacheStoreModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.setCacheStoreMode(CacheStoreMode.USE))
@@ -768,7 +792,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getCacheStoreModeOnClosedEmThrowsIllegalStateException() {
+    void getCacheStoreModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getCacheStoreMode)
@@ -776,7 +800,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getCacheRetrieveModeOnClosedEmThrowsIllegalStateException() {
+    void getCacheRetrieveModeOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getCacheRetrieveMode)
@@ -784,7 +808,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void setPropertyOnClosedEmThrowsIllegalStateException() {
+    void setPropertyOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.setProperty("key", "value"))
@@ -792,7 +816,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNamedQueryOnClosedEmThrowsIllegalStateException() {
+    void createNamedQueryOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.createNamedQuery("q"))
@@ -800,7 +824,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNativeQueryOnClosedEmThrowsIllegalStateException() {
+    void createNativeQueryOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.createNativeQuery("select 1"))
@@ -808,7 +832,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createNamedStoredProcedureQueryOnClosedEmThrowsIllegalStateException() {
+    void createNamedStoredProcedureQueryOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.createNamedStoredProcedureQuery("proc"))
@@ -816,7 +840,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createStoredProcedureQueryOnClosedEmThrowsIllegalStateException() {
+    void createStoredProcedureQueryOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.createStoredProcedureQuery("proc"))
@@ -824,7 +848,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void joinTransactionOnClosedEmThrowsIllegalStateException() {
+    void joinTransactionOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::joinTransaction)
@@ -832,7 +856,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void isJoinedToTransactionOnClosedEmThrowsIllegalStateException() {
+    void isJoinedToTransactionOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::isJoinedToTransaction)
@@ -840,7 +864,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getCriteriaBuilderOnClosedEmThrowsIllegalStateException() {
+    void getCriteriaBuilderOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getCriteriaBuilder)
@@ -848,7 +872,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getMetamodelOnClosedEmThrowsIllegalStateException() {
+    void getMetamodelOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(em::getMetamodel)
@@ -856,7 +880,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void createEntityGraphOnClosedEmThrowsIllegalStateException() {
+    void createEntityGraphOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.createEntityGraph(Object.class))
@@ -864,7 +888,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getEntityGraphOnClosedEmThrowsIllegalStateException() {
+    void getEntityGraphOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.getEntityGraph("graph"))
@@ -872,7 +896,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getEntityGraphsOnClosedEmThrowsIllegalStateException() {
+    void getEntityGraphsOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.getEntityGraphs(Object.class))
@@ -880,7 +904,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void runWithConnectionOnClosedEmThrowsIllegalStateException() {
+    void runWithConnectionOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.runWithConnection(con -> {}))
@@ -888,7 +912,7 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void callWithConnectionOnClosedEmThrowsIllegalStateException() {
+    void callWithConnectionOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
         assertThatThrownBy(() -> em.callWithConnection(con -> null))
@@ -896,10 +920,11 @@ public class MansartEntityManagerTest {
     }
 
     @Test
-    public void getReferenceEntityOnClosedEmThrowsIllegalStateException() {
+    void getReferenceEntityOnClosedEmThrowsIllegalStateException() {
         EntityManager em = openEm();
         em.close();
-        assertThatThrownBy(() -> em.getReference(new Object()))
+        Object entity = new Object();
+        assertThatThrownBy(() -> em.getReference(entity))
                 .isInstanceOf(IllegalStateException.class);
     }
 }
