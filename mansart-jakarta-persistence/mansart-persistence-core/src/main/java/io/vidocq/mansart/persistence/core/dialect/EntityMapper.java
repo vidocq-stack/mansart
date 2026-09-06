@@ -66,6 +66,9 @@ public final class EntityMapper {
             @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
+            // Allocate pre-insert IDs for SEQUENCE/TABLE strategies
+            allocatePreInsertId(conn, entity, entityClass, spiModel);
+
             boolean generated = dialectModel.id() != null && dialectModel.id().generated();
 
             SqlFragment sqlFragment = dialect.insert(dialectModel, generated);
@@ -257,6 +260,116 @@ public final class EntityMapper {
         } catch (SQLException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    /**
+     * Finds the ID attribute from the SPI entity model.
+     *
+     * @param spiModel the SPI entity model
+     * @param <T> the entity type
+     * @return the ID attribute, or null if none found
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <T> io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> findIdAttribute(
+            io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel) {
+        for (var attr : spiModel.getAttributes()) {
+            if (attr instanceof io.vidocq.mansart.persistence.spi.IdAttribute<?, ?> idAttr) {
+                return (io.vidocq.mansart.persistence.spi.IdAttribute<T, ?>) idAttr;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Allocates an ID before INSERT for pre-insert strategies (SEQUENCE, TABLE).
+     *
+     * @param conn the database connection
+     * @param entity the entity instance
+     * @param entityClass the entity class
+     * @param spiModel the SPI entity model
+     * @param <T> the entity type
+     * @throws SQLException if a database error occurs
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <T> void allocatePreInsertId(Connection conn, T entity, Class<T> entityClass,
+            io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel) throws SQLException {
+        io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr = findIdAttribute(spiModel);
+        if (spiIdAttr == null) {
+            return;
+        }
+
+        var strategy = spiIdAttr.getGenerationStrategy();
+        if (strategy == null) {
+            return;
+        }
+
+        if (strategy == io.vidocq.mansart.persistence.spi.IdAttribute.GenerationStrategy.SEQUENCE
+                || strategy == io.vidocq.mansart.persistence.spi.IdAttribute.GenerationStrategy.TABLE) {
+            allocateId(conn, entity, entityClass, spiIdAttr);
+            // id is now set on the entity, will be included in the INSERT
+        }
+    }
+
+    /**
+     * Allocates an ID value for SEQUENCE or TABLE strategy.
+     *
+     * @param conn the database connection
+     * @param entity the entity instance
+     * @param entityClass the entity class
+     * @param spiIdAttr the SPI ID attribute
+     * @param <T> the entity type
+     * @return the allocated ID value
+     * @throws SQLException if a database error occurs
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <T> Object allocateId(Connection conn, T entity, Class<T> entityClass,
+            io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr) throws SQLException {
+        var strategy = spiIdAttr.getGenerationStrategy();
+
+        Object idValue = switch (strategy) {
+            case SEQUENCE -> allocateSequenceId(conn, spiIdAttr);
+            case TABLE -> allocateTableId(conn, spiIdAttr);
+            default -> throw new IllegalStateException("Unsupported strategy for pre-insert allocation: " + strategy);
+        };
+
+        // Set the allocated ID on the entity
+        callback.getAccessor(entityClass).set(entity, spiIdAttr.getName(), idValue);
+        return idValue;
+    }
+
+    private <T> Object allocateSequenceId(Connection conn, io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr) throws SQLException {
+        String seqName = spiIdAttr.getSequenceName();
+        if (seqName == null || seqName.isEmpty()) {
+            // Derive from table name
+            seqName = spiIdAttr.getEntityModel().getTableName().toUpperCase() + "_SEQ";
+        }
+        IdGenerator gen = new SequenceIdGenerator(seqName);
+        return gen.generate(conn, spiIdAttr.getJavaType());
+    }
+
+    private <T> Object allocateTableId(Connection conn, io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr) throws SQLException {
+        String tableName = spiIdAttr.getTable();
+        if (tableName == null || tableName.isEmpty()) {
+            tableName = "sequence_generator";
+        }
+        String pkColumnName = spiIdAttr.getTablePkColumnName();
+        if (pkColumnName == null || pkColumnName.isEmpty()) {
+            pkColumnName = "SEQUENCE_NAME";
+        }
+        String valueColumnName = spiIdAttr.getTableValueColumnName();
+        if (valueColumnName == null || valueColumnName.isEmpty()) {
+            valueColumnName = "SEQUENCE_NEXT_VAL";
+        }
+        String pkColumnValue = spiIdAttr.getTablePkColumnValue();
+        if (pkColumnValue == null || pkColumnValue.isEmpty()) {
+            pkColumnValue = spiIdAttr.getGenerator();
+        }
+        if (pkColumnValue == null || pkColumnValue.isEmpty()) {
+            pkColumnValue = spiIdAttr.getEntityModel().getTableName();
+        }
+
+        IdGenerator gen = new TableIdGenerator(tableName, pkColumnName, valueColumnName, pkColumnValue);
+        return gen.generate(conn, spiIdAttr.getJavaType());
     }
 
     private static Class<?> wrap(Class<?> type) {

@@ -11,7 +11,6 @@ import java.util.Optional;
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.data.dialect.attribute.BooleanAttribute;
-import io.vidocq.mansart.data.dialect.attribute.IdAttribute;
 import io.vidocq.mansart.data.dialect.attribute.NumericAttribute;
 import io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute;
 import io.vidocq.mansart.data.dialect.attribute.TextAttribute;
@@ -83,8 +82,12 @@ public final class DialectEntityModelAdapter {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private io.vidocq.mansart.data.dialect.attribute.IdAttribute buildIdAttribute(io.vidocq.mansart.persistence.spi.Attribute<?, ?> spiIdAttr) {
         // Determine if the id is generated based on the generation strategy
+        // Only IDENTITY and AUTO should set generated=true (post-insert strategies)
+        // SEQUENCE and TABLE allocate IDs before INSERT and must be included in the INSERT
         boolean generated = spiIdAttr instanceof io.vidocq.mansart.persistence.spi.IdAttribute<?, ?> idAttr
-            && idAttr.getGenerationStrategy() != null;
+            && idAttr.getGenerationStrategy() != null
+            && (idAttr.getGenerationStrategy() == io.vidocq.mansart.persistence.spi.IdAttribute.GenerationStrategy.IDENTITY
+                || idAttr.getGenerationStrategy() == io.vidocq.mansart.persistence.spi.IdAttribute.GenerationStrategy.AUTO);
         Class<?> javaType = spiIdAttr.getJavaType();
         return new io.vidocq.mansart.data.dialect.attribute.IdAttribute(
                 spiIdAttr.getName(),
@@ -177,22 +180,6 @@ public final class DialectEntityModelAdapter {
                     refAttr.isUnique(),
                     false, // lazy (simplified)
                     null, // referencedColumnName (not available in SPI)
-                    null, // getter
-                    null  // setter
-            );
-        } else if (spiAttr instanceof io.vidocq.mansart.persistence.spi.IdAttribute) {
-            // Handle IdAttribute as a basic attribute fallback
-            io.vidocq.mansart.persistence.spi.IdAttribute<?, ?> idAttr = (io.vidocq.mansart.persistence.spi.IdAttribute<?, ?>) spiAttr;
-            @SuppressWarnings("unchecked")
-            Class<Object> javaType = (Class<Object>) (Class<?>) idAttr.getJavaType();
-            Class<?> entityClass = idAttr.getEntityModel().getEntityClass();
-            // IdAttribute is a subtype of Attribute, so we can adapt it similarly
-            return new IdAttribute(
-                    idAttr.getName(),
-                    idAttr.getColumnName(),
-                    javaType,
-                    entityClass,
-                    idAttr.getGenerationStrategy() != null, // generated
                     null, // getter
                     null  // setter
             );

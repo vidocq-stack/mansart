@@ -46,6 +46,33 @@ public interface IdAttribute<T, V> extends Attribute<T, V> {
     }
 
     /**
+     * Returns the primary key column name for TABLE strategy.
+     *
+     * @return the primary key column name, or empty string
+     */
+    default String getTablePkColumnName() {
+        return "SEQUENCE_NAME";
+    }
+
+    /**
+     * Returns the value column name for TABLE strategy.
+     *
+     * @return the value column name, or empty string
+     */
+    default String getTableValueColumnName() {
+        return "SEQUENCE_NEXT_VAL";
+    }
+
+    /**
+     * Returns the primary key column value for TABLE strategy.
+     *
+     * @return the primary key column value, or empty string
+     */
+    default String getTablePkColumnValue() {
+        return "";
+    }
+
+    /**
      * ID generation strategies.
      */
     enum GenerationStrategy {

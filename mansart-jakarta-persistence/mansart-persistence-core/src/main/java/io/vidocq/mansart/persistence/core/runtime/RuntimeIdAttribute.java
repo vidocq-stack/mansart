@@ -26,7 +26,12 @@ record RuntimeIdAttribute<T, V>(
         boolean unique,
         boolean column,
         IdAttribute.GenerationStrategy generationStrategy,
-        String generator
+        String generator,
+        String sequenceName,
+        String tableGeneratorTable,
+        String tablePkColumnName,
+        String tableValueColumnName,
+        String tablePkColumnValue
 ) implements IdAttribute<T, V> {
 
     @Override
@@ -67,6 +72,11 @@ record RuntimeIdAttribute<T, V>(
     }
 
     @Override
+    public String getSequenceName() {
+        return sequenceName();
+    }
+
+    @Override
     public MethodHandle getGetter() {
         throw new UnsupportedOperationException(
                 "not implemented: tier-3 field access — use generated hidden class (M3-JP-20)");
@@ -89,5 +99,25 @@ record RuntimeIdAttribute<T, V>(
     public void set(T instance, V value) {
         throw new UnsupportedOperationException(
                 "not implemented: tier-3 field access — use generated hidden class (M3-JP-20)");
+    }
+
+    @Override
+    public String getTable() {
+        return tableGeneratorTable();
+    }
+
+    @Override
+    public String getTablePkColumnName() {
+        return tablePkColumnName();
+    }
+
+    @Override
+    public String getTableValueColumnName() {
+        return tableValueColumnName();
+    }
+
+    @Override
+    public String getTablePkColumnValue() {
+        return tablePkColumnValue();
     }
 }

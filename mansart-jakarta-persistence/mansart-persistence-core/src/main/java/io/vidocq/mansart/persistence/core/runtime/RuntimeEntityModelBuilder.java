@@ -36,6 +36,11 @@ public final class RuntimeEntityModelBuilder {
     private static final String JPA_VERSION = "Ljakarta/persistence/Version;";
     private static final String JPA_TRANSIENT = "Ljakarta/persistence/Transient;";
     private static final String JPA_GENERATED_VALUE = "Ljakarta/persistence/GeneratedValue;";
+    private static final String JPA_SEQUENCE_GENERATOR = "Ljakarta/persistence/SequenceGenerator;";
+    private static final String JPA_TABLE_GENERATOR = "Ljakarta/persistence/TableGenerator;";
+
+    private static final String SEQUENCE_NAME = "SEQUENCE_NAME";
+    private static final String SEQUENCE_NEXT_VAL = "SEQUENCE_NEXT_VAL";
 
     private final Tier3WarningCollector warningCollector;
 
@@ -104,17 +109,21 @@ public final class RuntimeEntityModelBuilder {
             }
         }
 
+        // Parse generator annotations from class
+        java.util.Map<String, String[]> sequenceGenerators = parseSequenceGenerators(classModel);
+        java.util.Map<String, String[]> tableGenerators = parseTableGenerators(classModel);
+
         // Build entity model first without attributes, then set attributes with back-reference
         RuntimeEntityModel<T> model = new RuntimeEntityModel<>(
                 entityClass, tableName, schema, catalog, List.of());
 
-        // Rebuild attributes with correct entity model reference
+        // Rebuild attributes with correct entity model reference and generator info
         List<Attribute<?, ?>> attrsWithModel = new ArrayList<>();
         for (FieldModel fieldModel : classModel.fields()) {
             if (hasAnnotation(fieldModel, JPA_TRANSIENT)) {
                 continue;
             }
-            Attribute<T, ?> attr = parseField(fieldModel, entityClass, model);
+            Attribute<T, ?> attr = parseField(fieldModel, entityClass, model, sequenceGenerators, tableGenerators);
             if (attr != null) {
                 attrsWithModel.add(attr);
             }
@@ -125,12 +134,20 @@ public final class RuntimeEntityModelBuilder {
 
     @SuppressWarnings("unchecked")
     private <T> Attribute<T, ?> parseField(FieldModel fieldModel, Class<T> entityClass) {
-        return parseField(fieldModel, entityClass, null);
+        return parseField(fieldModel, entityClass, null, java.util.Map.of(), java.util.Map.of());
     }
 
     @SuppressWarnings("unchecked")
     private <T> Attribute<T, ?> parseField(FieldModel fieldModel, Class<T> entityClass,
                                            EntityModel<T> entityModel) {
+        return parseField(fieldModel, entityClass, entityModel, java.util.Map.of(), java.util.Map.of());
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> Attribute<T, ?> parseField(FieldModel fieldModel, Class<T> entityClass,
+                                           EntityModel<T> entityModel,
+                                           java.util.Map<String, String[]> sequenceGenerators,
+                                           java.util.Map<String, String[]> tableGenerators) {
         String name = fieldModel.fieldName().toString();
         String internalType = fieldModel.fieldType().toString();
 
@@ -155,6 +172,11 @@ public final class RuntimeEntityModelBuilder {
             Optional<String> strategyOpt = getGeneratedValueStrategy(fieldModel);
             IdAttribute.GenerationStrategy strategy = null;
             String generator = "";
+            String sequenceName = "";
+            String tableGeneratorTable = "";
+            String tablePkColumnName = SEQUENCE_NAME;
+            String tableValueColumnName = SEQUENCE_NEXT_VAL;
+            String tablePkColumnValue = "";
             
             if (strategyOpt.isPresent()) {
                 String strategyStr = strategyOpt.get();
@@ -165,10 +187,32 @@ public final class RuntimeEntityModelBuilder {
                 }
             }
             
+            // Parse @GeneratedValue generator name
+            generator = getGeneratedValueGenerator(fieldModel).orElse("");
+            
+            // For SEQUENCE and TABLE strategies, look up generator metadata
+            if (strategy == IdAttribute.GenerationStrategy.SEQUENCE && generator.isEmpty()) {
+                // No named generator - derive sequence name from table name
+                sequenceName = entityModel != null ? entityModel.getTableName().toUpperCase() + "_SEQ" : "";
+            } else if (strategy == IdAttribute.GenerationStrategy.SEQUENCE && !generator.isEmpty() && sequenceGenerators.containsKey(generator)) {
+                sequenceName = sequenceGenerators.get(generator)[0];
+            } else if (strategy == IdAttribute.GenerationStrategy.TABLE && !generator.isEmpty() && tableGenerators.containsKey(generator)) {
+                String[] tg = tableGenerators.get(generator);
+                tableGeneratorTable = tg[0];
+                tablePkColumnName = tg.length > 1 ? tg[1] : SEQUENCE_NAME;
+                tableValueColumnName = tg.length > 2 ? tg[2] : SEQUENCE_NEXT_VAL;
+                tablePkColumnValue = tg.length > 3 ? tg[3] : generator;
+            }
+            
             return new RuntimeIdAttribute<>(
                     name, columnName, entityModel,
                     (Class) javaType, nullable, isVersion, unique, true,
-                    strategy, generator);
+                    strategy, generator,
+                    sequenceName,
+                    tableGeneratorTable,
+                    tablePkColumnName,
+                    tableValueColumnName,
+                    tablePkColumnValue);
         }
 
         return new RuntimeAttribute<>(
@@ -320,5 +364,75 @@ public final class RuntimeEntityModelBuilder {
 
     private static boolean isVowel(char c) {
         return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u';
+    }
+
+    private static Optional<String> getGeneratedValueGenerator(FieldModel model) {
+        return getAnnotations(model).stream()
+                .filter(ann -> ann.className().toString().equals(JPA_GENERATED_VALUE))
+                .findFirst()
+                .flatMap(ann -> {
+                    for (AnnotationElement element : ann.elements()) {
+                        if (element.name().toString().equals("generator")) {
+                            AnnotationValue value = element.value();
+                            if (value instanceof AnnotationValue.OfString sv) {
+                                return Optional.of(sv.stringValue());
+                            }
+                        }
+                    }
+                    return Optional.empty();
+                });
+    }
+
+    private static java.util.Map<String, String[]> parseSequenceGenerators(ClassModel model) {
+        java.util.Map<String, String[]> result = new java.util.HashMap<>();
+        for (Annotation ann : getAnnotations(model)) {
+            if (ann.className().toString().equals(JPA_SEQUENCE_GENERATOR)) {
+                String name = "";
+                String sequenceName = "";
+                for (AnnotationElement el : ann.elements()) {
+                    String elName = el.name().toString();
+                    AnnotationValue val = el.value();
+                    if (elName.equals("name") && val instanceof AnnotationValue.OfString sv) {
+                        name = sv.stringValue();
+                    } else if (elName.equals("sequenceName") && val instanceof AnnotationValue.OfString sv) {
+                        sequenceName = sv.stringValue();
+                    }
+                }
+                if (sequenceName.isEmpty()) sequenceName = name;
+                result.put(name, new String[]{sequenceName});
+            }
+        }
+        return result;
+    }
+
+    private static java.util.Map<String, String[]> parseTableGenerators(ClassModel model) {
+        java.util.Map<String, String[]> result = new java.util.HashMap<>();
+        for (Annotation ann : getAnnotations(model)) {
+            if (ann.className().toString().equals(JPA_TABLE_GENERATOR)) {
+                String name = "";
+                String table = "";
+                String pkColumnName = SEQUENCE_NAME;
+                String valueColumnName = SEQUENCE_NEXT_VAL;
+                String pkColumnValue = "";
+                for (AnnotationElement el : ann.elements()) {
+                    String elName = el.name().toString();
+                    AnnotationValue val = el.value();
+                    if (val instanceof AnnotationValue.OfString sv) {
+                        String strVal = sv.stringValue();
+                        switch (elName) {
+                            case "name" -> name = strVal;
+                            case "table" -> table = strVal;
+                            case "pkColumnName" -> pkColumnName = strVal;
+                            case "valueColumnName" -> valueColumnName = strVal;
+                            case "pkColumnValue" -> pkColumnValue = strVal;
+                        }
+                    }
+                }
+                if (pkColumnValue.isEmpty()) pkColumnValue = name;
+                if (table.isEmpty()) table = "sequence_generator";
+                result.put(name, new String[]{table, pkColumnName, valueColumnName, pkColumnValue});
+            }
+        }
+        return result;
     }
 }
