@@ -249,20 +249,21 @@ public class MansartEntityManagerTest {
 
     @Test
     public void persistOnOpenEmDelegatesToPersistenceContext() {
-        // The persistence context state machine is M4-JP-26; until then the
-        // delegated operation throws UnsupportedOperationException, proving
-        // the EM delegates rather than handling it inline.
+        // The persistence context state machine is M4-JP-26; the EM now delegates
+        // to the persistence context which validates entities and throws
+        // IllegalArgumentException for non-@Entity instances.
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.persist(new Object()))
-                .isInstanceOf(UnsupportedOperationException.class);
+                .isInstanceOf(IllegalArgumentException.class);
         em.close();
     }
 
     @Test
     public void containsOnOpenEmDelegatesToPersistenceContext() {
+        // The persistence context state machine is M4-JP-26; the EM now delegates
+        // to the persistence context which returns false for non-managed entities.
         EntityManager em = openEm();
-        assertThatThrownBy(() -> em.contains(new Object()))
-                .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(em.contains(new Object())).isFalse();
         em.close();
     }
 

@@ -3,6 +3,8 @@
  */
 package io.vidocq.mansart.persistence.core;
 
+import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
+
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
