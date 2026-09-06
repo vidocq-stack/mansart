@@ -161,6 +161,7 @@ public final class MansartPersistenceContext {
      * @param entity the entity instance
      * @throws IllegalArgumentException if entity is null, not managed, or not an entity
      */
+    @SuppressWarnings("java:S6208")
     public void remove(Object entity) {
         if (entity == null) {
             throw new IllegalArgumentException("Entity must not be null");

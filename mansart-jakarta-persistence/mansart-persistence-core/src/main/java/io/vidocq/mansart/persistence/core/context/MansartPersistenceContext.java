@@ -111,6 +111,7 @@ public final class MansartPersistenceContext {
         return entity;
     }
 
+    @SuppressWarnings("java:S6208")
     public void remove(Object entity) {
         if (entity == null) {
             throw new IllegalArgumentException("Entity cannot be null");
