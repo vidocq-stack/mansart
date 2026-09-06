@@ -77,6 +77,16 @@ JAR_INSPECT = re.compile(r"(^|[\s;|&])(jar\s+[tx]|unzip\s+-[lp]|javap\b)")
 
 DISCOVERY = re.compile(r"^(find|locate|rg|ag)\b|^grep\s+-\S*[rR]")
 
+# `find … -exec` is hardwired in Vibe to ALWAYS require approval, whatever the
+# tool permission: _resolve_guardrail_permission returns an ASK for it, and
+# resolve_permission's fast path is `_is_unconditionally_allowed(...) and not
+# guardrail_permission` — so the guardrail always wins. No configuration can
+# turn that off, and it is right not to: `-exec` is arbitrary command
+# execution. The only way to stop the interruption is to stop emitting the
+# construct, and the replacement is faster anyway: one grep process instead of
+# one per file.
+FIND_EXEC = re.compile(r"^find\b.*\s-(exec|execdir|ok|okdir)\b")
+
 CAT_FILE = re.compile(r"(^|[\s;|&])cat\s+(?!-)(?P<path>[^\s|;&>]+)")
 
 _LEADING_CD = re.compile(r"^\s*cd\s+[^\s;&|]+\s*&&\s*")
@@ -197,6 +207,16 @@ def guard_bash(command: str, cwd: Path, session_id: str) -> None:
             "hundreds of entries into a context that is re-sent on every later "
             "turn. What the TCK contains belongs in docs/spec-notes/, written "
             "once."
+        )
+
+    # 3b. `find -exec` — always prompts, and there is a better command anyway.
+    if FIND_EXEC.search(norm):
+        deny(
+            "Do not use `find -exec`: Vibe hardwires an approval prompt for it "
+            "at any permission level, so it stops the session every time. Use "
+            "one grep instead — `grep -rl \"<pattern>\" --include=\"*.java\" .` "
+            "does the same job in a single process, without the prompt, and "
+            "far faster than spawning one grep per file."
         )
 
     # 4. Discovery loops.

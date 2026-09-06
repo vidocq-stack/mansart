@@ -42,6 +42,9 @@ summary. Nothing bulky enters the primary context.
   are then re-sent on every later turn. What a TCK jar contains belongs in
   `docs/spec-notes/`, written once.
 - **Never `cat` a file over 200 lines.** Use `sed -n 'a,bp'` or `grep -n`.
+- **Never `find … -exec`.** Vibe hardwires an approval prompt for it at any
+  permission level, so it stops the session every time. `grep -rl "<pattern>"
+  --include="*.java" .` does the same job in one process, without the prompt.
 - **Never repeat a discovery command.** One session ran the identical
   `find … -name "EntityModel.java"` **75 times**, another the same command 17
   times — 228 steps for 5 useful results. When delegating, the parent passes

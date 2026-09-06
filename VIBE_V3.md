@@ -394,27 +394,44 @@ starting `vibe` inside a sub-module still resolves it.
 
 ---
 
-## 9. First measured run
+## 9. First measured runs
 
-One session on the new harness, `Persistence context entity state tracking`:
+Two sessions have now run on the new harness.
 
-| | V2 baseline | first V3 session |
+| | V2 — 11 sessions | V3 — 2 sessions |
 | --- | --- | --- |
-| context per step | 89 469 mean | **37 018** |
-| steps | 170 mean | 25 |
-| subagent runs | 2.9 mean | **6** |
-| `task` share of primary volume | 4.6% | **14.7%** |
-| input served from cache | 90.6% | 84.5% |
-| hook denials | — | 0 |
+| context per session | 86 165 mean | **52 087 mean** — 53 117 and 51 057 |
+| steps | 181.6 mean | 297 and 13 |
+| subagent runs | 2.9 mean | **41 and 4** |
+| hook denials | — | **50** |
 
-**−59% of context on the first try**, and delegation roughly tripled. The
-guard never had to bite, which is the intended outcome: it is a backstop, not
-the mechanism.
+**−40% of context, and delegation up roughly fourteenfold** on the long
+session. Not the −59% an earlier draft of this section claimed: that figure
+was read off a session that was still running, at step 25 of what became 297.
+A number taken from a live session is not a measurement — the same mistake,
+in miniature, that this whole harness exists to prevent.
 
-Two caveats, stated plainly. One session is one data point, not a trend. And
-`read_file` was still **69%** of that session's primary volume — the target of
-30 000 is not reached yet, and the remaining distance is exactly there: files
-the primary reads itself instead of asking `recon`.
+**The guard fired 50 times**, and what it refused is the interesting part. The
+agent kept reaching for exactly the behaviours the V2 measurement had
+predicted:
+
+| refused | count |
+| --- | --- |
+| repeated a search already run in this session | 20 |
+| piped a build command, discarding its exit code | 12 |
+| re-read a file unchanged since it last read it | 10 |
+| called `mvn` directly instead of the scripts | 6 |
+| `cat file` into `tail` | 1 |
+| `find … -exec` — hardwired to prompt at any permission level | added after |
+| wrote build output to `/tmp` | 1 |
+
+These rules are not describing a hypothetical failure mode. Left unenforced,
+they are simply what the model does.
+
+Caveats, stated plainly. Two sessions are two data points, not a trend.
+`read_file` was still 51% and 71% of tool volume — the 30 000 target is not
+reached, and the remaining distance is exactly there: files the primary reads
+itself instead of asking `recon`.
 
 ### Honest accounting of what buys what
 
