@@ -1,0 +1,109 @@
+/*
+ * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
+ */
+package io.vidocq.mansart.persistence.core.runtime;
+
+import io.vidocq.mansart.persistence.spi.EntityModel;
+import io.vidocq.mansart.persistence.spi.IdAttribute;
+
+import java.lang.invoke.MethodHandle;
+
+/**
+ * In-memory {@link IdAttribute} built at bootstrap by {@link RuntimeEntityModelBuilder}.
+ * Field access (get/set) is not supported — Tier 3 field access requires generated
+ * hidden classes (M3-JP-20).
+ *
+ * @param <T> the entity type
+ * @param <V> the ID value type
+ */
+final class RuntimeIdAttribute<T, V> implements IdAttribute<T, V> {
+
+    private final String name;
+    private final String columnName;
+    private final EntityModel<T> entityModel;
+    private final Class<V> javaType;
+    private final boolean nullable;
+    private final boolean version;
+    private final boolean unique;
+    private final boolean column;
+    private final IdAttribute.GenerationStrategy generationStrategy;
+    private final String generator;
+
+    RuntimeIdAttribute(String name, String columnName, EntityModel<T> entityModel,
+                      Class<V> javaType, boolean nullable, boolean version,
+                      boolean unique, boolean column,
+                      IdAttribute.GenerationStrategy generationStrategy, String generator) {
+        this.name = name;
+        this.columnName = columnName;
+        this.entityModel = entityModel;
+        this.javaType = javaType;
+        this.nullable = nullable;
+        this.version = version;
+        this.unique = unique;
+        this.column = column;
+        this.generationStrategy = generationStrategy;
+        this.generator = generator;
+    }
+
+    @Override
+    public String getName() { return name; }
+
+    @Override
+    public String getColumnName() { return columnName; }
+
+    @Override
+    public EntityModel<T> getEntityModel() { return entityModel; }
+
+    @Override
+    public Class<V> getJavaType() { return javaType; }
+
+    @Override
+    public boolean isNullable() { return nullable; }
+
+    @Override
+    public boolean isId() { return true; }
+
+    @Override
+    public boolean isVersion() { return version; }
+
+    @Override
+    public boolean isUnique() { return unique; }
+
+    @Override
+    public boolean isColumn() { return column; }
+
+    @Override
+    public IdAttribute.GenerationStrategy getGenerationStrategy() {
+        return generationStrategy;
+    }
+
+    @Override
+    public String getGenerator() {
+        return generator;
+    }
+
+    @Override
+    public MethodHandle getGetter() {
+        throw new UnsupportedOperationException(
+                "not implemented: tier-3 field access — use generated hidden class (M3-JP-20)");
+    }
+
+    @Override
+    public MethodHandle getSetter() {
+        throw new UnsupportedOperationException(
+                "not implemented: tier-3 field access — use generated hidden class (M3-JP-20)");
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public V get(T instance) {
+        throw new UnsupportedOperationException(
+                "not implemented: tier-3 field access — use generated hidden class (M3-JP-20)");
+    }
+
+    @Override
+    public void set(T instance, V value) {
+        throw new UnsupportedOperationException(
+                "not implemented: tier-3 field access — use generated hidden class (M3-JP-20)");
+    }
+}

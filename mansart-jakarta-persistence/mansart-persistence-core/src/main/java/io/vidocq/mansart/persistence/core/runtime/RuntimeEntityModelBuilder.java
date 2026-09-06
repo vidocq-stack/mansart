@@ -5,6 +5,7 @@ package io.vidocq.mansart.persistence.core.runtime;
 
 import io.vidocq.mansart.persistence.spi.Attribute;
 import io.vidocq.mansart.persistence.spi.EntityModel;
+import io.vidocq.mansart.persistence.spi.IdAttribute;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,6 +35,7 @@ public final class RuntimeEntityModelBuilder {
     private static final String JPA_COLUMN = "Ljakarta/persistence/Column;";
     private static final String JPA_VERSION = "Ljakarta/persistence/Version;";
     private static final String JPA_TRANSIENT = "Ljakarta/persistence/Transient;";
+    private static final String JPA_GENERATED_VALUE = "Ljakarta/persistence/GeneratedValue;";
 
     private final Tier3WarningCollector warningCollector;
 
@@ -149,6 +151,26 @@ public final class RuntimeEntityModelBuilder {
                 .map(Boolean::parseBoolean)
                 .orElse(false);
 
+        if (isId) {
+            Optional<String> strategyOpt = getGeneratedValueStrategy(fieldModel);
+            IdAttribute.GenerationStrategy strategy = null;
+            String generator = "";
+            
+            if (strategyOpt.isPresent()) {
+                String strategyStr = strategyOpt.get();
+                try {
+                    strategy = IdAttribute.GenerationStrategy.valueOf(strategyStr);
+                } catch (IllegalArgumentException e) {
+                    strategy = IdAttribute.GenerationStrategy.AUTO;
+                }
+            }
+            
+            return new RuntimeIdAttribute<>(
+                    name, columnName, entityModel,
+                    (Class) javaType, nullable, isVersion, unique, true,
+                    strategy, generator);
+        }
+
         return new RuntimeAttribute<>(
                 name, columnName, entityModel,
                 (Class) javaType, nullable, isId, isVersion, unique, true);
@@ -220,6 +242,24 @@ public final class RuntimeEntityModelBuilder {
             }
         }
         return Optional.empty();
+    }
+
+    private static Optional<String> getGeneratedValueStrategy(FieldModel model) {
+        return getAnnotations(model).stream()
+                .filter(ann -> ann.className().toString().equals(JPA_GENERATED_VALUE))
+                .findFirst()
+                .map(ann -> {
+                    for (AnnotationElement element : ann.elements()) {
+                        if (element.name().toString().equals("strategy")) {
+                            AnnotationValue value = element.value();
+                            if (value instanceof AnnotationValue.OfEnum ev) {
+                                return ev.constantName().toString();
+                            }
+                        }
+                    }
+                    // If @GeneratedValue is present but no strategy element, default is AUTO
+                    return "AUTO";
+                });
     }
 
     // --- Type conversion ---

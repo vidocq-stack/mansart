@@ -140,7 +140,13 @@ public final class RuntimeEntityClassGenerator {
 
             cb.aload(1);
             cb.checkcast(entityDesc);
-            String getterName = "get" + capitalize(field.name());
+            String fieldName = field.name();
+            String capitalized = capitalize(fieldName);
+            String getterName = "get" + capitalized;
+            // For boolean/Boolean fields, prefer "is" prefix per JavaBean convention
+            if (field.type() == boolean.class || field.type() == Boolean.class) {
+                getterName = "is" + capitalized;
+            }
             MethodTypeDesc getterDesc = MethodTypeDesc.of(toClassDesc(field.type()));
             cb.invokevirtual(entityDesc, getterName, getterDesc);
 
