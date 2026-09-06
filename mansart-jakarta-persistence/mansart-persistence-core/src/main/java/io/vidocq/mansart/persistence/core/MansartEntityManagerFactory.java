@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.metamodel.Metamodel;
 import jakarta.transaction.TransactionManager;
+import javax.sql.DataSource;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -33,6 +34,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private final ConcurrentLinkedQueue<MansartEntityManager> entityManagers = new ConcurrentLinkedQueue<>();
     private final MansartCallback callback = new MansartCallback();
     private final TransactionManager transactionManager;
+    private final DataSource dataSource;
 
     public MansartEntityManagerFactory(String persistenceUnitName,
                                        PersistenceUnitTransactionType transactionType,
@@ -44,11 +46,30 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
                                        PersistenceUnitTransactionType transactionType,
                                        Map<String, Object> properties,
                                        TransactionManager transactionManager) {
+        this(persistenceUnitName, transactionType, properties, transactionManager, null);
+    }
+
+    public MansartEntityManagerFactory(String persistenceUnitName,
+                                       PersistenceUnitTransactionType transactionType,
+                                       Map<String, Object> properties,
+                                       TransactionManager transactionManager,
+                                       DataSource dataSource) {
         this.persistenceUnitName = persistenceUnitName;
         this.transactionType = transactionType;
         this.properties = Collections.unmodifiableMap(
                 new LinkedHashMap<>(properties == null ? Map.of() : properties));
         this.transactionManager = transactionManager;
+        // If dataSource was not provided directly, try to get it from properties
+        if (dataSource == null) {
+            // Check for both standard and JTA data source properties
+            Object ds = properties == null ? null : properties.get("jakarta.persistence.dataSource");
+            if (ds == null) {
+                ds = properties == null ? null : properties.get("jakarta.persistence.jtaDataSource");
+            }
+            this.dataSource = ds instanceof DataSource ? (DataSource) ds : null;
+        } else {
+            this.dataSource = dataSource;
+        }
     }
 
     private void ensureOpen() {
@@ -89,7 +110,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     private MansartEntityManager createTrackedEm(Map<String, Object> emProps) {
         ensureOpen();
-        MansartEntityManager em = new MansartEntityManager(this, emProps, callback, transactionType, transactionManager);
+        MansartEntityManager em = new MansartEntityManager(this, emProps, callback, transactionType, transactionManager, dataSource);
         entityManagers.add(em);
         // Guard against a race where the factory closes between ensureOpen and add
         if (!open.get()) {

@@ -10,6 +10,9 @@ import jakarta.persistence.criteria.*;
 import jakarta.persistence.metamodel.Metamodel;
 import jakarta.transaction.Status;
 import jakarta.transaction.TransactionManager;
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -41,6 +44,7 @@ public class MansartEntityManager implements EntityManager {
     private final PersistenceUnitTransactionType transactionType;
     private final MansartEntityTransaction entityTransaction;
     private final TransactionManager transactionManager;
+    private final DataSource dataSource;
     private volatile boolean joinedToJtaTransaction = false;
 
     private volatile FlushModeType flushMode = FlushModeType.AUTO;
@@ -59,11 +63,18 @@ public class MansartEntityManager implements EntityManager {
     public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties,
                                MansartCallback callback, PersistenceUnitTransactionType transactionType,
                                TransactionManager transactionManager) {
+        this(entityManagerFactory, properties, callback, transactionType, transactionManager, null);
+    }
+
+    public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties,
+                               MansartCallback callback, PersistenceUnitTransactionType transactionType,
+                               TransactionManager transactionManager, DataSource dataSource) {
         this.entityManagerFactory = entityManagerFactory;
         this.properties = properties;
         this.persistenceContext = new MansartPersistenceContext(callback);
         this.transactionType = transactionType;
         this.transactionManager = transactionManager;
+        this.dataSource = dataSource;
         this.entityTransaction = new MansartEntityTransaction();
     }
 
@@ -255,6 +266,59 @@ public class MansartEntityManager implements EntityManager {
     @Override public EntityGraph<?> createEntityGraph(String graphName) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createEntityGraph"); }
     @Override public EntityGraph<?> getEntityGraph(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: getEntityGraph"); }
     @Override public <T> List<EntityGraph<? super T>> getEntityGraphs(Class<T> entityClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: getEntityGraphs"); }
-    @Override public <C> void runWithConnection(ConnectionConsumer<C> consumer) { ensureOpen(); throw new UnsupportedOperationException("not implemented: runWithConnection"); }
-    @Override public <C, T> T callWithConnection(ConnectionFunction<C, T> function) { ensureOpen(); throw new UnsupportedOperationException("not implemented: callWithConnection"); }
+    @Override
+    public <C> void runWithConnection(ConnectionConsumer<C> consumer) {
+        ensureOpen();
+        if (dataSource == null) {
+            throw new PersistenceException("no DataSource available");
+        }
+        Connection connection = null;
+        try {
+            connection = dataSource.getConnection();
+            try {
+                // Cast to C - the generic type is expected to be the connection type
+                @SuppressWarnings("unchecked")
+                C conn = (C) connection;
+                consumer.accept(conn);
+            } catch (Exception e) {
+                if (entityTransaction.isActive()) {
+                    entityTransaction.setRollbackOnly();
+                }
+                throw new PersistenceException("Error in ConnectionConsumer", e);
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException("Error obtaining connection", e);
+        } finally {
+            // Do NOT close the connection - the spec says the action should not close it
+            // The connection will be managed by the persistence context/transaction
+        }
+    }
+
+    @Override
+    public <C, T> T callWithConnection(ConnectionFunction<C, T> function) {
+        ensureOpen();
+        if (dataSource == null) {
+            throw new PersistenceException("no DataSource available");
+        }
+        Connection connection = null;
+        try {
+            connection = dataSource.getConnection();
+            try {
+                // Cast to C - the generic type is expected to be the connection type
+                @SuppressWarnings("unchecked")
+                C conn = (C) connection;
+                return function.apply(conn);
+            } catch (Exception e) {
+                if (entityTransaction.isActive()) {
+                    entityTransaction.setRollbackOnly();
+                }
+                throw new PersistenceException("Error in ConnectionFunction", e);
+            }
+        } catch (SQLException e) {
+            throw new PersistenceException("Error obtaining connection", e);
+        } finally {
+            // Do NOT close the connection - the spec says the action should not close it
+            // The connection will be managed by the persistence context/transaction
+        }
+    }
 }

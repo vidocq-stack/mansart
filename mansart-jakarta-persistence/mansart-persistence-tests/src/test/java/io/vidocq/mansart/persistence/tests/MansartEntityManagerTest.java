@@ -14,6 +14,10 @@ import jakarta.persistence.Persistence;
 import jakarta.persistence.PersistenceException;
 import org.junit.jupiter.api.Test;
 
+import org.h2.jdbcx.JdbcDataSource;
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -471,19 +475,112 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void runWithConnectionOnOpenEmThrowsUnsupportedOperationException() {
-        EntityManager em = openEm();
-        assertThatThrownBy(() -> em.runWithConnection(con -> {}))
-                .isInstanceOf(UnsupportedOperationException.class);
+    void runWithConnectionExecutesActionWithConnection() throws SQLException {
+        // Create a real H2 DataSource
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+
+        // Create EMF with the DataSource property
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory(
+                "test-pu",
+                Map.of("jakarta.persistence.jtaDataSource", dataSource)
+        );
+        MansartEntityManager em = (MansartEntityManager) emf.createEntityManager();
+
+        // Call runWithConnection
+        Connection[] capturedConnection = new Connection[1];
+        em.runWithConnection((Connection con) -> capturedConnection[0] = con);
+
+        // Verify the captured connection is not null and is open
+        assertThat(capturedConnection[0]).isNotNull();
+        assertThat(!capturedConnection[0].isClosed()).isTrue();
+        
+        // Close the connection (the test action should not close it, but we do here for cleanup)
+        capturedConnection[0].close();
+        
         em.close();
+        emf.close();
     }
 
     @Test
-    void callWithConnectionOnOpenEmThrowsUnsupportedOperationException() {
-        EntityManager em = openEm();
-        assertThatThrownBy(() -> em.callWithConnection(con -> null))
-                .isInstanceOf(UnsupportedOperationException.class);
+    void runWithConnectionWrapsCheckedExceptionInPersistenceException() throws SQLException {
+        // Create a real H2 DataSource
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+
+        // Create EMF with the DataSource property
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory(
+                "test-pu",
+                Map.of("jakarta.persistence.jtaDataSource", dataSource)
+        );
+        MansartEntityManager em = (MansartEntityManager) emf.createEntityManager();
+
+        // Start a transaction so we can test rollback
+        em.getTransaction().begin();
+
+        // Call runWithConnection with a consumer that throws SQLException
+        SQLException testException = new SQLException("Test exception");
+        assertThatThrownBy(() -> em.runWithConnection((Connection con) -> { throw testException; }))
+                .isInstanceOf(PersistenceException.class)
+                .hasCause(testException);
+
+        // Verify transaction is marked for rollback
+        assertThat(em.getTransaction().getRollbackOnly()).isTrue();
+        
         em.close();
+        emf.close();
+    }
+
+    @Test
+    void callWithConnectionReturnsResult() throws SQLException {
+        // Create a real H2 DataSource
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+
+        // Create EMF with the DataSource property
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory(
+                "test-pu",
+                Map.of("jakarta.persistence.jtaDataSource", dataSource)
+        );
+        MansartEntityManager em = (MansartEntityManager) emf.createEntityManager();
+
+        // Call callWithConnection with a function that returns a value
+        String result = em.callWithConnection((Connection con) -> "test-result");
+
+        // Verify the result
+        assertThat(result).isEqualTo("test-result");
+        
+        em.close();
+        emf.close();
+    }
+
+    @Test
+    void callWithConnectionWrapsCheckedExceptionInPersistenceException() throws SQLException {
+        // Create a real H2 DataSource
+        JdbcDataSource dataSource = new JdbcDataSource();
+        dataSource.setURL("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1");
+
+        // Create EMF with the DataSource property
+        EntityManagerFactory emf = Persistence.createEntityManagerFactory(
+                "test-pu",
+                Map.of("jakarta.persistence.jtaDataSource", dataSource)
+        );
+        MansartEntityManager em = (MansartEntityManager) emf.createEntityManager();
+
+        // Start a transaction
+        em.getTransaction().begin();
+
+        // Call callWithConnection with a function that throws SQLException
+        SQLException testException = new SQLException("Test exception");
+        assertThatThrownBy(() -> em.callWithConnection((Connection con) -> { throw testException; }))
+                .isInstanceOf(PersistenceException.class)
+                .hasCause(testException);
+
+        // Verify transaction is marked for rollback
+        assertThat(em.getTransaction().getRollbackOnly()).isTrue();
+        
+        em.close();
+        emf.close();
     }
 
     @Test

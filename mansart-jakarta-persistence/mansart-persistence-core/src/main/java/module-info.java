@@ -10,6 +10,7 @@ module io.vidocq.mansart.persistence.core {
     requires transitive io.vidocq.mansart.transactions.core;
     requires transitive io.vidocq.mansart.data.dialect.spi;
     requires java.xml;
+    requires java.sql;
 
     exports io.vidocq.mansart.persistence.core;
     exports io.vidocq.mansart.persistence.core.runtime;

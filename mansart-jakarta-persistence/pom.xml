@@ -72,6 +72,7 @@
         <h2.version>2.3.232</h2.version>
         <postgresql.version>42.7.4</postgresql.version>
         <testcontainers.version>1.20.4</testcontainers.version>
+        <mockito.version>5.18.0</mockito.version>
 
         <!-- JaCoCo multi-module aggregation: the test module runs jacoco:report-aggregate
              and produces a single report covering all reactor modules. Using
@@ -138,6 +139,12 @@
                 <groupId>org.assertj</groupId>
                 <artifactId>assertj-core</artifactId>
                 <version>${assertj.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito</groupId>
+                <artifactId>mockito-core</artifactId>
+                <version>${mockito.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>com.h2database</groupId>
