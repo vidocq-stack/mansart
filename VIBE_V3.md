@@ -208,7 +208,7 @@ flowchart TB
 | --- | --- | --- |
 | **Path denylist** on `write_file`/`edit` | `impl` cannot write into any `*-tck/`. A denylist match returns `NEVER`, final. | Anything done through a shell — it never sees a redirect. |
 | **`pre_tool` hook** | The raw command string: unpiped builds, TCK writes via shell, archive dumps, repeat searches, unchanged re-reads. | Nothing it is not written to catch. Fails **open** by design. |
-| **`bash = "ask"`** on `spec` and `impl` | Every shell write stops for a human. Reads, git-reads and `./scripts/*.sh` are allowlisted, so they stay frictionless. | — |
+| **`bash = "always"`** everywhere | Nothing — deliberately. See below. | Anything; the hook carries this weight instead. |
 | **`allowed_models`** | `/model` and any routing fallback can only reach four aliases. `mistral-medium-3.5` is undeclared. | — |
 
 **Why the hook is not optional.** `tools.bash.denylist` matches command
@@ -217,6 +217,20 @@ flowchart TB
 `mvn …` and `tail`. **No permission rule can express "mvn must not be piped",
 because it never sees the pipe.** A `pre_tool` hook receives
 `tool_input.command` intact, and can.
+
+**Why `bash` is `always` and not `ask`.** The first draft of V3 set
+`permission = "ask"` on `spec` and `impl`, reasoning that a shell can write
+into a TCK directory and the path denylist cannot see a redirect. That reason
+stopped being true once the hook gained the `TCK path + write` rule: hooks run
+**before** the permission prompt, so the guarantee holds at any permission
+level. What `ask` did still buy was interruptions — Vibe's `OUTSIDE_DIRECTORY`
+check prompts on every command touching a path outside the workdir, and
+`permission = "always"` short-circuits `_is_unconditionally_allowed` before
+that check. So `ask` was costing a prompt per call and protecting nothing the
+hook did not already protect. It was removed.
+
+The lesson generalises: **put a guarantee in the layer that can actually
+express it, then stop paying for it twice.**
 
 ### The guard's rules
 

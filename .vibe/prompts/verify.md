@@ -11,11 +11,12 @@ action you take.
 ./scripts/verify.sh [maven args]    # tests, and the numeric report
 ```
 
-Never `mvn` or `./mvnw` directly, and never pipe them into `tail`/`head`/
-`grep`. A pipeline reports the filter's exit code, not Maven's — that is how
-262 invocations came to be logged as successful while 38 of them had failed.
+Run them bare. Never `mvn` or `./mvnw` directly, and never pipe the scripts
+into `tee`/`tail`/`head`/`grep`, nor redirect their output to `/tmp`. A
+pipeline reports the filter's exit code, not the build's — that is how 262
+invocations came to be logged as successful while 38 of them had failed.
 The scripts set `-o pipefail`, keep the full output in `target/agent-*.log`,
-and propagate Maven's own exit code. The `mansart-bash-guard` hook will refuse
+and propagate Maven's own exit code. The `mansart-context-guard` hook will refuse
 the direct form.
 
 ## What you return — this shape, and nothing else

@@ -14,7 +14,7 @@
 # answer, not a problem to be solved before answering.
 #
 # bash is auto-approved because running the build is its entire job; the
-# project bash denylist and the `mansart-bash-guard` pre_tool hook still apply,
+# project bash denylist and the `mansart-context-guard` pre_tool hook still apply,
 # so it cannot pipe Maven (which would hide the exit code) and cannot write
 # into a TCK directory through the shell.
 

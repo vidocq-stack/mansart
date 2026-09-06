@@ -53,7 +53,7 @@ summary. Nothing bulky enters the primary context.
   ($19.55 — 44% of the total) chained 757 steps on a single subject without
   ever restarting. Finish the card, commit, start a fresh session.
 
-The `mansart-bash-guard` hook (`.vibe/hooks.toml`) refuses the shell forms of
+The `mansart-context-guard` hook (`.vibe/hooks.toml`) refuses the shell forms of
 these. It is a backstop, not the rule.
 
 ## Roster — delegate on these triggers, do not deliberate
@@ -153,8 +153,16 @@ The scripts `set -euo pipefail`, keep the full output in
 and **propagate Maven's exit code**. They end with a machine-readable verdict
 line (`BUILD_RESULT=…`, `BUILD=… tests=… passed=… failed=…`).
 
-**Never append `| tail`, `| head` or `| grep` to a command whose exit code
-matters.** The scripts already show you the tail.
+**Never pipe a build command — the scripts included.** `./scripts/build.sh |
+tee …` throws the exit code away exactly as `mvn | tail` did. Run the script
+bare; it already prints the last 60 lines and ends with a `BUILD_RESULT=` line.
+
+**Never write to `/tmp`.** The full log is already inside the project at
+`target/agent-build.log` and `target/agent-verify.log`. Anything under `/tmp`
+is outside the workdir, so it costs an approval prompt on every single call —
+and duplicates a file you already have. Need more than the printed tail?
+`tail -n 200 target/agent-build.log` or `grep -n ERROR target/agent-build.log`.
+Never `cat file | tail`: that reads the whole file to show you its end.
 
 TCK runs: see the `mansart-jpa-tck` skill (out-of-reactor runner, profiles
 `tck-run` / `tck-pg`) — invoked through `verify`.

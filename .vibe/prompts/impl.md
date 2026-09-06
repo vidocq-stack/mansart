@@ -18,7 +18,7 @@ turn, and searching for it costs dozens.
 measured session issued the identical `find … -name "EntityModel.java"` 75
 times, another the same command 17 times: 228 steps for 5 useful invocations,
 every one of them re-sent as context on every later turn. The
-`mansart-bash-guard` hook refuses the third identical search, but the rule is
+`mansart-context-guard` hook refuses the third identical search, but the rule is
 yours before it is the hook's.
 
 Concretely:
@@ -53,10 +53,16 @@ Concretely:
 
 ## Building
 
-Run `./scripts/build.sh` — never `mvn`/`./mvnw` directly, and never piped into
-`tail` or `grep`. A pipeline reports the filter's exit code, not Maven's, so a
-BUILD FAILURE reads as success. The script propagates Maven's status and keeps
-the full log in `target/agent-build.log`.
+Run `./scripts/build.sh` **bare**. Never `mvn`/`./mvnw` directly, and never
+pipe the script into `tee`, `tail` or `grep` — a pipeline reports the filter's
+exit code, not the build's, so a BUILD FAILURE reads as success. That is true
+of the script too, not just of Maven.
+
+The script prints the last 60 lines and ends with `BUILD_RESULT=`. The full log
+is already on disk at `target/agent-build.log` — read it with
+`tail -n 200 target/agent-build.log` or `grep -n ERROR target/agent-build.log`.
+Never copy build output to `/tmp`: it is outside the workdir, so it costs an
+approval prompt every time, and it duplicates a file you already have.
 
 You do not produce the numbers that go into `STATUS.md`. The `verify` agent
 does. Build to check your own work; report what you saw, do not record it.

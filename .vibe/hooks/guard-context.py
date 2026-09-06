@@ -52,8 +52,24 @@ WRITE_ISH = re.compile(
     r"|>>?\s*\S"
 )
 
-BUILD_CMD = re.compile(r"(^|[\s;|&(])(\./)?(mvnw?|gradlew?)\b")
-PIPE_AFTER_BUILD = re.compile(r"(^|[\s;&(])(\./)?(mvnw?|gradlew?)\b[^|]*\|")
+# Raw build tools: must go through the scripts.
+BUILD_RAW = re.compile(r"(^|[\s;|&(])(\./)?(mvnw?|gradlew?)\b")
+# Anything that produces a build verdict — the scripts included. Piping ANY of
+# these throws away the exit code, which is the entire point of the scripts.
+BUILD_ANY = re.compile(r"(^|[\s;&(])(\./)?((mvnw?|gradlew?)\b|scripts/(build|verify)\.sh)")
+PIPE_AFTER_BUILD = re.compile(
+    r"(^|[\s;&(])(\./)?((mvnw?|gradlew?)\b|scripts/(build|verify)\.sh)[^|]*\|"
+)
+
+# Writing anything into the system temp tree. Two costs: it trips Vibe's
+# OUTSIDE_DIRECTORY permission (a prompt on every single call), and it
+# duplicates a log the scripts already keep inside the workdir.
+TMP_WRITE = re.compile(
+    r"(\|\s*tee\b[^|;&]*|>>?\s*)(/private)?/(tmp|var/folders)/", re.IGNORECASE
+)
+
+# `cat f | tail -n` reads the whole file to show the end of it.
+CAT_INTO_PAGER = re.compile(r"(^|[\s;|&])cat\s+[^|;&]+\|\s*(tail|head)\b")
 
 # No trailing \b on the group: it would apply to the whole alternation, and
 # `jar tf` ends the `jar\s+[tx]` branch on "t" right before the word char "f".
@@ -127,22 +143,42 @@ def line_count(path: Path) -> int | None:
 def guard_bash(command: str, cwd: Path, session_id: str) -> None:
     norm = normalise(command)
 
-    # 1. A build command must never be piped, and never bypass the scripts.
+    # 1. A build command must never be piped — the scripts included. Piping
+    #    ./scripts/build.sh into `tee` or `tail` discards its exit code exactly
+    #    as piping mvn did, which defeats the whole point of calling it.
     if PIPE_AFTER_BUILD.search(norm):
         deny(
-            "A build command must not be piped: the shell reports the filter's "
-            "exit code, not Maven's, so a BUILD FAILURE is indistinguishable "
-            "from success. Run ./scripts/build.sh (or ./scripts/verify.sh) — "
-            "they set -o pipefail, keep the full log in target/agent-build.log, "
-            "print the last 60 lines and propagate Maven's exit code."
+            "Do not pipe a build command — not even ./scripts/build.sh. The "
+            "shell reports the filter's exit code, not the build's, so a "
+            "failure becomes indistinguishable from success. Run the script "
+            "bare: it already sets -o pipefail, prints the last 60 lines, "
+            "writes the full log to target/agent-build.log, and ends with a "
+            "BUILD_RESULT= line. Need more of the log? Read that file."
         )
-    if BUILD_CMD.search(norm) and "scripts/build.sh" not in norm and (
+    if BUILD_RAW.search(norm) and "scripts/build.sh" not in norm and (
         "scripts/verify.sh" not in norm
     ):
         deny(
             "Call ./scripts/build.sh or ./scripts/verify.sh rather than "
             "mvn/mvnw directly. They are the only invocations whose exit code "
             "is trustworthy and whose full output is kept on disk."
+        )
+
+    # 1b. Never stage build output in the system temp tree.
+    if TMP_WRITE.search(norm):
+        deny(
+            "Do not write into /tmp. Every access there is outside the "
+            "workdir, so it costs an approval prompt on each call, and the "
+            "build scripts already keep the full output inside the project at "
+            "target/agent-build.log and target/agent-verify.log. Read those."
+        )
+
+    # 1c. Reading a whole file to look at the end of it.
+    if CAT_INTO_PAGER.search(norm):
+        deny(
+            "`cat file | tail` reads the entire file to show you its end. Use "
+            "`tail -n 100 <file>` directly, or `grep -n` if you are looking "
+            "for something specific."
         )
 
     # 2. TCK directories are read-only, including through a shell redirect —
