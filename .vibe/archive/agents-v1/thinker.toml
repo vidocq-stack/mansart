@@ -1,0 +1,20 @@
+# One hard decision, in a fresh, isolated context, after two failed
+# attempts at the same problem. Direct port of OpenCode's `thinker`. GLM
+# 5.2 at high thinking — the point isn't a smarter model than `dev` (it's
+# the same model), it's an uncluttered context: fresh eyes, no accumulated
+# confusion from the failed attempts. Returns a decision, not an essay.
+
+display_name = "Thinker"
+description = "One hard decision in an isolated context, after two failed attempts (GLM 5.2, high thinking). Returns a decision, not an essay."
+safety = "safe"
+agent_type = "subagent"
+
+active_model = "glm-5-2"
+# active_model = "mistral-medium-3.5"   # fallback, same rationale as dev.toml
+enabled_tools = ["grep", "read_file", "skill"]
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"

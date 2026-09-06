@@ -34,15 +34,21 @@ public class MansartEntityManager implements EntityManager {
     private final Map<String, Object> properties;
     private final AtomicBoolean open = new AtomicBoolean(true);
     private final ConcurrentHashMap<String, Object> propertyOverrides = new ConcurrentHashMap<>();
-    private final MansartPersistenceContext persistenceContext = new MansartPersistenceContext();
+    private final MansartPersistenceContext persistenceContext;
 
     private volatile FlushModeType flushMode = FlushModeType.AUTO;
     private volatile CacheRetrieveMode cacheRetrieveMode = CacheRetrieveMode.USE;
     private volatile CacheStoreMode cacheStoreMode = CacheStoreMode.USE;
 
     public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties) {
+        this(entityManagerFactory, properties, null);
+    }
+
+    public MansartEntityManager(MansartEntityManagerFactory entityManagerFactory, Map<String, Object> properties,
+                               MansartCallback callback) {
         this.entityManagerFactory = entityManagerFactory;
         this.properties = properties;
+        this.persistenceContext = new MansartPersistenceContext(callback);
     }
 
     private void ensureOpen() {

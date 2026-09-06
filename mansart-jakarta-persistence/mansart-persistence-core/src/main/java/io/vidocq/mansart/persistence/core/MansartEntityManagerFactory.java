@@ -28,6 +28,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
     private final Map<String, Object> properties;
     private final AtomicBoolean open = new AtomicBoolean(true);
     private final ConcurrentLinkedQueue<MansartEntityManager> entityManagers = new ConcurrentLinkedQueue<>();
+    private final MansartCallback callback = new MansartCallback();
 
     public MansartEntityManagerFactory(String persistenceUnitName,
                                        PersistenceUnitTransactionType transactionType,
@@ -76,7 +77,7 @@ public class MansartEntityManagerFactory implements EntityManagerFactory {
 
     private MansartEntityManager createTrackedEm(Map<String, Object> emProps) {
         ensureOpen();
-        MansartEntityManager em = new MansartEntityManager(this, emProps);
+        MansartEntityManager em = new MansartEntityManager(this, emProps, callback);
         entityManagers.add(em);
         // Guard against a race where the factory closes between ensureOpen and add
         if (!open.get()) {

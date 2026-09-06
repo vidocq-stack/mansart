@@ -13,7 +13,7 @@ Only the `spec` agent writes in this directory. Format and per-note template:
 | # | Chapter | Note | Status | Lines |
 | --- | --- | --- | --- | --- |
 | 02 | Entities: requirements, persistent fields, primary keys, embeddables | `02-entities.md` | empty | — |
-| 03 | `EntityManager`, persistence context, lifecycle transitions, cascade, orphan removal | `03-entity-operations.md` | empty | — |
+| 03 | `EntityManager`, persistence context, lifecycle transitions, cascade, orphan removal | `03-entity-operations.md` | partial | 73 |
 | 04 | JPQL: syntax, path expressions, joins, functions | `04-query-language.md` | empty | — |
 | 05 | Metamodel API, static metamodel generation | `05-metamodel.md` | empty | — |
 | 06 | Criteria API construction and typing | `06-criteria-api.md` | empty | — |
