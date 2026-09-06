@@ -159,7 +159,7 @@ tck ────────── core, cdi, processor (out of reactor)
 - M4-JP-28: Connection management — uses `ScopedValue<Connection>` (no `ThreadLocal`) ✅ **DONE**
 
 ### M5 — Object-Relational Mapping (Basic)
-- M5-JP-29: `EntityMapper` — maps entity instances to SQL INSERT/UPDATE/DELETE via dialect SPI
+- M5-JP-29: `EntityMapper` — maps entity instances to SQL INSERT/SELECT/UPDATE/DELETE via dialect SPI ✅ **DONE**
 - M5-JP-30: ID generation — `AUTO`, `IDENTITY`, `SEQUENCE`, `TABLE` strategies
 - M5-JP-31: Column mapping — name, nullable, unique, length, precision, scale
 - M5-JP-32: Table mapping — name, schema, catalog

@@ -63,7 +63,7 @@ public final class EntityMapper {
 
             Class<T> entityClass = (Class<T>) entity.getClass();
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             boolean generated = dialectModel.id() != null && dialectModel.id().generated();
@@ -85,7 +85,7 @@ public final class EntityMapper {
                         continue; // Skip id when generated
                     }
                     Object value = callback.getAccessor(entityClass).get(entity, attr.name());
-                    dialect.bind(ps, paramIndex++, value, attr.javaType());
+                    dialect.bind(ps, paramIndex++, value, wrap(attr.javaType()));
                 }
 
                 int affected = ps.executeUpdate();
@@ -96,7 +96,7 @@ public final class EntityMapper {
                 if (generated) {
                     try (ResultSet rs = ps.getGeneratedKeys()) {
                         if (rs.next()) {
-                            Object generatedKey = dialect.extract(rs, 1, dialectModel.id().javaType());
+                            Object generatedKey = dialect.extract(rs, 1, wrap(dialectModel.id().javaType()));
                             callback.getAccessor(entityClass).set(entity, dialectModel.id().name(), generatedKey);
                             return generatedKey;
                         }
@@ -131,7 +131,7 @@ public final class EntityMapper {
             }
 
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             Where where = new Where.Eq(dialectModel.id());
@@ -139,14 +139,14 @@ public final class EntityMapper {
 
             PreparedStatement ps = conn.prepareStatement(sqlFragment.sql());
             try (ps) {
-                dialect.bind(ps, 1, id, dialectModel.id().javaType());
+                dialect.bind(ps, 1, id, wrap(dialectModel.id().javaType()));
 
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         T entity = callback.instantiate(entityClass);
                         List<Attribute<?, ?>> attrs = dialectModel.attributes();
                         for (Attribute<?, ?> attr : attrs) {
-                            Object value = dialect.extract(rs, rs.findColumn(attr.columnName()), attr.javaType());
+                            Object value = dialect.extract(rs, rs.findColumn(attr.columnName()), wrap(attr.javaType()));
                             callback.getAccessor(entityClass).set(entity, attr.name(), value);
                         }
                         return entity;
@@ -180,7 +180,7 @@ public final class EntityMapper {
 
             Class<T> entityClass = (Class<T>) entity.getClass();
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             Where where = new Where.Eq(dialectModel.id());
@@ -198,12 +198,12 @@ public final class EntityMapper {
                     String fieldName = attr.name();
                     if (!fieldName.equals(idName) && !fieldName.equals(versionName)) {
                         Object value = callback.getAccessor(entityClass).get(entity, fieldName);
-                        dialect.bind(ps, paramIndex++, value, attr.javaType());
+                        dialect.bind(ps, paramIndex++, value, wrap(attr.javaType()));
                     }
                 }
 
                 Object idValue = callback.getAccessor(entityClass).get(entity, idName);
-                dialect.bind(ps, paramIndex, idValue, dialectModel.id().javaType());
+                dialect.bind(ps, paramIndex, idValue, wrap(dialectModel.id().javaType()));
 
                 int affected = ps.executeUpdate();
                 if (affected != 1) {
@@ -238,7 +238,7 @@ public final class EntityMapper {
             }
 
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             Where where = new Where.Eq(dialectModel.id());
@@ -246,7 +246,7 @@ public final class EntityMapper {
 
             PreparedStatement ps = conn.prepareStatement(sqlFragment.sql());
             try (ps) {
-                dialect.bind(ps, 1, id, dialectModel.id().javaType());
+                dialect.bind(ps, 1, id, wrap(dialectModel.id().javaType()));
 
                 int affected = ps.executeUpdate();
                 if (affected != 1) {
@@ -257,5 +257,17 @@ public final class EntityMapper {
         } catch (SQLException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    private static Class<?> wrap(Class<?> type) {
+        if (type == int.class) return Integer.class;
+        if (type == long.class) return Long.class;
+        if (type == boolean.class) return Boolean.class;
+        if (type == double.class) return Double.class;
+        if (type == float.class) return Float.class;
+        if (type == short.class) return Short.class;
+        if (type == byte.class) return Byte.class;
+        if (type == char.class) return Character.class;
+        return type;
     }
 }

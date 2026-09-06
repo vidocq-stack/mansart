@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M4-JP-28 — Connection management (runWithConnection/callWithConnection) — DONE, milestone M4 complete
-- **Milestone**: M4 (complete)
+- **Card**: M5-JP-29 — EntityMapper (INSERT/SELECT/UPDATE/DELETE via dialect SPI) — DONE
+- **Milestone**: M5 (in progress)
 
 ## 📊 Milestone Progress Overview
 
@@ -13,7 +13,7 @@
 | **M2** | 5 | 5 | **100%** | ✅ DONE |
 | **M3** | 4 | 4 | 100% | ✅ DONE |
 | **M4** | 6 | 6 | **100%** | ✅ DONE |
-| **M5** | 5 | 0 | 0% | ⏳ TO_DEFINE |
+| **M5** | 5 | 1 | 20% | 🔄 IN_PROGRESS |
 | **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
 | **M7** | 12 | 0 | 0% | ⏳ TO_DEFINE |
 | **M8** | 4 | 0 | 0% | ⏳ TO_DEFINE |
@@ -29,7 +29,7 @@
 | **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
 | **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **27** | **~24.1%** | |
+| **TOTAL** | **112** | **28** | **~25.0%** | |
 
 ---
 
@@ -109,6 +109,8 @@
 - M4-JP-23: MansartPersistenceProvider now parses persistence.xml via JDK DOM API with full XXE hardening, creates EntityManagerFactory from both XML and programmatic config, and implements real lifecycle with AtomicBoolean. module-info.java now requires java.xml. auditor/guardian findings resolved (XXE hardening structure, TOCTOU in close()). Test resource added: META-INF/persistence.xml with two PUs. Measured: MansartPersistenceProviderTest 7/7 PASS, full mansart-persistence-tests module 24/24 PASS. SonarQube quality gate clean on new code (0 bugs/0 smells/0 vulnerabilities/0 hotspots); pre-existing debt noted (112 open issues in untouched files) and jacoco coverage gap (new_coverage=0.0) as backlog items.
 
 - M4-JP-24: MansartEntityManagerFactory now manages EntityManager instances: tracks all created EMs in a ConcurrentLinkedQueue, cascades close on factory close (all EMs marked closed). Double-check pattern in createTrackedEm guards against TOCTOU race between ensureOpen and EM registration. Bootstrap metadata: EMF now stores PersistenceUnitTransactionType (passed from both XML descriptor path and PersistenceConfiguration path). getTransactionType() returns it without a closed check (per spec, no @throws IllegalStateException). Closed-state contract: createEntityManager throws IllegalStateException if factory closed. getProperties, getCache, getPersistenceUnitUtil, unwrap all throw IllegalStateException if closed (per their @throws declarations). getCache returns null (spec-sanctioned for no L2 cache). unwrap supports MansartEntityManagerFactory and EntityManagerFactory, throws PersistenceException for unsupported types. MansartPersistenceUnitUtil (new): implements PersistenceUnitUtil, all methods throw UnsupportedOperationException (entity model not built yet — that's M5+). MansartEntityManager: added open/closed state (AtomicBoolean). isOpen() checks both EM state and factory state. close() deregisters from factory. markClosed() (package-private) called by factory cascade. Persistence operations remain UnsupportedOperationException (M4-JP-25 scope). MansartPersistenceProvider: both createEntityManagerFactory paths now pass transactionType to the EMF constructor. Measured: MansartEntityManagerFactoryTest: 19/19 PASS, Full mansart-persistence-tests module: 43/43 PASS (was 24, +19 new tests). Build: green on all modules (including external-it). Auditor: clean on diff (2 minor findings fixed: dead registerEntityManager method removed, null guard on constructor properties added). SonarQube: 0 bugs, 0 vulnerabilities, 0 security hotspots, 0 violations on M4-JP-24 changed files. Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both are pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeAttribute.java, RuntimeEntityModel.java, RuntimeEntityModelBuilder.java), same pattern as M4-JP-23.
+- M5-JP-29: EntityMapper maps entity instances to SQL INSERT/SELECT/UPDATE/DELETE via dialect SPI. Uses DialectEntityModelAdapter to convert persistence SPI EntityModel to dialect SPI EntityModel, then delegates SQL generation to Dialect (H2Dialect). insert() handles generated keys via getGeneratedKeys(). select() builds WHERE.Eq on id column, extracts all attributes via dialect.extract(). update() builds SET clause + WHERE on id. delete() builds WHERE on id. Fixed primitive-type bug: attr.javaType() can return primitives (int.class from @Version), but H2Dialect.extract only handles wrapper types — added wrap() helper to normalize primitives to wrappers at all 7 dialect.extract/dialect.bind call sites. VersionedEntity test model added with @Version field. Measured: 239/239 PASS (was 236, +3 new tests: adaptNullThrows, adaptProducesValidEntityModel, insertAndSelectVersionedEntity). Build green. SonarQube: 0 violations on M5-JP-29 changed files (EntityMapper.java, DialectEntityModelAdapter.java). Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeClassGenerator.java, ClassUtil.java), same pattern as M4-JP-23/M4-JP-24.
+
 
 ---
 *Generated for milestone M0. All numbers are not measured unless stated otherwise.*

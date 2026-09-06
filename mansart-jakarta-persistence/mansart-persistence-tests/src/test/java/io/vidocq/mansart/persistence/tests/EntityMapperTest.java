@@ -23,6 +23,7 @@ import io.vidocq.mansart.persistence.core.dialect.EntityMapper;
 import io.vidocq.mansart.persistence.core.dialect.DialectEntityModelAdapter;
 import io.vidocq.mansart.persistence.tests.model.GeneratedIdEntity;
 import io.vidocq.mansart.persistence.tests.model.SimpleAssignedIdEntity;
+import io.vidocq.mansart.persistence.tests.model.VersionedEntity;
 
 /**
  * TDD test for EntityMapper: maps entity instances to SQL INSERT/UPDATE/DELETE via dialect SPI.
@@ -38,7 +39,7 @@ class EntityMapperTest {
     void beforeEach() throws SQLException {
         // In-memory H2 database
         this.connection = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "", "");
-        this.callback = new MansartCallback(List.of(GeneratedIdEntity.class, SimpleAssignedIdEntity.class));
+        this.callback = new MansartCallback(List.of(GeneratedIdEntity.class, SimpleAssignedIdEntity.class, VersionedEntity.class));
         this.adapter = new DialectEntityModelAdapter();
         this.mapper = new EntityMapper(new H2Dialect(), callback, adapter);
 
@@ -57,6 +58,11 @@ class EntityMapperTest {
                     + "\"name\" VARCHAR(255), "
                     + "\"value\" INTEGER "
                     + ")");
+            st.execute(
+                "CREATE TABLE IF NOT EXISTS \"versioned_entities\" ( "
+                    + "\"id\" BIGINT PRIMARY KEY, "
+                    + "\"name\" VARCHAR(255), "
+                    + "\"version\" INTEGER DEFAULT 0)");
         }
     }
 
@@ -280,5 +286,35 @@ class EntityMapperTest {
         } catch (SQLException e) {
             throw new PersistenceException(e);
         }
+    }
+
+    @Test
+    void adaptNullThrows() {
+        assertThatThrownBy(() -> adapter.adapt(null))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("spiModel must not be null");
+    }
+
+    @Test
+    void insertAndSelectVersionedEntity() throws SQLException {
+        VersionedEntity entity = new VersionedEntity();
+        entity.setId(1L);
+        entity.setName("Versioned");
+
+        Object result = mapper.insert(connection, entity);
+        assertThat(result).isEqualTo(1L);
+
+        VersionedEntity selected = mapper.select(connection, VersionedEntity.class, 1L);
+        assertThat(selected).isNotNull();
+        assertThat(selected.getName()).isEqualTo("Versioned");
+    }
+
+    @Test
+    void adaptProducesValidEntityModel() {
+        var spiModel = callback.getEntityModel(GeneratedIdEntity.class);
+        var dialectModel = adapter.adapt(spiModel);
+        assertThat(dialectModel).isNotNull();
+        assertThat(dialectModel.tableName()).isEqualTo("generated_id_entities");
+        assertThat(dialectModel.attributes()).isNotEmpty();
     }
 }
