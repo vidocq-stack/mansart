@@ -15,11 +15,12 @@
 # is a real risk, and this agent never legitimately needs any of those ops.
 
 display_name = "Spec Reader"
-description = "Read-only spec/TCK oracle for the current target (Medium 3.5). Answers one question with a citation; never writes code. Full-auto: bash auto-approves except the shared destructive-ops denylist."
+description = "Read-only spec/TCK oracle for the current target (GLM 5.2). Answers one question with a citation; never writes code. Full-auto: bash auto-approves except the shared destructive-ops denylist."
 safety = "safe"
 agent_type = "subagent"
 
-active_model = "mistral-medium-3.5"
+active_model = "glm-5-2"
+# active_model = "mistral-medium-3.5"   # fallback, same rationale as dev.toml
 enabled_tools = ["grep", "read_file", "skill", "web_fetch", "bash"]
 
 [tools.write_file]

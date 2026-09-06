@@ -12,7 +12,7 @@ user-invocable: false
 `sigtest-maven-plugin`.
 
 **269 client classes, ~1 745 test methods.** That scale is deliberate context
-for decomposition: `tck-runner` on one named client class is roughly one
+for decomposition: `recon` on one named client class is roughly one
 card's worth of work.
 
 ## Layout
@@ -31,7 +31,7 @@ reactor — always from its own directory or via the script.
   `setup*Data failed` is the single largest error source and it belongs to
   the harness, not to the provider.
 - **Only PASS counts.** ERROR → FAIL is not progress. Stubs that quieten a
-  test are forbidden and `auditor` rejects them. An honest 0/1745 baseline
+  test are forbidden and `recon` rejects them. An honest 0/1745 baseline
   is worth more than an invented 40. (The previous local-model attempt on
   `ybl/jpa-opencode` reached 83% of its planned cards while the official TCK
   provider was never actually wired — 991 run / 989 errors, unchanged from
@@ -45,6 +45,6 @@ under `target/surefire-reports/` for the summary line, or `wc -l` the
 `<failure>`/`<error>` tags. A full TCK console run is tens of thousands of
 lines; the number you need is a handful of integers.
 
-`tck-runner`'s job is exactly this: run the script, extract
+`recon`'s job is exactly this: run the script, extract
 `pass/fail/error/skipped` from surefire, and report those four integers —
 nothing else re-enters the caller's context.

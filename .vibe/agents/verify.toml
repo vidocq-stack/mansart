@@ -1,0 +1,39 @@
+# Measurement agent. Mistral Small 4. Runs the build and the conformance
+# suite, and returns numbers. Nothing else.
+#
+# Why it exists: over three days on ybl/jpa-vibe, 24 cards were marked DONE
+# while the conformance counter stayed frozen at 2 passed / 0 failed / 2
+# errored. The agent that writes the code has an interest in the measurement
+# being good; this one does not, and cannot act on it — every write tool is
+# "never", so the only thing it can produce is a report.
+#
+# It is the SOLE source of the figures written into STATUS.md. A number that
+# did not come from a `verify` run is not a number, it is a hope.
+#
+# It never edits, never commits, never "fixes" a red build. A red build is the
+# answer, not a problem to be solved before answering.
+#
+# bash is auto-approved because running the build is its entire job; the
+# project bash denylist and the `mansart-bash-guard` pre_tool hook still apply,
+# so it cannot pipe Maven (which would hide the exit code) and cannot write
+# into a TCK directory through the shell.
+
+display_name = "Verify"
+description = "Runs ./scripts/build.sh and ./scripts/verify.sh and returns ONLY a numeric report: build green/red, tests passed/failed/errored, delta vs the previous run. Writes nothing, fixes nothing. Sole source of the numbers in STATUS.md."
+safety = "safe"
+agent_type = "subagent"
+
+active_model = "mistral-small-4"
+
+system_prompt_id = "verify"
+
+enabled_tools = ["grep", "read_file", "skill", "bash"]
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"
+
+[tools.bash]
+permission = "always"

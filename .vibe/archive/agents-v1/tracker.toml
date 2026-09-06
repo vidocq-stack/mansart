@@ -18,7 +18,7 @@ agent_type = "subagent"
 
 active_model = "mistral-small-4"
 # active_model = "devstral-local"   # free, local via oMLX — needs the server up
-# active_model = "mistral-medium-3.5"   # fallback if this ever misrecords
+# active_model = "glm-5-2"   # fallback if this ever misrecords
 
 [tools.write_file]
 permission = "ask"

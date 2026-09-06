@@ -3,8 +3,8 @@
 # sources, disabled/narrowed tests, and module/dependency violations — the
 # five patterns that stalled the previous local-model attempt at 2/1745 TCK
 # PASS (see the root AGENTS.md and PREPARE_OPENCODE.md on branch
-# ybl/jpa-opencode). Never fixes anything; only reports. Medium
-# 3.5: this needs judgment, not code generation.
+# ybl/jpa-opencode). Never fixes anything; only reports. GLM
+# 5.2: this needs judgment, not code generation.
 #
 # Full-auto bash (same rationale as the other read-only subagents):
 # write_file and edit are both "never" below, so this agent has no way to
@@ -12,11 +12,12 @@
 # is a real risk, and this agent never legitimately needs any of those ops.
 
 display_name = "Auditor"
-description = "Anti-drift review (Medium 3.5): stubs, reflection, TCK leakage, disabled tests, module violations. Read-only, reports only. Full-auto: bash auto-approves except the shared destructive-ops denylist."
+description = "Anti-drift review (GLM 5.2): stubs, reflection, TCK leakage, disabled tests, module violations. Read-only, reports only. Full-auto: bash auto-approves except the shared destructive-ops denylist."
 safety = "safe"
 agent_type = "subagent"
 
-active_model = "mistral-medium-3.5"
+active_model = "glm-5-2"
+# active_model = "mistral-medium-3.5"   # fallback, same rationale as dev.toml
 enabled_tools = ["grep", "read_file", "skill", "bash"]
 
 [tools.write_file]

@@ -10,9 +10,10 @@
 # (confirmed, every SKU past its retirement date on docs.mistral.ai's
 # deprecated-models table) — Small 4 is Mistral's own current
 # recommendation for exactly this role ("Fast, cost-effective general
-# use", Vibe CLI's own model table) at $0.15/$0.6 per M tokens, 10x
-# cheaper than Medium on output. Free local alternative below if cost
-# still matters more than staying cloud-hosted.
+# use", Vibe CLI's own model table) at $0.15/$0.6 per M tokens, 7x
+# cheaper than GLM 5.2 on output (12x cheaper than Medium 3.5). Free
+# local alternative below if cost still matters more than staying
+# cloud-hosted.
 
 display_name = "Coder"
 description = "Implements a well-specified change: writes/edits the code, does not decide scope or architecture. Full-auto: writes, edits, and bash all auto-approve, except the shared destructive-ops denylist."
@@ -21,7 +22,7 @@ agent_type = "subagent"
 
 active_model = "mistral-small-4"
 # active_model = "devstral-local"   # free, local via oMLX — needs the server up
-# active_model = "mistral-medium-3.5"   # fallback if Small 4 underperforms on a card
+# active_model = "glm-5-2"   # fallback if Small 4 underperforms on a card
 
 [tools.write_file]
 permission = "always"

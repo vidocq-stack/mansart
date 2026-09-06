@@ -77,8 +77,8 @@ issue — query them explicitly, they don't always surface in the plain
 no automated SCA (software composition analysis) tool — e.g. OWASP
 Dependency-Check — is wired into the Maven build as of this writing, and
 Sonar Community Edition's own dependency-vulnerability coverage is
-limited. Until one is added, `guardian` treats any newly introduced
-dependency as needing a manual check (ask `spec-reader` to look up known
+limited. Until one is added, `recon` treats any newly introduced
+dependency as needing a manual check (the `spec` agent looks up known
 CVEs for the exact artifact + version via `web_fetch`) rather than
 assuming a clean Sonar scan means the dependency is safe. This is exactly
 the kind of gap that's easy to forget precisely because the gate looks

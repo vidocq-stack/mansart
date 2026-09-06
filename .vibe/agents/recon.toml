@@ -1,0 +1,39 @@
+# Read-only exploration subagent. Mistral Small 4.
+#
+# This agent exists mainly for cost. Vibe's builtin `explore` subagent
+# declares no active_model, so it inherits the session's active model — i.e.
+# every "where is X" would run on GLM 5.2. `recon` does the same job on Small
+# 4 and returns a short answer instead of a file dump, which keeps the bulk of
+# the tokens both cheap and out of the primary context.
+#
+# Use it for: locating code, grep sweeps, reading build output, summarising a
+# test failure into the two lines that matter.
+#
+# enabled_tools is an allowlist of tools: no write_file, no edit — they are not
+# in the list, and are additionally pinned to "never" below so a config merge
+# cannot reintroduce them. bash stays auto-approved (it needs to run ./mvnw and
+# read output); the residual caveat is that a shell can technically write, so
+# this agent is read-only by construction and instruction rather than by a path
+# rule. It never has a reason to write, and the shared denylist still blocks
+# the irreversible git/rm/docker operations.
+
+display_name = "Recon"
+description = "Read-only exploration (Mistral Small 4): locate code, grep, read build output, summarise test failures. Returns a short answer, never a file dump."
+safety = "safe"
+agent_type = "subagent"
+
+active_model = "mistral-small-4"
+# active_model = "devstral-local"   # free, local via oMLX — needs the server up
+
+system_prompt_id = "recon"
+
+enabled_tools = ["grep", "read_file", "skill", "bash"]
+
+[tools.write_file]
+permission = "never"
+
+[tools.edit]
+permission = "never"
+
+[tools.bash]
+permission = "always"

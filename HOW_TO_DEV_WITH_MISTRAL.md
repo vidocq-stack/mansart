@@ -2,16 +2,21 @@
 
 How `mansart-jakarta-persistence` (Jakarta Persistence 3.2) is set up to be
 implemented with **Mistral Vibe** — Mistral AI's CLI coding agent — on a
-two-tier model split: **Mistral Medium 3.5** for reasoning, orchestration
-and review; **Mistral Small 4** for mechanical, well-specified subtasks
-(code edits, running a script and parsing its output, recording numbers).
+two-tier model split: **Z.ai GLM 5.2** — a third-party open model *hosted
+by Mistral* — for reasoning, orchestration and review; **Mistral Small 4**
+for mechanical, well-specified subtasks (code edits, running a script and
+parsing its output, recording numbers).
 Neither model is the one first proposed. The original ask was Devstral for
 code and (later) Large 3 for reasoning; two dedicated research passes found
 **Devstral deprecated and retired from Mistral's own cloud API**, and
 **Large 3 shipped without a reasoning mode and isn't Mistral's agentic-work
 model** (Medium 3.5 beats it by 21-29 points on the closest available
-benchmarks). Both are explained in full, with sources, in §3 — read it
-before assuming either model name means what its size implies.
+benchmarks). Medium 3.5 then held the reasoning role until Mistral began
+hosting **GLM 5.2** on 2026-08-06: cheaper on both input and output, with a
+**1M context against Medium's 256k**, on the same endpoint and the same API
+key. All three substitutions are explained in full, with sources, in §3 —
+read it before assuming any model name means what its size implies. Medium
+3.5 stays configured as the vision-capable, Mistral-native fallback.
 
 This is the third documented attempt at this module, after
 `feature/jakarteee-mansart-persistence-*` (Claude Code Max / an earlier
@@ -151,12 +156,12 @@ builtin agent, which does exactly this (a domain-specific model, its own
 provider, its own compaction model). The `task` tool then runs the target
 subagent under *its* profile, model included. **Mechanically, any per-agent
 model split works exactly as asked.** The two-tier split actually shipped
-in this config — **Medium 3.5** for reasoning/orchestration, **Small 4**
+in this config — **GLM 5.2** for reasoning/orchestration, **Small 4**
 for mechanical subtasks — is not the one first proposed (Devstral for
-code, then Large 3 for reasoning); both substitutions are explained below,
-each backed by a live research pass rather than the model-name naming
-convention (bigger name ≠ more capable, twice now — see Devstral and Large
-3 below).
+code, then Large 3 for reasoning, then Medium 3.5); every substitution is
+explained below, each backed by a live research pass rather than the
+model-name naming convention (bigger name ≠ more capable, twice now — see
+Devstral and Large 3 below).
 
 ### Mistral Medium 3.5
 
@@ -259,7 +264,7 @@ multimodal model — Mistral's own framing, not an inference.
 
 `coder`, `tck-runner` and `tracker` (`.vibe/agents/*.toml`) default to
 `mistral-small-4` — each file also carries the `devstral-local` and
-`mistral-medium-3.5` alternatives, commented, in case a real card exposes
+`glm-5-2` alternatives, commented, in case a real card exposes
 a quality gap Small 4 can't clear.
 
 ### Mistral Large 3 — considered for the reasoning role, and rejected
@@ -301,30 +306,91 @@ it:
   snapshots points existing users toward **Medium 3.5**, not Large 3.
 
 **Conclusion**: Large 3 is a cheap, fully-open, general-purpose sibling
-release — not a reasoning upgrade over Medium 3.5. `dev`, `thinker`,
-`spec-reader`, `auditor` and `guardian` stay on Medium 3.5. Large 3 isn't
+release — not a reasoning upgrade over Medium 3.5. Large 3 isn't
 wired into this config at all; if a future card exposes a case where its
-$0.5/$1.5 pricing is worth trying against Medium's judgment on a specific
-task, add it as a third `[[models]]` alias the same way Small 4 was added,
-and benchmark that specific task before trusting it more broadly.
+$0.5/$1.5 pricing is worth trying against the reasoning model's judgment on
+a specific task, add it as another `[[models]]` alias the same way Small 4
+was added, and benchmark that specific task before trusting it more
+broadly.
+
+### Z.ai GLM 5.2 — the third substitution, and the current reasoning model
+
+Mistral began hosting **third-party open models on La Plateforme, starting
+with Z.ai's GLM 5.2, on 2026-08-06**
+(<https://docs.mistral.ai/models/zai-glm-5-2> — model page marked *Public
+Preview / Third-party / Open*). "Hosted by Mistral" is the operative part
+of the decision: it is served through the **same
+`https://api.mistral.ai/v1` endpoint, the same `MISTRAL_API_KEY`, the same
+billing, and Vibe's same `mistral` backend** — so moving the reasoning
+agents onto it changes one `active_model` line per file and nothing else in
+this setup. The model is served *without Mistral modifications*.
+
+- API id: **`zai-glm-5-2`**; alias `glm-5-2` in `.vibe/config.toml`,
+  display name "GLM-5.2 (Mistral Hosted)".
+- Model: **744B-parameter MoE, 40B active**, MIT-licensed open weights
+  (Z.ai), built for long-horizon agentic coding.
+- Context: **1M tokens**. Max output: **128k**.
+- Pricing (Mistral's own model page): **$1.4/M input, $4.4/M output,
+  $0.14/M cached input** — cheaper than Medium 3.5 on both sides
+  ($1.5/$7.5), and 41% cheaper on output, which is where an agent session's
+  money actually goes.
+- Features listed on the model page: chat completions, **function calling**,
+  **structured outputs**, predicted outputs, prefix, batching.
+- **No vision** (`supports_images = false`). Mistral's own routing config
+  pairs it with `mistral-medium-3.5` as the multimodal fallback; this
+  project keeps Medium configured for the same reason.
+
+**Why it took the reasoning role from Medium 3.5**: the 1M context, more
+than the price. This module's expensive sessions are the ones where a spec
+chapter, a TCK test class and four Java files must all be in the window
+alongside the session's own history — on 256k that competes for room, on
+1M it does not. `auto_compact_threshold` for `glm-5-2` is therefore set to
+**800,000**, the value Mistral itself pushes for the model, against 150,000
+for the Mistral models (see below).
+
+**Two caveats, both real**: it is **Public Preview** and **third-party** —
+Mistral could stop hosting it — and Vibe's `/model` selector only offers it
+because Mistral's runtime routing layer ("GrowthBook", see
+`vibe/core/config/vibe_schema.py`; the payload is cached locally in
+`~/.vibe/experiment_eval_cache.json`) injects it at launch, not because it
+ships in Vibe's static model list (mistralai/mistral-vibe discussion #1001).
+Pinning it explicitly in `.vibe/config.toml`, as this project now does, is
+what makes the setup independent of that routing layer. Plus the missing
+vision. Both are why `mistral-medium-3.5` stays in `.vibe/config.toml` and
+stays commented in every reasoning agent's TOML as a one-line fallback.
 
 ### `thinking` level
 
-`off | low | medium | high | max` (`vibe/config_values.py`).
-`mistral-vibe-cli-latest` is set to `max` here (the shipped example in
-Vibe's own doc uses `high`) — appropriate for an agent whose job is mostly
-architectural decisions and review, not chat. Lower it if sessions feel
-slow and decisions don't need the extra depth.
+`off | low | medium | high | max` (`vibe/config_values.py`). `zai-glm-5-2`
+is set to `high` (the value Mistral ships for it) and
+`mistral-vibe-cli-latest` to `max` — appropriate for an agent whose job is
+mostly architectural decisions and review, not chat. Lower it if sessions
+feel slow and decisions don't need the extra depth.
+
+**`high` and `max` are the same request on this backend.** Vibe's Mistral
+backend collapses its five levels onto the API's two-valued
+`reasoning_effort`: `low → none`, `medium`/`high`/`max` → `high`, `off`
+sends nothing at all (`_THINKING_TO_REASONING_EFFORT`,
+`vibe/core/llm/backend/mistral.py`). So `thinker`'s "max thinking" was
+never a bigger budget than `dev`'s — its real edge is the uncluttered
+context, exactly as its own header comment claims.
 
 ### Context window / `auto_compact_threshold`
 
-Set to 150,000 for every model in `.vibe/config.toml`, below both Vibe's
+Set to **800,000 for `glm-5-2`** and 150,000 for every Mistral model in
+`.vibe/config.toml`. The 150,000 sits below both Vibe's
 own default (200,000, `DEFAULT_AUTO_COMPACT_THRESHOLD` in
 `vibe/core/config/_defaults.py`) and Medium 3.5's actual 256k context — a
 deliberate margin, not an oversight, in the spirit of the OpenCode setup's
-"budget we choose to spend well" rather than the hard ceiling. Raise it
-once a session's actual behavior near that threshold has been observed
-once (see §6).
+"budget we choose to spend well" rather than the hard ceiling. The 800,000
+for GLM 5.2 is the value Mistral itself pushes for that model against its
+1M window, and it is the practical point of the switch: most sessions
+should now finish a card without ever compacting. It is also the expensive
+end — a turn taken near 800k of context costs roughly $1.1 of uncached
+input — so when a session is being paid for rather than finished, that
+number is the dial to lower (400,000 is a reasonable middle), not the
+thinking level. Revisit both once a session's actual behavior near the
+threshold has been observed (see §6).
 
 ### Cost mechanisms worth knowing about (platform-wide, not project config)
 
@@ -440,19 +506,21 @@ comment for what was merged and why).
 
 | agent | type | model (default) | role |
 | --- | --- | --- | --- |
-| `dev` | primary | Medium 3.5 | lead developer; full-auto edits + bash (denylist only); delegates code-writing |
+| `dev` | primary | GLM 5.2 | lead developer; full-auto edits + bash (denylist only); delegates code-writing |
 | `coder` | subagent | **Small 4** | implements a well-specified change |
-| `spec-reader` | subagent | Medium 3.5 | read-only spec/TCK oracle; the only agent with `web_fetch` |
+| `spec-reader` | subagent | GLM 5.2 | read-only spec/TCK oracle; the only agent with `web_fetch` |
 | `tck-runner` | subagent | **Small 4** | runs the TCK, reports real integers, never edits |
-| `auditor` | subagent | Medium 3.5 | anti-drift review; read-only, reports only |
+| `auditor` | subagent | GLM 5.2 | anti-drift review; read-only, reports only |
 | `tracker` | subagent | **Small 4** | owns `STATUS.md`/`TASKS.md` only |
-| `guardian` | subagent | Medium 3.5 | module-info + POM + virtual-threads review (merges 3 OpenCode agents); also the Sonar quality gate and security review (§ below) |
-| `thinker` | subagent | Medium 3.5, `max` thinking | one hard decision, isolated context, after 2 failed attempts |
+| `guardian` | subagent | GLM 5.2 | module-info + POM + virtual-threads review (merges 3 OpenCode agents); also the Sonar quality gate and security review (§ below) |
+| `thinker` | subagent | GLM 5.2, `high` thinking | one hard decision, isolated context, after 2 failed attempts |
 | `explore` | subagent (builtin) | inherits caller's | codebase search: `grep`, `read_file`, `skill` only |
 
 Each `Small 4` agent's TOML also carries `devstral-local` (free, oMLX) and
-`mistral-medium-3.5` (fallback) as commented `active_model` alternatives —
-switch per agent if a real card exposes a quality gap (§3).
+`glm-5-2` as commented `active_model` alternatives; each GLM 5.2 agent
+carries `mistral-medium-3.5` — switch per agent if a real card exposes a
+quality gap, or if GLM 5.2 (Public Preview, third-party) becomes
+unavailable (§3).
 
 ### The `task` tool — real delegation, structured, depth-limited to 1
 
@@ -505,9 +573,10 @@ the model used to summarize (`compaction_model`) are configurable. **This
 project's config uses Small 4 as the compaction model** — confirmed GA
 (§3), so a compaction that fires won't hit a retired endpoint (that would
 hard-error, not degrade), and it's exactly the mechanical summarization
-task Small 4 is positioned for, cheaper than spending Medium's budget on it.
+task Small 4 is positioned for, cheaper than spending the reasoning model's
+budget on it.
 
-Whether Medium 3.5 / Small 4 degrade the same way OpenCode's local model
+Whether GLM 5.2 / Small 4 degrade the same way OpenCode's local model
 did after a compaction is **not measured on this setup** — treat the first
 real compaction as an experiment (see the `model-discipline` skill for what
 to watch for). For anything scripted/unattended, Vibe's own
@@ -690,6 +759,14 @@ during the writing of this document:
   planning role despite the naming intuition; Medium 3.5 measurably
   outperforms it on the closest available benchmarks (vals.ai, +21 to +29
   points on SWE-Bench-Verified/Terminal-Bench/Finance-Agent).
+- **Z.ai GLM 5.2 is hosted by Mistral on the standard endpoint** (§3) —
+  confirmed against docs.mistral.ai's own model page (id `zai-glm-5-2`, 1M
+  context, $1.4/$4.4/$0.14, function calling, no vision) and against the
+  routing payload Vibe caches locally in
+  `~/.vibe/experiment_eval_cache.json`. It is the model running
+  `dev`/`spec-reader`/`auditor`/`guardian`/`thinker` now. Still **Public
+  Preview and third-party** — that is a hosting risk, not a capability
+  claim.
 - **Vibe rewrites `.vibe/config.toml` on its own and strips comments when
   it does.** Observed directly on this project: after the first real
   `vibe` launch, `config.toml` came back with `applied_migrations =
@@ -699,7 +776,17 @@ during the writing of this document:
   being replaced (previously only inferred from source) — and every
   explanatory `#` comment in the file gone. Re-add documentation as a
   comment expecting it to survive the next Vibe-triggered rewrite; it
-  won't. `.vibe/agents/*.toml` were not touched by this.
+  won't. `.vibe/agents/*.toml` were not touched by this. Observed again on
+  2026-09-04 while switching the reasoning agents to GLM 5.2: a running
+  Vibe rewrote the file within minutes, keeping the new `[[models]]` block
+  and dropping every comment — and reset `active_model` back to the `""`
+  sentinel, i.e. "unpinned, use whatever the routing layer routes me to"
+  (which happens to be `glm-5-2` today, but by routing rather than by
+  config). Re-pin it after any Vibe-triggered rewrite if the point is to
+  be independent of that layer, and check `active_model` first whenever
+  the running model isn't the expected one. `.vibe/agents/*.toml` again
+  survived untouched — the per-agent `active_model` is the durable place
+  to state a model.
 - **No Java LSP integration exists in Vibe.** Confirmed absent both from
   reading the installed package's source (no LSP/jdtls/tree-sitter-as-
   navigation-tool code anywhere) and from an explicit search of the public
@@ -724,10 +811,14 @@ Still genuinely open:
 
 - **Bash allowlist matching in practice** (§4.1) — read from source, not
   yet observed on a live command.
-- **`auto_compact_threshold = 150000`** (§3) — set with headroom below
-  Medium 3.5's confirmed 256k context, but not yet observed against real
-  session behavior.
-- **Compaction behavior on Medium 3.5** (§6) — unmeasured; the OpenCode
+- **`auto_compact_threshold`** (§3) — 800,000 for GLM 5.2 and 150,000 for
+  the Mistral models, both set with headroom below their respective context
+  windows, neither yet observed against real session behavior.
+- **GLM 5.2's behaviour on this project** — no card has been run on it yet.
+  Its long-context degradation curve and its tool-call discipline under
+  this agent roster are unmeasured here; the switch is argued from
+  published specs and price, not from a measurement on this repo.
+- **Compaction behavior on GLM 5.2** (§6) — unmeasured; the OpenCode
   finding (narration collapse after compaction) is specific to a heavily-
   quantized 3B-active local model and may simply not reproduce on a
   frontier cloud model, but that is an assumption, not a measurement.
@@ -767,14 +858,14 @@ mansart/
                                          self-contained — never references CLAUDE.md or this file
   HOW_TO_DEV_WITH_MISTRAL.md            this file — human-facing, not loaded by Vibe
   .vibe/config.toml                     providers, models, tool permissions
-  .vibe/agents/dev.toml                 primary — Medium 3.5 — portable, generic (§14)
-  .vibe/agents/coder.toml               subagent — Small 4 (devstral-local/Medium commented, §3)
-  .vibe/agents/spec-reader.toml         subagent — Medium 3.5, web_fetch
-  .vibe/agents/tck-runner.toml          subagent — Small 4 (devstral-local/Medium commented, §3)
-  .vibe/agents/auditor.toml             subagent — Medium 3.5
-  .vibe/agents/tracker.toml             subagent — Small 4 (devstral-local/Medium commented, §3)
-  .vibe/agents/guardian.toml            subagent — Medium 3.5; module/POM/concurrency + security/Sonar
-  .vibe/agents/thinker.toml             subagent — Medium 3.5, max thinking
+  .vibe/agents/dev.toml                 primary — GLM 5.2 (Medium commented) — portable, generic (§14)
+  .vibe/agents/coder.toml               subagent — Small 4 (devstral-local/GLM commented, §3)
+  .vibe/agents/spec-reader.toml         subagent — GLM 5.2, web_fetch
+  .vibe/agents/tck-runner.toml          subagent — Small 4 (devstral-local/GLM commented, §3)
+  .vibe/agents/auditor.toml             subagent — GLM 5.2
+  .vibe/agents/tracker.toml             subagent — Small 4 (devstral-local/GLM commented, §3)
+  .vibe/agents/guardian.toml            subagent — GLM 5.2; module/POM/concurrency + security/Sonar
+  .vibe/agents/thinker.toml             subagent — GLM 5.2, high thinking
   .vibe/skills/mansart-jpa/SKILL.md         project-specific — architecture, reactor layout
   .vibe/skills/mansart-jpa-tck/SKILL.md     project-specific — TCK scale, runner, DDL trap
   .vibe/skills/vidocq-codegen/SKILL.md      generic — three-tier codegen doctrine

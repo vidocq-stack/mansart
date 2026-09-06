@@ -1,15 +1,29 @@
-# One hard decision, in a fresh, isolated context, after two failed
-# attempts at the same problem. Direct port of OpenCode's `thinker`. Medium
-# 3.5 at max thinking — the point isn't a smarter model than `dev` (it's
-# the same model), it's an uncluttered context: fresh eyes, no accumulated
-# confusion from the failed attempts. Returns a decision, not an essay.
+# The ONLY agent with reasoning enabled. GLM 5.2 on the `glm-5-2-think` alias
+# (thinking = "high"), which is why thinking tokens — billed as output — are
+# spent here and nowhere else.
+#
+# One hard decision, in a fresh isolated context, after two failed attempts at
+# the same problem. Its edge is not a smarter model than `spec` (same model);
+# it is an uncluttered context: fresh eyes, none of the accumulated confusion
+# from the failed attempts. Returns a decision, not an essay.
+#
+# It is also the least-invoked agent in the roster, which is what makes the
+# reasoning surcharge affordable. If cost spikes, check how often this one is
+# being called before touching anything else.
+#
+# Note: "high" and "max" are the same request on the Mistral backend
+# (_THINKING_TO_REASONING_EFFORT maps medium/high/max -> "high"). "max" would
+# buy nothing.
 
 display_name = "Thinker"
-description = "One hard decision in an isolated context, after two failed attempts (Medium 3.5, max thinking). Returns a decision, not an essay."
+description = "One hard decision in an isolated context, after two failed attempts (GLM 5.2, reasoning ON). Returns a decision, not an essay. The only agent that spends thinking tokens."
 safety = "safe"
 agent_type = "subagent"
 
-active_model = "mistral-medium-3.5"
+active_model = "glm-5-2-think"
+
+system_prompt_id = "thinker"
+
 enabled_tools = ["grep", "read_file", "skill"]
 
 [tools.write_file]

@@ -53,7 +53,7 @@ State the target directory and spec before doing anything else.
    reactor structure, and the "out-of-reactor TCK, standalone POM 4.0.0"
    pattern rather than inventing a new shape.
 4. If the target is a spec implementation with an official TCK, note the
-   TCK artifact coordinates and total test-method count via `spec-reader`
+   TCK artifact coordinates and total test-method count via `recon`
    (one question: "for <spec>, what is the exact TCK artifact and how many
    client classes/test methods does it contain?") rather than guessing.
 
@@ -87,7 +87,7 @@ Structure, mirroring the existing delivered modules' plans:
   that mistake for this target or any other.
 - A decomposition-rule paragraph: milestone = planning unit, card = work
   unit (≤4 files, one proving test, explicit deps), only the current
-  milestone gets expanded into cards, `tracker` expands the next one when
+  milestone gets expanded into cards, `impl` expands the next one when
   the current one closes.
 - An explicit non-goals list.
 
@@ -109,11 +109,11 @@ Pick a short id prefix from the target module name (e.g. `JP` for
 
 ## 5. Delegate the actual write of `TASKS.md` and `STATUS.md`
 
-`tracker` is the only agent whose `write_file`/`edit` permissions cover
+`impl` is the only agent whose `write_file`/`edit` permissions cover
 these two files (see `.vibe/agents/tracker.toml`) — this is enforced by
 Vibe's own tool-permission system, not just a convention, so write `PLAN.md`
-yourself (it isn't tracker's file) but hand the drafted milestone table and
-card list to `tracker` via the `task` tool to actually write `TASKS.md`
+yourself (it isn't impl's file) but hand the drafted milestone table and
+card list to `impl` via the `task` tool to actually write `TASKS.md`
 (the milestone summary table + the expanded cards from step 4, later
 milestones listed as `TO_DEFINE`) and `STATUS.md` (current focus = the
 first card, all numbers `not measured`/`0`, empty session log, capped at 60

@@ -1,198 +1,204 @@
 # AGENTS.md
 
-Contributor guidance for agents working on this repository.
+Self-contained. Everything an agent needs is stated here or in a skill named
+here — never deferred to another file. Auto-loaded by `vibe` for every session
+under this directory, and appended to the system prompt as project
+instructions, so **keep it short, dense and stable**: it sits at the front of
+every request and is the block that benefits most from prefix caching. Edits
+here invalidate that cache for every subsequent turn — change it deliberately.
 
-This file is **self-contained for `vibe`** — everything an agent needs to
-work correctly is stated here or in a skill it points to, not deferred to
-`mansart/CLAUDE.md` (a Claude-Code-specific file with no reason for a
-Mistral Vibe session to read it, and no guarantee it ever will just
-because an instruction says "see CLAUDE.md" — an unread pointer is not a
-loaded rule). `CLAUDE.md` exists for Claude Code sessions on this same
-repository and may duplicate some of the content below; it is not a
-prerequisite for anything here.
+`CLAUDE.md` exists for Claude Code sessions on this same repository. It is not
+a prerequisite for anything below and no agent needs to read it.
 
-Auto-loaded by `vibe` for every session started under this directory — no
-wiring needed, Vibe discovers `AGENTS.md` by walking the directory tree.
-Kept at the **workspace root, generalized across every mansart sub-module**
-(`mansart-jakarta-data`, `mansart-transactions`, `mansart-pool`,
-`mansart-jakarta-persistence`) rather than duplicated per sub-module —
-Vibe reads exactly one `AGENTS.md` chain per session, so the rules that
-apply everywhere live here once.
+## The context rule — read this first
 
-## Engineering contract
+**Target: ≤ 30 000 tokens of context per step.** Measured on 3–6 Sep 2026
+across 10 sessions and 1 701 steps: **81 000**. Input was 93% of a $43.98
+bill (138 M input tokens against 581 k output). Context volume *is* the cost;
+the choice of model is about 1% of it.
 
-Non-negotiable for any mansart sub-module, delivered or in progress:
+Where that context came from, measured across 39 transcripts: `read_file` 42%,
+`bash` 28%, `write_file`+`edit` 21%, and actual delegation — `task` returns —
+**4.6%**. **72% of the primary context was delegable work the primary did
+itself.** A subagent's reading is discarded when it returns; the primary's is
+re-sent on every step until the session ends. That is the whole reason the
+roster below exists.
 
-- **Java 25**, the pinned toolchain (`sdk env` in the sub-project root) —
-  Maven 3.9.x. Never target or accept code that requires a newer/older
-  release.
-- **TDD.** Write the failing test first, watch it fail, then the smallest
-  real implementation, then refactor. No implementation code without a
-  failing test that already existed for it.
-- **No reflection on user classes at runtime.** No `java.lang.reflect`, no
-  `Proxy`, no `MethodHandles` lookup against a user type. Field/attribute
-  access goes through code generated at compile time (APT, or the
-  Class-File API for the Maven-plugin/runtime-fallback tiers — see the
-  `vidocq-codegen` skill for the full three-tier doctrine).
-- **No fake implementations.** Anything unimplemented throws
-  `UnsupportedOperationException("not implemented: <what>")`. Never return
-  `null`/`0`/`false`/an empty collection to make a test look quieter than
-  it is — that is not progress, and `auditor` rejects it.
-- **No test-suite knowledge in main sources.** TCK package/class names,
-  table names, or "known test case" special-cases are forbidden outside
-  the dedicated `*-tck` module for that sub-project.
-- **Strict Java modules, zero external runtime dependencies beyond the
-  relevant Jakarta APIs, virtual threads, `ScopedValue` instead of
-  `ThreadLocal`** (a platform thread / `ThreadLocal` is a documented
-  exception, not a default — justify it in the card's notes when used).
-  Delegate to `guardian` before a `module-info.java` or `pom.xml` change
-  you are unsure about.
-- **The SonarQube quality gate must pass on new code before a card is
-  `DONE`** — bugs, code smells, vulnerabilities, and security hotspots
-  alike, not just coverage. See the `vidocq-quality` skill for the
-  mechanism (shared Docker instance, one `projectKey` per sub-project) and
-  for what counts as a security review, including known-vulnerable
-  dependencies. Pre-existing debt is a separate backlog; a card answers
-  for the code it wrote.
-- **English everywhere**: code, Javadoc, Markdown, commit messages.
-  Conventional Commits, signed off (DCO), with a `Co-Authored-By:` trailer
+**Agents read `docs/spec-notes/*.md`. Never the full spec text.** Start from
+`docs/spec-notes/INDEX.md` and load **one** note. One condensed file per spec
+chapter, **200 lines maximum** — past that it splits. If the note does not
+answer the question, read the minimum span of the spec that does, then *write
+the note*. The next session pays for the note, not the chapter.
+
+Everything else volatile — file dumps, grep sweeps, build logs, stack traces —
+goes to a **subagent**, whose context is discarded. What comes back is a
+summary. Nothing bulky enters the primary context.
+
+### Never, in any session
+
+- **Never load the full specification text.** One note, from the index.
+- **Never inspect archive contents** — no `jar tf`, `unzip -l`, `javap`. 42
+  such calls were measured in three days; each dumps hundreds of entries that
+  are then re-sent on every later turn. What a TCK jar contains belongs in
+  `docs/spec-notes/`, written once.
+- **Never `cat` a file over 200 lines.** Use `sed -n 'a,bp'` or `grep -n`.
+- **Never repeat a discovery command.** One session ran the identical
+  `find … -name "EntityModel.java"` **75 times**, another the same command 17
+  times — 228 steps for 5 useful results. When delegating, the parent passes
+  **absolute paths** in the task prompt; a subagent missing a path stops and
+  reports it instead of searching.
+- **Never run `mvn`/`./mvnw` directly, and never pipe a command whose exit
+  code matters.** See "Build" below.
+- **One session = one card.** The most expensive session in the measurement
+  ($19.55 — 44% of the total) chained 757 steps on a single subject without
+  ever restarting. Finish the card, commit, start a fresh session.
+
+The `mansart-bash-guard` hook (`.vibe/hooks.toml`) refuses the shell forms of
+these. It is a backstop, not the rule.
+
+## Roster — delegate on these triggers, do not deliberate
+
+| Agent | Model | Use it for |
+| --- | --- | --- |
+| `spec` | GLM 5.2, reasoning **off** | Primary. Normative reasoning, deciding contracts, writing `docs/spec-notes/`. Writes nowhere else. |
+| `impl` | Mistral Small 4 | Every line of production code, once the contract is decided. Cannot touch `*-tck/`. |
+| `recon` | Mistral Small 4 | "Where is X", grep, build/test output, summarising a failure. Read-only. |
+| `verify` | Mistral Small 4 | Runs the build and the suites. Returns **only** numbers. Writes nothing, fixes nothing. |
+| `thinker` | GLM 5.2, reasoning **on** | One hard decision, after two failed attempts at the same problem. The only agent that spends thinking tokens. |
+
+`spec` decides and delegates; it does not type. Any code, sweep or log that
+`impl`, `recon` or `verify` can produce must not be produced by `spec` — not
+mainly for the price per token, but because whatever `spec` produces stays in
+the primary context and is re-sent on every subsequent step.
+
+**When delegating, always pass absolute paths.** A subagent that has to find
+its own files is the single largest measured source of wasted steps.
+
+**`verify` is the sole source of the numbers in `STATUS.md`.** Over three
+days, 24 cards were marked DONE while the conformance counter stayed frozen at
+2 passed / 0 failed / 2 errored. A measurement has to come from an agent that
+cannot act on it.
+
+Reasoning is **off by default**. Enable it for a session with
+`/model glm-5-2-think`, and turn it back off when the hard part is over.
+
+## Engineering contract — non-negotiable
+
+- **Java 25**, pinned toolchain (`sdk env`), Maven 3.9.x.
+- **TDD.** Failing test first, watch it fail, smallest real implementation,
+  refactor. No implementation without a test that already failed for it.
+- **Never edit a conformance test to make it pass.** A failing TCK or unit
+  test is reported upward with FQCN, expected vs actual, and the suspected
+  production line. No `@Disabled`, no weakened assertion, no narrowed
+  parameter set. Enforced at tool level for `impl`; a rule for everyone.
+- **No fake implementations.** Unimplemented throws
+  `UnsupportedOperationException("not implemented: <what>")`. Never
+  `null`/`0`/`false`/empty to quiet a test.
+- **No reflection on user classes at runtime** — no `java.lang.reflect`,
+  `Proxy`, or `MethodHandles` against a user type. Attribute access is
+  generated at compile time (APT; Class-File API for the plugin/runtime
+  tiers — see the `vidocq-codegen` skill).
+- **No test-suite knowledge in main sources.** TCK class names, table names or
+  special-cases live only in the `*-tck` module.
+- **Strict Java modules, zero external runtime dependencies** beyond the
+  relevant Jakarta APIs. **Virtual threads**, `ScopedValue` over
+  `ThreadLocal` (a platform thread is a documented exception, justified in the
+  card's notes).
+- **SonarQube quality gate green on new code** before a card is `DONE` — bugs,
+  smells, vulnerabilities *and* security hotspots. See `vidocq-quality`.
+- **English everywhere.** Conventional Commits, DCO sign-off, `Co-Authored-By:`
   naming the model that wrote the change.
-- **The only real progress metric for a spec implementation is the
-  official TCK PASS/total**, measured by the `tck-runner` subagent — never
-  a card count, never a compiling-but-unverified stub, and never a number
-  one agent reports about its own work without another agent (`tck-runner`
-  or `auditor`) independently measuring it.
+- **The only progress metric is the official TCK PASS/total**, measured — never
+  a card count, never a compiling stub, never a number an agent reports about
+  its own work.
 
-## Working session protocol
+## Session protocol
 
-1. Read the active sub-module's `STATUS.md` (current focus + last log
-   lines) and `TASKS.md` (pick exactly **one** card, `TODO`, deps `DONE`).
-   Announce its id. Never work two cards in one session. **If those files
-   don't exist yet for the sub-module you're working in, that's the
-   session's task**: run `/bootstrap-plan` (see that skill) to generate
-   `PLAN.md`/`TASKS.md`/`STATUS.md` before picking any implementation card.
-2. Sanity-check the card against `PLAN.md`'s milestone table before
-   committing to it — the plan may be imperfect. If it belongs to a later
-   milestone, or depends on something not built yet, delegate to `tracker`
-   to mark it `BLOCKED` with a one-line reason and take the next eligible
-   card instead of working around it with a stub.
-3. TDD loop: state the failing test **first**, watch it fail, write the
-   smallest real implementation — delegate the actual writing to `coder`
-   for anything beyond a trivial edit — then refactor.
-4. Before marking a card `DONE`: build green, unit tests green (surefire,
-   not console), `auditor` clean on the diff restricted to the sub-module
-   directory, the SonarQube quality gate green on new code (delegate to
-   `guardian`, see `vidocq-quality`), and — if the card names a TCK
-   client — `tck-runner`'s measured number.
-5. Delegate to `tracker` to update `STATUS.md`/`TASKS.md` with the real,
-   measured numbers, then commit. `tracker` owns those files; do not
-   hand-edit them mid-session.
+1. Read the active sub-module's `STATUS.md` and `TASKS.md`. Take exactly **one**
+   `TODO` card whose deps are `DONE`. Announce its id. Never two per session.
+   If those files do not exist, that *is* the session: run `/bootstrap-plan`.
+2. Sanity-check the card against `PLAN.md`. Wrong milestone or missing
+   dependency → mark it `BLOCKED` with a one-line reason, take the next card.
+   Do not work around it with a stub.
+3. Settle the contract (cite the spec section or `docs/spec-notes/` file) →
+   state the failing test → delegate the writing to `impl`, **passing absolute
+   paths**.
+4. Before `DONE`: delegate to `verify`. It runs `./scripts/verify.sh` and
+   returns build green/red and tests passed/failed/errored with a delta. No
+   other source of numbers is acceptable. Then the Sonar gate on new code.
+5. Write `STATUS.md`/`TASKS.md` with `verify`'s figures verbatim, commit, then
+   start a **fresh session** for the next card.
 
-## Delegate on these triggers — do not deliberate
+The whole loop is automated by the `next-card` skill: `/next-card`.
 
-The roster (`.vibe/agents/*.toml`: `dev`, `coder`, `spec-reader`,
-`tck-runner`, `auditor`, `tracker`, `guardian`, `thinker`) is generic —
-not named after, or specific to, any one spec or sub-module. Reuse it
-as-is for a different mansart sub-module or a different project entirely:
-only what's under "Current active work" below, and a project-architecture
-skill like `mansart-jpa`, change per target.
+## Build — through the scripts, never `mvn` directly
 
-- Anything out of a spec/TCK source → `spec-reader`. One question, one
-  cited answer.
-- "Where is X", "what already exists" → `explore` (Vibe's builtin).
-- A full TCK client run → `tck-runner`.
-- A review of your own diff → `auditor`.
-- A `module-info.java`/`pom.xml`/concurrency question, a Sonar quality
-  gate, or a security review (new dependency, untrusted input,
-  hotspot) → `guardian`. See `vidocq-quality`.
-- Stuck twice on the same problem → `thinker`. A fresh, isolated context
-  beats a third attempt in a context that already contains two failures.
-- Well-specified implementation work (test is written, behaviour is
-  clear, ≤4 files) → `coder`. See `model-discipline`: this is also the
-  cheaper model, and the primary agent's job is deciding, not typing.
-- Generating/regenerating a sub-module's `PLAN.md`/`TASKS.md`/`STATUS.md`,
-  for this target or a new one → the `bootstrap-plan` skill
-  (`/bootstrap-plan [directory] [spec]`).
+```bash
+sdk env                                                  # Java 25 + Maven 3.9.x
+./scripts/build.sh                                       # clean install -DskipTests
+./scripts/build.sh -pl mansart-jakarta-persistence/mansart-persistence-core test
+./scripts/verify.sh                                      # tests + the numeric report
+```
 
-## Definition of done
+**Why this is not a preference.** Of 262 Maven invocations logged over three
+days, every one recorded `exit_code: 0` — while 38 outputs contained
+BUILD FAILURE, 3 compilation errors and 17 test failures. The pattern used
+everywhere was `mvn … 2>&1 | tail -50`, and in a pipeline `$?` is the *last*
+command's status: `tail` always succeeds. Maven's result was destroyed before
+anyone could read it, so "only commit if the build passes" was not a checkable
+rule.
 
-A card is done when the validation in step 4 above passes **in the same
-session**. Nothing else counts — not a reduced error count, not a
-compiling stub, not "should pass now."
+The scripts `set -euo pipefail`, keep the full output in
+`target/agent-build.log` / `target/agent-verify.log`, print the last 60 lines,
+and **propagate Maven's exit code**. They end with a machine-readable verdict
+line (`BUILD_RESULT=…`, `BUILD=… tests=… passed=… failed=…`).
+
+**Never append `| tail`, `| head` or `| grep` to a command whose exit code
+matters.** The scripts already show you the tail.
+
+TCK runs: see the `mansart-jpa-tck` skill (out-of-reactor runner, profiles
+`tck-run` / `tck-pg`) — invoked through `verify`.
+
+## Layout
+
+```
+mansart-jakarta-data/        Jakarta Data 1.0        — delivered, TCK 74/74
+mansart-transactions/        Jakarta Transactions 2.0 — delivered
+mansart-pool/                virtual-thread JDBC pool — delivered, optional
+mansart-jakarta-persistence/ Jakarta Persistence 3.2  — IN PROGRESS
+  ├── mansart-persistence-spi/ core/ processor/ cdi/ tests/
+  ├── mansart-persistence-maven-plugin/  external-lib/  external-it/
+  └── mansart-persistence-tck/           <- never written to by an agent
+docs/spec-notes/             condensed spec, one file per chapter
+```
 
 ## Current active work: mansart-jakarta-persistence
 
-**Spec**: Jakarta Persistence 3.2 (classic JPA) — the third of four
-persistence building blocks in this repository, alongside the delivered
-`mansart-jakarta-data` (Jakarta Data 1.0, declarative repositories, TCK
-74/74 PASS), `mansart-transactions` (Jakarta Transactions 2.0), and
-`mansart-pool` (virtual-thread-native JDBC pool, optional, fully
-decoupled). Locked design decisions for this module specifically:
+Jakarta Persistence 3.2 (classic JPA). Locked design decisions:
 
 - Shares `mansart-data-dialect-spi` (H2 + PostgreSQL dialects, the neutral
   `Where`/`Attribute` AST) and the static-metamodel convention with
-  `mansart-jakarta-data` — never write inline SQL, never reinvent the
-  dialect contract.
-- Entity enhancement (lazy loading, dirty tracking, accessors) is
-  APT-generated at compile time — no runtime bytecode loading, no Java
-  agent. Full three-tier doctrine in the `vidocq-codegen` skill.
-- Binds to `mansart-transactions` (the `ScopedValue`-based TM) for
-  transaction management — never a second transaction manager.
-- The `DataSource` is supplied by the application; `mansart-pool` is an
-  optional convenience, never a dependency.
+  `mansart-jakarta-data`. Never inline SQL, never reinvent the dialect
+  contract.
+- Entity enhancement (lazy loading, dirty tracking, accessors) is APT-generated
+  at compile time. No runtime bytecode, no Java agent. Doctrine:
+  `vidocq-codegen`.
+- Transactions bind to `mansart-transactions` (`ScopedValue`-based TM). Never a
+  second transaction manager.
+- The `DataSource` comes from the application; `mansart-pool` is optional.
 
-Load the `mansart-jpa` skill before writing anything in that directory;
-`mansart-jpa-tck` before touching the TCK; `vidocq-codegen` before writing
-anything that would otherwise use reflection; `vidocq-quality` before or
-when interpreting a Sonar gate. **Do not read or cherry-pick from**
-`feature/jakarteee-mansart-persistence-*` or `ybl/jpa-opencode` — prior
-attempts at this module, explicitly out of scope.
+Skills: `mansart-jpa` before writing in that directory, `mansart-jpa-tck`
+before touching the TCK, `vidocq-codegen` before anything that would otherwise
+use reflection, `vidocq-quality` for the Sonar gate, `model-discipline` when a
+session feels expensive.
 
-## Documentation (Antora) conventions
-
-The project documentation lives in `docs/en` as an Antora component and is
-aggregated by the **vidocq-docs** site, which provides a **shared UI bundle** (banner,
-logo, fonts, colours, footer). **Never customise the documentation UI per project** —
-all visual harmonisation is centralised in `vidocq-docs/ui-bundle`.
-
-### Gold reference
-**Vauban** is the reference implementation for documentation structure. Mirror its
-`docs/en` layout when creating or updating docs. **Chappe** (HTTP server)
-and **Vidocq** (runtime orchestrator) are *special cases*, not references: they are not
-Jakarta EE / MicroProfile spec implementations.
-
-### Repository layout
-- `docs/en/antora.yml` → `name: <project>`, `title:`, versioned per branch (`dev` prerelease on `main`, `'<version>'` on `docs/<version>`), `project-version` attribute, `nav:`, `lang: en`.
-- Pages in `modules/ROOT/pages/`, navigation in `modules/ROOT/nav.adoc`, images in
-  `modules/ROOT/images/`.
-- **English-only** (ADR 0004 in vidocq-docs): no French mirror — do not reintroduce one.
-
-### Canonical navigation (section order)
-`index` → `getting-started` → `usage` → `concepts` → `internals` → `tck` →
-`performance` → `reference` → `migration`
-
-Multi-module projects (e.g. Vidocq, Mansart) may append `modules/*` / `sub-modules/*`
-sub-pages after `migration`.
-
-### TCK / Performance rule (not mutually exclusive)
-- Every **spec implementation** — i.e. **all projects except Chappe and Vidocq** — MUST
-  have a **`tck`** section documenting TCK coverage/status.
-- Projects with a performance story (e.g. **Chappe**) keep their **`performance`** section.
-- When **both** sections exist, order them **TCK first, then Performance**.
-- **Chappe** and **Vidocq** do not require a `tck` section (not spec implementations).
-
-### `index.adoc` structure
-Follow Vauban's `index.adoc`: page title (`= <Project>`), `:description:`, a centred logo
-(`image::<project>-logo.png[...,role=module-logo]`), a `[.lead]` paragraph, then
-`== Origin of the name`, an `== At a glance` table, and ecosystem / quick-links sections.
-
-### Logo
-Provide `modules/ROOT/images/<project>-logo.png` (PNG), referenced from `index.adoc`.
-
-> When you change these documentation rules, keep `AGENTS.md` and `CLAUDE.md` in sync.
+**Out of scope**: `feature/jakarteee-mansart-persistence-*` and
+`ybl/jpa-opencode` are prior failed attempts. Do not read or cherry-pick.
 
 ## Terminology
 
-Use **Java Modules** (or **Java module** for a single module) when referring to
-the Java Platform Module System. Do **not** use the abbreviation **JPMS** — in
-prose, identifiers, or documentation.
+Say **Java Modules** (or **Java module**). Never **JPMS** — in prose,
+identifiers or documentation.
+
+Documentation (Antora) conventions live in `docs/en/` and in `CLAUDE.md`; load
+them only when a card actually touches the doc site.

@@ -5,7 +5,7 @@
 # back out if reviews get noisy. Also the security backstop: known-
 # vulnerable dependencies and Sonar security hotspots/vulnerabilities on
 # new code — see the `vidocq-quality` skill. Read-only, reports only.
-# Medium 3.5: needs judgment against four separate rule sets in one pass.
+# GLM 5.2: needs judgment against four separate rule sets in one pass.
 #
 # Full-auto bash (same rationale as `dev`/`tck-runner`): write_file and
 # edit are both "never" below, so this agent has no way to turn an
@@ -13,11 +13,12 @@
 # real risk, and this agent never legitimately needs any of those ops.
 
 display_name = "Guardian"
-description = "Reviews Java module declarations, POM dependencies (zero-dependency + known vulnerabilities), virtual-thread/concurrency hygiene, and Sonar security findings on new code (Medium 3.5). Read-only. Full-auto: bash auto-approves except the shared destructive-ops denylist."
+description = "Reviews Java module declarations, POM dependencies (zero-dependency + known vulnerabilities), virtual-thread/concurrency hygiene, and Sonar security findings on new code (GLM 5.2). Read-only. Full-auto: bash auto-approves except the shared destructive-ops denylist."
 safety = "safe"
 agent_type = "subagent"
 
-active_model = "mistral-medium-3.5"
+active_model = "glm-5-2"
+# active_model = "mistral-medium-3.5"   # fallback, same rationale as dev.toml
 enabled_tools = ["grep", "read_file", "skill", "bash"]
 
 [tools.write_file]

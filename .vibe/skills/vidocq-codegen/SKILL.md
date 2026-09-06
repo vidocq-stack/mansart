@@ -46,4 +46,4 @@ class on a hot path.
 The only acceptable placeholder for something genuinely not implemented yet
 is `throw new UnsupportedOperationException("not implemented: <what>")` —
 never a fake `null`/`0`/`false`/empty-collection return to quiet a test.
-`auditor` checks for exactly this pattern.
+`recon` checks for exactly this pattern.

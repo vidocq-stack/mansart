@@ -1,0 +1,49 @@
+# PRIMARY agent. GLM 5.2, reasoning OFF (alias `glm-5-2`).
+#
+# Normative reasoning on the spec + preparing work for `impl`. It reads,
+# decides, writes spec notes, and delegates every line of production code to
+# `impl` (Mistral Small 4) via the `task` tool. That split is the whole cost
+# strategy: GLM output tokens cost ~8x Small 4's.
+#
+# WRITE SCOPE: docs/spec-notes/ ONLY. Enforced by permission="never" plus a
+# path allowlist on both write_file and edit (vibe/core/tools/utils.py
+# resolve_path_permission — an allowlist match returns ALWAYS, everything else
+# falls through to the "never"). Same mechanism the builtin `plan` agent uses
+# to confine itself to the plans directory. src/ is unreachable for this agent.
+#
+# bash is "ask", not "always": a shell can write files, so leaving it on
+# auto-approve would be a hole straight through the write scope above. The
+# allowlist in .vibe/config.toml (cat/grep/ls/git-read/./mvnw/...) still
+# auto-approves, so reading and building stay friction-free; anything else
+# prompts.
+
+display_name = "Spec"
+description = "Primary agent (GLM 5.2, reasoning off). Normative reasoning on Jakarta Persistence 3.2, and preparation of work for `impl`. Writes only under docs/spec-notes/; delegates all production code to `impl`."
+safety = "safe"
+agent_type = "agent"
+
+active_model = "glm-5-2"
+# active_model = "glm-5-2-think"        # reasoning ON — bills as output tokens
+# active_model = "mistral-medium-3.5"   # fallback if GLM 5.2 is withdrawn
+
+# Keeps Vibe's builtin `cli` system prompt (136 lines of harness/tool
+# discipline). system_prompt_id REPLACES that prompt outright rather than
+# extending it, so overriding it here would drop the harness instructions the
+# primary agent depends on. This agent's role is carried by AGENTS.md, which
+# is appended to `cli` as project instructions — and, being stable across
+# sessions, is also the block that benefits most from prefix caching.
+# .vibe/prompts/spec.md holds the role text if you ever want to swap it in:
+# system_prompt_id = "spec"
+
+disabled_tools = ["exit_plan_mode"]
+
+[tools.write_file]
+permission = "never"
+allowlist = ["*/docs/spec-notes/*"]
+
+[tools.edit]
+permission = "never"
+allowlist = ["*/docs/spec-notes/*"]
+
+[tools.bash]
+permission = "ask"

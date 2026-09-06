@@ -95,7 +95,7 @@ bind each card to its milestone. For example:
 
 ## Definition of done
 
-A card is done when: build green on every module, unit tests green, `auditor`
+A card is done when: build green on every module, unit tests green, `recon`
 clean, and the TCK number for the card's client measured and recorded (via
-`tck-runner`) — in the same session. Nothing else counts as progress — not a
+`recon`) — in the same session. Nothing else counts as progress — not a
 reduced error count, not a compiling stub.

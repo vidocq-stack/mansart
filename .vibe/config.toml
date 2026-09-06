@@ -1,8 +1,53 @@
-default_agent = "dev"
+# Project-level Vibe configuration for the mansart workspace.
+#
+# Design goal: GLM 5.2 reasons and prepares work; Mistral Small 4 writes the
+# bulk of the tokens. Output tokens on GLM cost ~8x what they cost on Small 4,
+# so the primary agent's job is deciding and delegating, not typing.
+#
+# Verified against the installed schema (vibe 2.24.5,
+# vibe/core/config/vibe_schema.py). Every key below exists in that schema.
+
+default_agent = "spec"
 applied_migrations = [
     "bash_read_only_defaults_v1",
 ]
+
+# --- top-level scalars: these MUST stay above the first [table]/[[array]] ---
+# below, or TOML silently assigns them to that table and Vibe ignores them.
+
+# Custom compaction prompt: resolves to .vibe/prompts/mansart-compact.md
+# (project prompts dir first, then ~/.vibe/prompts, then the builtin
+# "compact"). See vibe/core/prompts/__init__.py:load_prompt.
+compaction_prompt_id = "mansart-compact"
+
+# A failed compaction should stop the session loudly rather than silently
+# continue on a truncated history.
+raise_on_compaction_failure = true
+
+# Warn before the threshold is hit, so a card can be finished and the session
+# restarted clean rather than compacted mid-card.
+context_warnings = true
+
+# Left unpinned on purpose: a running Vibe rewrites this file and resets
+# active_model to "". The durable place to state a model is per-agent
+# `active_model` in .vibe/agents/*.toml — agent files are never rewritten.
 active_model = ""
+
+# Enforced, not cosmetic: available_models() filters `models` through this list
+# (vibe_schema.py:571), so /model and any fallback can only reach an alias
+# listed here.
+#
+# mistral-medium-3.5 is DELIBERATELY ABSENT and its [[models]] block has been
+# deleted. On the 3-6 Sep measurement it carried $30.21 of a $43.98 bill, and
+# Mistral's own routing layer advertises it as the `fallbacks.multimodal`
+# target — i.e. a mechanism exists that could reintroduce it without anyone
+# choosing it. Not declaring it is the only way that mechanism finds nothing.
+allowed_models = [
+    "glm-5-2",
+    "glm-5-2-think",
+    "mistral-small-4",
+    "devstral-local",
+]
 
 [[providers]]
 name = "mistral"
@@ -18,30 +63,98 @@ api_key_env_var = "OMLX_API_KEY"
 api_style = "openai"
 backend = "generic"
 
+# ---------------------------------------------------------------------------
+# Models
+#
+# REASONING IS A PROPERTY OF THE MODEL, NOT OF THE AGENT. Vibe has no
+# per-agent reasoning switch, so "off by default, explicitly enabled" is
+# expressed as two entries pointing at the same API model:
+#
+#   glm-5-2        thinking = "off"   <- the default everywhere
+#   glm-5-2-think  thinking = "high"  <- opt-in, used only by `thinker`
+#
+# What "off" actually does (vibe/core/llm/backend/mistral.py): `thinking` is
+# looked up in _THINKING_TO_REASONING_EFFORT, which only contains
+# low/medium/high/max. "off" misses -> reasoning_effort=None is sent, and
+# include_reasoning_content is False. So no thinking tokens are generated and
+# none are billed. This is the whole point: thinking tokens bill as OUTPUT.
+#
+# Also from that same table: low -> "none", and medium/high/max ALL collapse
+# to "high". `thinking = "max"` buys literally nothing over "high" on this
+# backend — do not set it expecting a deeper think.
+#
+# To enable reasoning ad hoc in a session: `/model glm-5-2-think`, or
+# `/thinking` for the level picker. Both are session-scoped.
+# ---------------------------------------------------------------------------
+
 [[models]]
-name = "mistral-vibe-cli-latest"
+name = "zai-glm-5-2"
 provider = "mistral"
-alias = "mistral-medium-3.5"
+alias = "glm-5-2"
+display_name = "GLM-5.2 (no reasoning)"
 temperature = 1.0
-thinking = "max"
-supports_images = true
-input_price = 1.5
-output_price = 7.5
-cached_input_price = 0.15
-auto_compact_threshold = 150000
+thinking = "off"
+supports_images = false
+# EU endpoint pricing, per million tokens. Mistral's own routing layer
+# advertises 1.4/4.4 with a 0.26 cached input (Z.ai's direct price); these are
+# the EU figures this project is billed at. Display/accounting only — these
+# fields configure nothing.
+input_price = 1.54
+output_price = 4.84
+cached_input_price = 0.154
+# UNIT: an absolute count of context tokens, not a percentage of the window.
+# _loop.py:1783 compares `stats.context_tokens` — the live context of the
+# session — against this number and compacts when it is reached.
+#
+# WAS 800000 (the value Mistral's routing layer pushes for a 1M-context model).
+# Lowered to 60000 deliberately. Measured: 81 000 tokens of context per step
+# across 1 701 steps, with input at 93% of the bill. A 800k ceiling means the
+# context is never trimmed by anything except the session ending, so 81k/step
+# was free to become the norm. The target set in AGENTS.md is <= 30 000 per
+# step; 60 000 is 2x that — a session working correctly never reaches it, and
+# a session that has drifted to double its budget gets cut back rather than
+# quietly billed.
+#
+# Trade-off, stated plainly: compaction will now fire in sessions where it
+# previously never did, and compaction quality on GLM 5.2 is NOT measured on
+# this setup. The intended remedy is one card per session, so that a session
+# ends before it compacts. Watch the first few compactions.
+auto_compact_threshold = 60000
+
+[[models]]
+name = "zai-glm-5-2"
+provider = "mistral"
+alias = "glm-5-2-think"
+display_name = "GLM-5.2 (reasoning ON — bills as output)"
+temperature = 1.0
+thinking = "high"
+supports_images = false
+input_price = 1.54
+output_price = 4.84
+cached_input_price = 0.154
+# Same unit and same rationale as the alias above.
+auto_compact_threshold = 60000
 
 [[models]]
 name = "mistral-small-latest"
 provider = "mistral"
 alias = "mistral-small-4"
+display_name = "Mistral Small 4"
 temperature = 0.2
 thinking = "off"
 supports_images = true
 input_price = 0.15
 output_price = 0.6
 cached_input_price = 0.015
-auto_compact_threshold = 150000
+# Subagent contexts should be far smaller still: a subagent that has
+# accumulated 45k of context has stopped answering one question.
+auto_compact_threshold = 45000
 
+# mistral-medium-3.5 is NOT declared here — see allowed_models above. If it
+# ever has to come back (GLM 5.2 withdrawn, or a card genuinely needs vision),
+# re-adding it is a deliberate two-line edit, not a silent fallback.
+
+# Free, local via oMLX — needs the server up on 127.0.0.1:8000.
 [[models]]
 name = "Devstral-Small-2-24B-Instruct-2512-8bit"
 provider = "omlx"
@@ -50,8 +163,19 @@ temperature = 0.15
 thinking = "off"
 input_price = 0.0
 output_price = 0.0
-auto_compact_threshold = 150000
-active_model = "mistral-medium-3.5"
+auto_compact_threshold = 45000
+
+# ---------------------------------------------------------------------------
+# Compaction
+#
+# Vibe has NO boolean to disable auto-compaction. It always fires once a
+# model's auto_compact_threshold is reached. The only levers are the threshold
+# (per model, above), which model summarises, and the prompt it summarises
+# with.
+#
+# compaction_model MUST use the same provider as the active model, or config
+# validation fails (_check_compaction_model_provider). Both are `mistral`.
+# ---------------------------------------------------------------------------
 
 [compaction_model]
 name = "mistral-small-latest"
@@ -60,8 +184,35 @@ alias = "compactor"
 temperature = 0.2
 thinking = "off"
 
+# ---------------------------------------------------------------------------
+# Prompt caching: NOT configurable here.
+#
+# There is no cache setting in the Vibe schema. `cached_input_price` above is a
+# cost-accounting display field and configures nothing. Caching is done
+# platform-side and keys off a stable request PREFIX. The only thing this
+# project can do about it is keep the prefix stable, which is what the setup
+# is built for:
+#   - the system prompt is Vibe's builtin `cli` for the primary agent (not
+#     rewritten per session);
+#   - AGENTS.md is short, dense and stable — it is injected once, near the
+#     front, and is the block that benefits most from staying byte-identical;
+#   - volatile material (file dumps, build output, grep results) goes to
+#     SUBAGENTS, so it never enters the primary context and never invalidates
+#     the prefix.
+# Delegation is the caching strategy.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Tools
+# ---------------------------------------------------------------------------
+
 [tools.bash]
 permission = "always"
+# NOTE: with permission = "always" the allowlist below is INERT — bash.py's
+# _is_unconditionally_allowed short-circuits on ALWAYS before consulting it.
+# The denylist still applies (it is evaluated first, in
+# _resolve_guardrail_permission, and returns a hard NEVER). The allowlist is
+# kept meaningful for agents that lower bash to "ask" — `impl` does.
 denylist = [
     "git reset",
     "git clean",
@@ -73,6 +224,55 @@ denylist = [
     "docker rm",
     "docker volume rm",
 ]
+# Matching is PREFIX-based on each &&/;-separated part (bash.py
+# _matches_pattern: `command == pattern or command.startswith(pattern + " ")`).
+# Consequences that shaped this list:
+#   - `xargs` was REMOVED: `xargs rm -rf x` does not start with "rm -rf", so it
+#     slips past the denylist entirely.
+#   - the previous absolute-path entries (".../vidocq/*") were removed: these
+#     are COMMAND prefixes, not file paths, so they matched nothing.
+#   - a stray auto-approved `find ... -exec cat {} \;` entry was removed.
+allowlist = [
+    "basename",
+    "cat",
+    "comm",
+    "cut",
+    "date",
+    "diff",
+    "dirname",
+    "du",
+    "echo",
+    "file",
+    "find",
+    "git diff",
+    "git log",
+    "git show",
+    "git status",
+    "grep",
+    "head",
+    "join",
+    "ls",
+    "md5sum",
+    "mkdir",
+    "nl",
+    "paste",
+    "pwd",
+    "readlink",
+    "rtk",
+    "sha1sum",
+    "sha256sum",
+    "shasum",
+    "sort",
+    "stat",
+    "tail",
+    "tr",
+    "uname",
+    "uniq",
+    "wc",
+    "which",
+    "./mvnw",
+    "mvn",
+]
 
 [tools.web_fetch]
 permission = "always"
@@ -81,7 +281,8 @@ permission = "always"
 permission = "always"
 
 [tools.read_file]
+# Was "/Users/yblazazart/..." — a typo (double "az") that made the rule dead.
 allowlist = [
     "/Users/yblazart/.vibe/*",
-    "/Users/yblazazart/projects/perso/vidocq/mansart/mansart-jakarta-persistence/mansart-persistence-external-it/*",
+    "/Users/yblazart/projects/perso/vidocq/*",
 ]

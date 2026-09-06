@@ -1,0 +1,63 @@
+# Mechanical implementation subagent. Mistral Small 4 ($0.15/$0.60 per M
+# tokens — 8x cheaper than GLM 5.2 on output). Invoked by `spec` through the
+# `task` tool once the contract is decided: interface methods, javadoc,
+# repetitive code from a validated pattern, signature migrations.
+#
+# It does not decide scope or architecture. If the contract is unclear it
+# stops and says so rather than inventing one.
+#
+# ---------------------------------------------------------------------------
+# TCK GUARD — what is actually enforced, and what is not
+# ---------------------------------------------------------------------------
+# ENFORCED (hard, config-level, not prompt-level): write_file and edit both
+# carry a path denylist. vibe/core/tools/utils.py resolve_path_permission
+# checks the denylist FIRST against the resolved absolute path and returns
+# ToolPermission.NEVER on a match — that verdict is final and beats both the
+# allowlist and permission="always". Patterns are fnmatch globs, and `*`
+# spans `/`, so "*-tck/*" covers every conformance module in the workspace.
+#
+# NOT ENFORCED BY A PATH RULE: the shell. A denylist on write_file cannot stop
+# `sh -c 'echo ... > tck/Foo.java'`. That is why bash here is "ask", not
+# "always": the .vibe/config.toml allowlist auto-approves reads, git-reads and
+# ./mvnw, and anything else — every redirect, every sed -i, every mv — stops
+# and asks a human. This is the only way the guard is real for a tool that can
+# execute arbitrary commands; there is no path-scoped bash in this version.
+#
+# Behaviour on a failing test: REPORT IT UPWARD. Never "fix" a test by
+# weakening, disabling or narrowing it. See .vibe/prompts/impl.md.
+
+display_name = "Impl"
+description = "Mechanical implementation from a decided contract (Mistral Small 4). Cannot write under any *-tck/ directory. Reports test failures upward, never edits a test to make it pass."
+safety = "destructive"
+agent_type = "subagent"
+
+active_model = "mistral-small-4"
+# active_model = "devstral-local"   # free, local via oMLX — needs the server up
+# active_model = "glm-5-2"          # fallback if Small 4 stalls on a card
+
+system_prompt_id = "impl"
+
+[tools.write_file]
+permission = "always"
+denylist = [
+    "*-tck/*",
+    "*/mansart-persistence-tck/*",
+    "*/mansart-data-tck/*",
+    "*/mansart-transactions-tck/*",
+    "*/ee/jakarta/tck/*",
+    "*/.tck-cache/*",
+]
+
+[tools.edit]
+permission = "always"
+denylist = [
+    "*-tck/*",
+    "*/mansart-persistence-tck/*",
+    "*/mansart-data-tck/*",
+    "*/mansart-transactions-tck/*",
+    "*/ee/jakarta/tck/*",
+    "*/.tck-cache/*",
+]
+
+[tools.bash]
+permission = "ask"

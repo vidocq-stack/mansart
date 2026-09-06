@@ -1,0 +1,29 @@
+# Project-level hooks. Loaded before ~/.vibe/hooks.toml (which keeps the
+# unrelated `rtk-rewrite` hook — the names do not collide).
+# Requires the folder to be trusted, which it already is.
+#
+# Why a hook rather than tool permissions: `tools.bash.denylist` matches
+# command prefixes against parts Vibe has already split on pipes and &&
+# (bash.py `_extract_commands`, a tree-sitter parse). It therefore cannot
+# express "mvn must not be piped" — it never sees the pipe. Nor can any
+# permission rule express "you already read this file, unchanged, in this
+# session". A pre_tool hook sees the raw tool_input, and can.
+#
+# Every rule it enforces is anchored on a measured number from the 39
+# transcripts of 3-6 Sep 2026; see the module docstring.
+
+[[hooks]]
+name = "mansart-context-guard"
+type = "pre_tool"
+match = "re:(bash|read_file)"
+# Hooks are spawned in `cwd`, which is NOT necessarily the project root —
+# start `vibe` from mansart-jakarta-persistence/ and a relative path resolves
+# to a file that does not exist. Walk up to the directory that owns .vibe
+# instead. Stays portable (no absolute path baked in) and exits 0 if the guard
+# is absent, so copying this setup to another project cannot brick it.
+command = "sh -c 'd=$PWD; while [ \"$d\" != / ]; do if [ -f \"$d/.vibe/hooks/guard-context.py\" ]; then exec python3 \"$d/.vibe/hooks/guard-context.py\"; fi; d=$(dirname \"$d\"); done; exit 0'"
+timeout = 10.0
+description = "Refuses unpiped-build violations, TCK writes through the shell, archive dumps, repeated searches, whole-file cats, and unchanged re-reads."
+# strict = false (default) on purpose: a bug in the guard must not brick the
+# session — it fails open with a UI warning. The write-path denylists in
+# .vibe/agents/impl.toml remain the hard, non-bypassable TCK guarantee.
