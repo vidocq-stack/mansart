@@ -85,7 +85,7 @@ class EntityMapperTest {
             assertThat(rs.getLong("id")).isEqualTo(entity.getId());
             assertThat(rs.getString("name")).isEqualTo("Alice");
             assertThat(rs.getInt("value")).isEqualTo(42);
-            assertThat(rs.getBoolean("active")).isEqualTo(true);
+            assertThat(rs.getBoolean("active")).isTrue();
         }
     }
 
@@ -126,7 +126,7 @@ class EntityMapperTest {
         assertThat(entity.getId()).isEqualTo(id);
         assertThat(entity.getName()).isEqualTo("Charlie");
         assertThat(entity.getValue()).isEqualTo(7);
-        assertThat(entity.isActive()).isEqualTo(true);
+        assertThat(entity.isActive()).isTrue();
     }
 
     @Test
@@ -143,7 +143,7 @@ class EntityMapperTest {
     }
 
     @Test
-    void selectNonExistent() throws SQLException {
+    void selectNonExistent() {
         GeneratedIdEntity entity = mapper.select(connection, GeneratedIdEntity.class, 9999L);
         assertThat(entity).isNull();
     }
@@ -177,7 +177,7 @@ class EntityMapperTest {
             assertThat(rs.next()).isTrue();
             assertThat(rs.getString("name")).isEqualTo("Eve Updated");
             assertThat(rs.getInt("value")).isEqualTo(100);
-            assertThat(rs.getBoolean("active")).isEqualTo(true);
+            assertThat(rs.getBoolean("active")).isTrue();
         }
     }
 

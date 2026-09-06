@@ -30,6 +30,8 @@ import io.vidocq.mansart.data.dialect.attribute.VersionAttribute;
  */
 public final class EntityMapper {
 
+    private static final String MSG_CONN_NULL = "conn must not be null";
+
     private final Dialect dialect;
     private final MansartCallback callback;
     private final DialectEntityModelAdapter adapter;
@@ -49,9 +51,9 @@ public final class EntityMapper {
      * @return the generated id if database-generated, otherwise the assigned id from the entity
      * @throws PersistenceException if a database error occurs
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> Object insert(Connection conn, T entity) {
-        Objects.requireNonNull(conn, "conn must not be null");
+        Objects.requireNonNull(conn, MSG_CONN_NULL);
         Objects.requireNonNull(entity, "entity must not be null");
 
         try {
@@ -61,6 +63,7 @@ public final class EntityMapper {
 
             Class<T> entityClass = (Class<T>) entity.getClass();
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
+            @SuppressWarnings("unchecked")
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             boolean generated = dialectModel.id() != null && dialectModel.id().generated();
@@ -118,7 +121,7 @@ public final class EntityMapper {
      * @throws PersistenceException if a database error occurs
      */
     public <T> T select(Connection conn, Class<T> entityClass, Object id) {
-        Objects.requireNonNull(conn, "conn must not be null");
+        Objects.requireNonNull(conn, MSG_CONN_NULL);
         Objects.requireNonNull(entityClass, "entityClass must not be null");
         Objects.requireNonNull(id, "id must not be null");
 
@@ -128,6 +131,7 @@ public final class EntityMapper {
             }
 
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
+            @SuppressWarnings("unchecked")
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             Where where = new Where.Eq(dialectModel.id());
@@ -164,9 +168,9 @@ public final class EntityMapper {
      * @return the number of affected rows (expected 1)
      * @throws PersistenceException if a database error occurs
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> int update(Connection conn, T entity) {
-        Objects.requireNonNull(conn, "conn must not be null");
+        Objects.requireNonNull(conn, MSG_CONN_NULL);
         Objects.requireNonNull(entity, "entity must not be null");
 
         try {
@@ -176,6 +180,7 @@ public final class EntityMapper {
 
             Class<T> entityClass = (Class<T>) entity.getClass();
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
+            @SuppressWarnings("unchecked")
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             Where where = new Where.Eq(dialectModel.id());
@@ -221,8 +226,9 @@ public final class EntityMapper {
      * @return the number of affected rows (expected 1)
      * @throws PersistenceException if a database error occurs
      */
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public <T> int delete(Connection conn, Class<T> entityClass, Object id) {
-        Objects.requireNonNull(conn, "conn must not be null");
+        Objects.requireNonNull(conn, MSG_CONN_NULL);
         Objects.requireNonNull(entityClass, "entityClass must not be null");
         Objects.requireNonNull(id, "id must not be null");
 
@@ -232,6 +238,7 @@ public final class EntityMapper {
             }
 
             io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel = callback.getEntityModel(entityClass);
+            @SuppressWarnings("unchecked")
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
             Where where = new Where.Eq(dialectModel.id());

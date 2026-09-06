@@ -160,7 +160,7 @@ public final class RuntimeEntityModelBuilder {
                 String strategyStr = strategyOpt.get();
                 try {
                     strategy = IdAttribute.GenerationStrategy.valueOf(strategyStr);
-                } catch (IllegalArgumentException e) {
+                } catch (IllegalArgumentException _) {
                     strategy = IdAttribute.GenerationStrategy.AUTO;
                 }
             }

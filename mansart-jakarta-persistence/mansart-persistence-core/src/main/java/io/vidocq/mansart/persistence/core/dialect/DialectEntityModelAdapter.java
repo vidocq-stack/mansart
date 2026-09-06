@@ -11,14 +11,11 @@ import java.util.Optional;
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.data.dialect.attribute.BooleanAttribute;
-import io.vidocq.mansart.data.dialect.attribute.EnumAttribute;
-import io.vidocq.mansart.data.dialect.attribute.EnumStorage;
 import io.vidocq.mansart.data.dialect.attribute.IdAttribute;
 import io.vidocq.mansart.data.dialect.attribute.NumericAttribute;
 import io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute;
 import io.vidocq.mansart.data.dialect.attribute.TextAttribute;
 import io.vidocq.mansart.data.dialect.attribute.TemporalAttribute;
-import io.vidocq.mansart.data.dialect.attribute.VersionAttribute;
 
 /**
  * Adapts a persistence-spi {@link io.vidocq.mansart.persistence.spi.EntityModel} to a data-dialect
@@ -102,7 +99,7 @@ public final class DialectEntityModelAdapter {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private io.vidocq.mansart.data.dialect.attribute.VersionAttribute buildVersionAttribute(io.vidocq.mansart.persistence.spi.Attribute<?, ?> spiVersion) {
-        Class<?> javaType = (Class<?>) spiVersion.getJavaType();
+        Class<?> javaType = spiVersion.getJavaType();
         return new io.vidocq.mansart.data.dialect.attribute.VersionAttribute(
                 spiVersion.getName(),
                 spiVersion.getColumnName(),
