@@ -214,7 +214,7 @@ public class MansartEntityManager implements EntityManager {
         try {
             int status = transactionManager.getStatus();
             return status == Status.STATUS_ACTIVE && joinedToJtaTransaction;
-        } catch (Exception ex) {
+        } catch (Exception _) {
             return false;
         }
     }
