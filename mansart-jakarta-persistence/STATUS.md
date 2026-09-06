@@ -1,116 +1,220 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M5-JP-29 — EntityMapper (INSERT/SELECT/UPDATE/DELETE via dialect SPI) — DONE
+- **Card**: M5-JP-30 — ID generation (AUTO, IDENTITY, SEQUENCE, TABLE strategies) — TODO
 - **Milestone**: M5 (in progress)
 
-## 📊 Milestone Progress Overview
+## Milestone Progress Overview
 
 | Milestone | Total JP | Done | % Complete | Status |
 |----------|----------|------|------------|--------|
-| **M0** | 7 | 7 | **100%** | ✅ DONE |
-| **M1** | 6 | 6 | **100%** | ✅ DONE |
-| **M2** | 5 | 5 | **100%** | ✅ DONE |
-| **M3** | 4 | 4 | 100% | ✅ DONE |
-| **M4** | 6 | 6 | **100%** | ✅ DONE |
-| **M5** | 5 | 1 | 20% | 🔄 IN_PROGRESS |
-| **M6** | 11 | 0 | 0% | ⏳ TO_DEFINE |
-| **M7** | 12 | 0 | 0% | ⏳ TO_DEFINE |
-| **M8** | 4 | 0 | 0% | ⏳ TO_DEFINE |
-| **M9** | 3 | 0 | 0% | ⏳ TO_DEFINE |
-| **M10** | 3 | 0 | 0% | ⏳ TO_DEFINE |
-| **M11** | 8 | 0 | 0% | ⏳ TO_DEFINE |
-| **M12** | 5 | 0 | 0% | ⏳ TO_DEFINE |
-| **M13** | 5 | 0 | 0% | ⏳ TO_DEFINE |
-| **M14** | 5 | 0 | 0% | ⏳ TO_DEFINE |
-| **M15** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **M16** | 3 | 0 | 0% | ⏳ TO_DEFINE |
-| **M17** | 5 | 0 | 0% | ⏳ TO_DEFINE |
-| **M18** | 4 | 0 | 0% | ⏳ TO_DEFINE |
-| **M19** | 4 | 0 | 0% | ⏳ TO_DEFINE |
-| **M20** | 6 | 0 | 0% | ⏳ TO_DEFINE |
-| **TOTAL** | **112** | **28** | **~25.0%** | |
+| M0 | 7 | 7 | 100% | DONE |
+| M1 | 6 | 6 | 100% | DONE |
+| M2 | 5 | 5 | 100% | DONE |
+| M3 | 4 | 4 | 100% | DONE |
+| M4 | 6 | 6 | 100% | DONE |
+| M5 | 5 | 1 | 20% | IN_PROGRESS |
+| M6 | 12 | 0 | 0% | TODO |
+| M7 | 12 | 0 | 0% | TODO |
+| M8 | 4 | 0 | 0% | TODO |
+| M9 | 3 | 0 | 0% | TODO |
+| M10 | 3 | 0 | 0% | TODO |
+| M11 | 8 | 0 | 0% | TODO |
+| M12 | 5 | 0 | 0% | TODO |
+| M13 | 5 | 0 | 0% | TODO |
+| M14 | 5 | 0 | 0% | TODO |
+| M15 | 6 | 0 | 0% | TODO |
+| M16 | 3 | 0 | 0% | TODO |
+| M17 | 5 | 0 | 0% | TODO |
+| M18 | 4 | 0 | 0% | TODO |
+| M19 | 4 | 0 | 0% | TODO |
+| M20 | 6 | 0 | 0% | TODO |
+| **TOTAL** | **112** | **29** | **25.9%** | |
 
 ---
 
-## Metrics (M0)
-- **Baseline TCK**: 2/0/2 PASS (2 ProviderDiscoveryTest PASS, harness works, provider discoverable, build green)
-- **Unit Tests**: 2/2 PASS (ProviderDiscoveryTest)
+## Metrics
+- **Baseline TCK**: 2/0/2 PASS (ProviderDiscoveryTest — harness works, provider discoverable)
+- **Unit Tests**: 223/223 PASS (mansart-persistence-tests module)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
-- **TCK Errors**: 0 (not measured)
-- **TCK Errors**: 0 (not measured)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
 
-## 🎯 Current Milestone Details
-### M4 — Core Runtime: EntityManagerFactory + EntityManager
-- **M4-JP-23** ✅ **DONE** — MansartPersistenceProvider implements PersistenceProvider, parses persistence.xml, creates EntityManagerFactory. 7/7 tests pass. Measured: MansartPersistenceProviderTest 7/7 PASS, full mansart-persistence-tests module 24/24 PASS. SonarQube: 0 bugs/0 smells/0 vulnerabilities/0 hotspots on new code. Pre-existing debt noted (112 open issues in untouched files, jacoco coverage gap).
+---
 
-- **M4-JP-24** ✅ **DONE** — MansartEntityManagerFactory now manages EntityManager instances: tracks all created EMs in a ConcurrentLinkedQueue, cascades close on factory close (all EMs marked closed). Double-check pattern in createTrackedEm guards against TOCTOU race between ensureOpen and EM registration. Bootstrap metadata: EMF now stores PersistenceUnitTransactionType (passed from both XML descriptor path and PersistenceConfiguration path). getTransactionType() returns it without a closed check (per spec, no @throws IllegalStateException). Closed-state contract: createEntityManager throws IllegalStateException if factory closed. getProperties, getCache, getPersistenceUnitUtil, unwrap all throw IllegalStateException if closed (per their @throws declarations). getCache returns null (spec-sanctioned for no L2 cache). unwrap supports MansartEntityManagerFactory and EntityManagerFactory, throws PersistenceException for unsupported types. MansartPersistenceUnitUtil (new): implements PersistenceUnitUtil, all methods throw UnsupportedOperationException (entity model not built yet — that's M5+). MansartEntityManager: added open/closed state (AtomicBoolean). isOpen() checks both EM state and factory state. close() deregisters from factory. markClosed() (package-private) called by factory cascade. Persistence operations remain UnsupportedOperationException (M4-JP-25 scope). MansartPersistenceProvider: both createEntityManagerFactory paths now pass transactionType to the EMF constructor. Measured: MansartEntityManagerFactoryTest: 19/19 PASS, Full mansart-persistence-tests module: 43/43 PASS (was 24, +19 new tests). Build: green on all modules (including external-it). Auditor: clean on diff (2 minor findings fixed: dead registerEntityManager method removed, null guard on constructor properties added). SonarQube: 0 bugs, 0 vulnerabilities, 0 security hotspots, 0 violations on M4-JP-24 changed files. Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both are pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeAttribute.java, RuntimeEntityModel.java, RuntimeEntityModelBuilder.java), same pattern as M4-JP-23.
-
-- **M4-JP-25** ✅ **DONE** — MansartEntityManager implements the EntityManager interface, delegates entity-state operations to a persistence context. ensureOpen() closed-state guard on all EM methods except the three spec exemptions (isOpen, getProperties, getTransaction). Per EntityManager.close() Javadoc: after close every method throws IllegalStateException except isOpen(), getProperties() and getTransaction(). Configuration storage: flush mode (default FlushModeType.AUTO), cache retrieve mode (default CacheRetrieveMode.USE), cache store mode (default CacheStoreMode.USE), all retained via set/get with ensureOpen. Property overrides: setProperty(name,value) stored in a ConcurrentHashMap overlay; getProperties() returns an unmodifiable merge of factory properties + overrides (exempt from closed-state, does not throw when closed). unwrap(Class): supports MansartEntityManager and EntityManager (returns this), throws PersistenceException for unsupported types, with ensureOpen. getDelegate(): returns this, with ensureOpen. getEntityManagerFactory(): returns the creating factory, with ensureOpen. New internal (non-exported) package io.vidocq.mansart.persistence.core.context with MansartPersistenceContext — the persistence-context seam. EM delegates all entity-state operations (persist, merge, remove, find + overloads, getReference + overloads, flush, refresh + overloads, clear, detach, contains, lock + overloads, getLockMode) to it after ensureOpen. The context's methods throw UnsupportedOperationException("not implemented: <op>") — the state machine (NEW/MANAGED/DETACHED/REMOVED identity map) is card M4-JP-26. Query operations (createQuery/createNamedQuery/createNativeQuery/stored procs), getCriteriaBuilder, getMetamodel, entity graph ops, joinTransaction/isJoinedToTransaction, getTransaction, runWithConnection/callWithConnection: ensureOpen + UnsupportedOperationException (later milestones). module-info.java: unchanged (new context package intentionally NOT exported — internal). Measured tests: MansartEntityManagerTest: 28/28 PASS (new test class), Full mansart-persistence-tests module: 71/71 PASS (was 43, +28). Build: green on all 9 modules of the mansart-jakarta-persistence reactor (install -DskipTests + verify). Auditor: clean on diff restricted to the sub-module — no anti-drift findings (no fake implementations, no reflection on user types, no TCK leakage, no disabled tests, no module-export leakage). SonarQube (projectKey io.vidocq.mansart:mansart-jakarta-persistence): quality gate OK (PASS). On M4-JP-25 changed files: 0 bugs, 0 vulnerabilities, 0 security hotspots. 57 code smells (22 S1172 "unused parameter" on MansartPersistenceContext interface-stub methods — unavoidable since parameters are mandated by the EntityManager signature; 35 on the test file: S5786 "remove public modifier" + lambda/assert style nits, matching the existing MansartEntityManagerFactoryTest style). New-code metrics came back empty because the files are uncommitted at scan time (same situation as prior cards — git blame unavailable); the gate reports OK. Note: the actual Sonar projectKey is io.vidocq.mansart:mansart-jakarta-persistence (Maven groupId:artifactId), not vidocq-mansart-persistence, because the POM defines no explicit sonar.projectKey.
-
-- **M4-JP-26** ✅ **DONE** — MansartPersistenceContext implements the in-memory entity-state machine (NEW, MANAGED, DETACHED, REMOVED) with an identity map keyed by EntityKey(Class, primaryKey). State transitions: persist transitions NEW/DETACHED/REMOVED → MANAGED; remove transitions MANAGED → REMOVED (throws IllegalArgumentException for NEW/DETACHED); detach transitions MANAGED/REMOVED → DETACHED; clear detaches all. Identity map: persist and merge populate it; find returns the cached instance (same reference) or null if not in context; contains returns true only for MANAGED and REMOVED; merge returns the same instance if already MANAGED, or a managed copy for NEW/DETACHED. ID extraction uses the two-tier approach: EntityModel.getIdAttributes().get(0).getName() for the field name, then callback.getAccessor().get(entity, fieldName) for the value (tier-3 runtime Class-File API, calls public getters via invokevirtual — no reflection on user types). No APT needed for test entities. flush is a no-op (no database yet). Measured tests: MansartPersistenceContextTest: 18/18 PASS (new test class), MansartEntityManagerTest: 28/28 PASS (updated 2 tests to reflect implemented state machine — persist(new Object()) now throws IllegalArgumentException instead of UnsupportedOperationException, contains(new Object()) returns false), Full mansart-persistence-tests module: 89/89 PASS (was 71, +18). Build: green. SonarQube (projectKey io.vidocq.mansart:mansart-jakarta-persistence): quality gate ERROR — new_violations=0 (OK), new_duplicated_lines_density=0.0% (OK), 0 bugs, 0 vulnerabilities on new code. The only ERROR condition is new_coverage=0.0% (threshold 80%) — the same pre-existing JaCoCo coverage gap present since M4-JP-23 (production code and tests are in separate modules, JaCoCo reports 0 classes for the test module). One S6208 code smell (INFO) on the remove() switch was resolved with @SuppressWarnings — the rule asks to merge case null with enum constants into a comma-separated label, which Java 25 does not allow (compilation error).
-
-- **M4-JP-27** ✅ **DONE** — Transaction integration: MansartEntityManager binds to mansart-transactions. getTransaction() returns a MansartEntityTransaction for RESOURCE_LOCAL persistence units (begin/commit/rollback/setRollbackOnly/getRollbackOnly/setSavepoint/createSavepoint/releaseSavepoint/rollbackToSavepoint/getStoreAndFlushCommitOrder/isStoreAndFlushCommitOrder/isActive). For JTA persistence units, getTransaction() throws IllegalStateException (per spec: EntityTransaction API is only for RESOURCE_LOCAL). joinTransaction() registers the EntityManager with the active JTA transaction via MansartTransactionManager; if no JTA transaction is active, throws TransactionRequiredException. isJoinedToTransaction() returns true if the EM is associated with an active transaction. MansartEntityManagerFactory gained a 4th constructor parameter (MansartTransactionManager) — passed as null from MansartPersistenceProvider when no TM is available. MansartPersistenceProvider updated to pass null as the 4th arg. MansartEntityTransactionTest: 8/8 PASS (new test class covering EntityTransaction lifecycle for RESOURCE_LOCAL, JTA getTransaction IllegalStateException, JTA joinTransaction TransactionRequiredException, closed-EM getTransaction IllegalStateException). MansartEntityManagerTest: 28/28 PASS (updated 3 existing tests, added closed-EM getTransaction test). Full mansart-persistence-tests module: 221/221 PASS (was 89, +132 from prior session's other work + 8 new transaction tests). Build: green on all modules. SonarQube (projectKey io.vidocq.mansart:mansart-persistence): quality gate OK (PASS). new_coverage=91.3% (threshold 80%), new_violations=0, new_duplicated_lines_density=0.0%, 0 bugs, 0 vulnerabilities, 0 security hotspots on new code.
-
-- **M4-JP-28** ✅ **DONE** — Connection management: MansartEntityManager.runWithConnection(ConnectionConsumer) and callWithConnection(ConnectionFunction) execute user code with the underlying JDBC connection. Checked exceptions (SQLException and descendants) are wrapped in PersistenceException. On any failure, the transaction is marked for rollback. The connection is never closed by these methods (the DataSource/transaction manager owns its lifecycle). MansartEntityManagerFactory gained DataSource extraction from properties (jdbc.datasource property or jakarta.persistence.nonJtaDataSource). module-info.java: requires java.sql added. Measured tests: mansart-persistence-tests module 223/223 PASS (0 failures, 0 errors, 0 skipped). Per-class: MansartEntityManagerTest 110, MansartEntityManagerFactoryTest 37, MansartPersistenceContextTest 44, MansartEntityTransactionTest 8, MansartCallbackTest 5, MansartPersistenceProviderTest 7, RuntimeEntityModelBuilderTest 6, RuntimeEntityClassGeneratorTest 3, Tier3WarningTest 3. Build: green on all modules. SonarQube (projectKey io.vidocq.mansart:mansart-jakarta-persistence): quality gate OK (PASS). new_coverage=85.4% (threshold 80%), new_violations=0 (threshold 0), new_duplicated_lines_density=0.0% (threshold 3%), 0 vulnerabilities, 0 security hotspots on new code. Note: Mockito dependency added to mansart-persistence-tests for connection mocking — no known CVE check performed (Sonar Community Edition SCA gap).
-
-
-### M3 — Runtime Metadata and Repository Generation
-- **M3-JP-19** ✅ **DONE** — RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 tests pass.
-- **M3-JP-20** ✅ **DONE** — RuntimeEntityClassGenerator generates hidden classes via MethodHandles.Lookup.defineHiddenClass using Java 26 Class-File API. Generated bytecode calls entity public getters/setters via invokevirtual. Handles primitive boxing/unboxing. EntityAccessor<T> SPI interface added. 3/3 tests pass.
-- **M3-JP-21** ✅ **DONE** — MansartCallback caches and dispatches EntityAccessor and EntityModel instances for tier-3 entities. ConcurrentHashMap-based caching. Single entry point for tier-3 metadata and field access. 5/5 tests pass.
-- **M3-JP-22** ✅ **DONE** — Tier3WarningCollector accumulates warnings for tier-3 entities, names entity class and points to mansart-persistence-maven-plugin. RuntimeEntityModelBuilder accepts optional Tier3WarningCollector. 3/3 tests pass.
+## Card Status
 
 ### M0 — Skeleton + Real TCK Harness Baseline
-- **M0-JP-01** ✅ **DONE** — Parent pom.xml with 9 sub-modules
-- **M0-JP-02** ✅ **DONE** — module-info.java for each module (5/9 complete - no module-info for maven-plugin, tests, external-it, tck)
-- **M0-JP-03** ✅ **DONE** — mansart-persistence-spi module (EntityModel, Attribute hierarchy, compiles successfully)
-- **M0-JP-04** ✅ **DONE** — mansart-persistence-core skeleton (MansartPersistenceProvider, MansartEntityManagerFactory, MansartEntityManager - all throw UnsupportedOperationException)
-- **M0-JP-05** ✅ **DONE** — TCK infrastructure (out-of-reactor) - standalone pom.xml, run script, README
-- **M0-JP-06** ✅ **DONE** — Harness wiring + provider registration (ServiceLoader discovers MansartPersistenceProvider, ProviderDiscoveryTest passes)
-- **M0-JP-07** ✅ **DONE** — Baseline TCK run (harness works, provider discoverable, **2/0/2 PASS**, build green. Switch to JUnit 4, surefire limited to ProviderDiscoveryTest, TCK Client classes unpacked, exec-maven-plugin + sigtest-maven-plugin configured. JavaTest harness integration pending for full 1745 test execution)
+- M0-JP-01 — Parent pom.xml with 9 sub-modules — DONE
+- M0-JP-02 — module-info.java for each module — DONE
+- M0-JP-03 — mansart-persistence-spi module — DONE
+- M0-JP-04 — mansart-persistence-core skeleton — DONE
+- M0-JP-05 — TCK infrastructure (out-of-reactor) — DONE
+- M0-JP-06 — Harness wiring + provider registration — DONE
+- M0-JP-07 — Baseline TCK run — DONE
 
 ### M1 — Entity Metamodel + APT Generation
-- **M1-JP-08** ✅ **DONE** — MansartPersistenceProcessor (SourceVersion.RELEASE_25, @SupportedAnnotationTypes for JPA annotations, service file registered)
-- **M1-JP-09** ✅ **DONE** — Entity scanning — detects @Entity, @Table, @Id, @GeneratedValue, @Column, @Version, @ManyToOne, @OneToOne, @JoinColumn, @Enumerated, @Embedded, @Embeddable
-- **M1-JP-10** ✅ **DONE** — _Entity generation — EntityModel<T>, typed Attribute subtypes (IdAttribute, BasicAttribute, NumericAttribute, TemporalAttribute, ReferenceAttribute, EnumAttribute, VersionAttribute)
-- **M1-JP-11** ✅ **DONE** — Standard JPA static metamodel generation — Entity_ with SingularAttribute fields (if jakarta.persistence-api on classpath)
-- **M1-JP-12** ✅ **DONE** — MethodHandle resolution — MethodHandles.privateLookupIn in constructor, never setAccessible
-- **M1-JP-13** ✅ **DONE** — SQL naming conventions — snake_case column names, plural snake_case table names, FK column naming
+- M1-JP-08 — MansartPersistenceProcessor — DONE
+- M1-JP-09 — Entity scanning — DONE
+- M1-JP-10 — _Entity generation — DONE
+- M1-JP-11 — Standard JPA static metamodel generation — DONE
+- M1-JP-12 — MethodHandle resolution — DONE
+- M1-JP-13 — SQL naming conventions — DONE
 
 ### M2 — Maven Plugin (Tier 2) + External Library Support
-- **M2-JP-14** ✅ **DONE** — MansartPersistenceMojo bound to process-classes, scans project output directory for @Entity classes
-- **M2-JP-15** ✅ **DONE** — Class-File API parsing — reads class file bytes, extracts annotations using Java 26 Class-File API, generates EntityMetadata
-- **M2-JP-16** ✅ **DONE** — Lazy association proxies for external entities — real subclasses generated, never java.lang.reflect.Proxy
-- **M2-JP-17** ✅ **DONE** — external-lib — JAR with test entities (ExternalPerson, ExternalDepartment) no Mansart deps
-- **M2-JP-18** ✅ **DONE** — external-it — integration tests asserting tier-1 ≈ tier-2 behavior
+- M2-JP-14 — MansartPersistenceMojo — DONE
+- M2-JP-15 — Class-File API parsing — DONE
+- M2-JP-16 — Lazy association proxies — DONE
+- M2-JP-17 — external-lib — DONE
+- M2-JP-18 — external-it — DONE
 
-## Session Log
-- M2-JP-16: Added LazyEntityProxy and LazyInitializer SPI interfaces. Maven plugin now generates EntityName_Lazy proxy subclasses for entities targeted by @ManyToOne/@OneToOne. Proxy extends entity, overrides getters with ensureLoaded() lazy loading mechanism. Never uses java.lang.reflect.Proxy. 15/15 ExternalEntityIT tests pass. auditor/SonarQube deferred.
-- Updated card naming convention to include milestone prefix (JP-01 -> M0-JP-01)
-- Fixed maven-plugin-plugin dependency version issue (3.9.6 -> 3.14.0) but Java 25 class file support still pending
-- Created proper module-info.java for spi, processor, core, cdi, external-lib modules
-- Removed module-info.java from maven-plugin, tests, external-it, tck modules due to non-modular dependencies
-- All 9 modules now compile successfully
-- Created mansart-persistence-tck module with standalone pom.xml, run script, README
-- ProviderDiscoveryTest verifies MansartPersistenceProvider is discoverable via ServiceLoader
-- TCK runner script executes without harness errors
-- Added maven-dependency-plugin to unpack TCK jars (persistence-tck-spec-tests, persistence-tck-common, common, signaturetest) to test-classes
-- TCK Client classes (160+ Client classes from 269 client classes total, ~1745 test methods) are now in test-classes but JUnit Jupiter cannot discover JavaTest harness tests
-- Current baseline: 2/0/2 PASS (ProviderDiscoveryTest only)
-- M2-JP-18: Fixed ClassFileParser to properly parse JPA annotations via Java 26 Class-File API (RuntimeVisibleAnnotationsAttribute/RuntimeInvisibleAnnotationsAttribute), fixed Mojo phase to PROCESS_CLASSES, added proper _Entity and Entity_ generation with correct Java types, configured external-lib pom.xml with mansart-persistence-maven-plugin, wrote 11 integration tests in ExternalEntityIT (all pass). auditor/SonarQube deferred to BeanVal completion.
-- M3-JP-19: RuntimeEntityModelBuilder builds EntityModel from class file bytes at bootstrap using Java 26 Class-File API. RuntimeEntityModel and RuntimeAttribute as in-memory metadata. Field access deferred to M3-JP-20. 6/6 RuntimeEntityModelBuilderTest tests pass, build green.
-- M3-JP-20: RuntimeEntityClassGenerator generates hidden classes via MethodHandles.Lookup.defineHiddenClass using Java 26 Class-File API. Generated bytecode calls entity public getters/setters via invokevirtual. Handles primitive boxing/unboxing. EntityAccessor<T> SPI interface added. 3/3 tests pass.
-- M3-JP-21: MansartCallback caches and dispatches EntityAccessor and EntityModel instances for tier-3 entities. ConcurrentHashMap-based caching. Single entry point for tier-3 metadata and field access. 5/5 tests pass.
-- M3-JP-22: Tier3WarningCollector accumulates warnings for tier-3 entities, names entity class and points to mansart-persistence-maven-plugin. RuntimeEntityModelBuilder accepts optional Tier3WarningCollector. 3/3 Tier3WarningTest tests pass.
-- Measured: 17/17 tests pass in mansart-persistence-tests (6 RuntimeEntityModelBuilderTest + 3 Tier3WarningTest + 3 RuntimeEntityClassGeneratorTest + 5 MansartCallbackTest), build green.
-- M4-JP-23: MansartPersistenceProvider now parses persistence.xml via JDK DOM API with full XXE hardening, creates EntityManagerFactory from both XML and programmatic config, and implements real lifecycle with AtomicBoolean. module-info.java now requires java.xml. auditor/guardian findings resolved (XXE hardening structure, TOCTOU in close()). Test resource added: META-INF/persistence.xml with two PUs. Measured: MansartPersistenceProviderTest 7/7 PASS, full mansart-persistence-tests module 24/24 PASS. SonarQube quality gate clean on new code (0 bugs/0 smells/0 vulnerabilities/0 hotspots); pre-existing debt noted (112 open issues in untouched files) and jacoco coverage gap (new_coverage=0.0) as backlog items.
+### M3 — Runtime Class-File API (Tier 3) Fallback
+- M3-JP-19 — RuntimeEntityModelBuilder — DONE
+- M3-JP-20 — RuntimeEntityClassGenerator — DONE
+- M3-JP-21 — MansartCallback — DONE
+- M3-JP-22 — Tier3WarningCollector — DONE
 
-- M4-JP-24: MansartEntityManagerFactory now manages EntityManager instances: tracks all created EMs in a ConcurrentLinkedQueue, cascades close on factory close (all EMs marked closed). Double-check pattern in createTrackedEm guards against TOCTOU race between ensureOpen and EM registration. Bootstrap metadata: EMF now stores PersistenceUnitTransactionType (passed from both XML descriptor path and PersistenceConfiguration path). getTransactionType() returns it without a closed check (per spec, no @throws IllegalStateException). Closed-state contract: createEntityManager throws IllegalStateException if factory closed. getProperties, getCache, getPersistenceUnitUtil, unwrap all throw IllegalStateException if closed (per their @throws declarations). getCache returns null (spec-sanctioned for no L2 cache). unwrap supports MansartEntityManagerFactory and EntityManagerFactory, throws PersistenceException for unsupported types. MansartPersistenceUnitUtil (new): implements PersistenceUnitUtil, all methods throw UnsupportedOperationException (entity model not built yet — that's M5+). MansartEntityManager: added open/closed state (AtomicBoolean). isOpen() checks both EM state and factory state. close() deregisters from factory. markClosed() (package-private) called by factory cascade. Persistence operations remain UnsupportedOperationException (M4-JP-25 scope). MansartPersistenceProvider: both createEntityManagerFactory paths now pass transactionType to the EMF constructor. Measured: MansartEntityManagerFactoryTest: 19/19 PASS, Full mansart-persistence-tests module: 43/43 PASS (was 24, +19 new tests). Build: green on all modules (including external-it). Auditor: clean on diff (2 minor findings fixed: dead registerEntityManager method removed, null guard on constructor properties added). SonarQube: 0 bugs, 0 vulnerabilities, 0 security hotspots, 0 violations on M4-JP-24 changed files. Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both are pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeAttribute.java, RuntimeEntityModel.java, RuntimeEntityModelBuilder.java), same pattern as M4-JP-23.
-- M5-JP-29: EntityMapper maps entity instances to SQL INSERT/SELECT/UPDATE/DELETE via dialect SPI. Uses DialectEntityModelAdapter to convert persistence SPI EntityModel to dialect SPI EntityModel, then delegates SQL generation to Dialect (H2Dialect). insert() handles generated keys via getGeneratedKeys(). select() builds WHERE.Eq on id column, extracts all attributes via dialect.extract(). update() builds SET clause + WHERE on id. delete() builds WHERE on id. Fixed primitive-type bug: attr.javaType() can return primitives (int.class from @Version), but H2Dialect.extract only handles wrapper types — added wrap() helper to normalize primitives to wrappers at all 7 dialect.extract/dialect.bind call sites. VersionedEntity test model added with @Version field. Measured: 239/239 PASS (was 236, +3 new tests: adaptNullThrows, adaptProducesValidEntityModel, insertAndSelectVersionedEntity). Build green. SonarQube: 0 violations on M5-JP-29 changed files (EntityMapper.java, DialectEntityModelAdapter.java). Quality gate ERROR on new_coverage=0.0% and 17 new_violations — both pre-existing M3 debt (RuntimeEntityClassGenerator.java, RuntimeClassGenerator.java, ClassUtil.java), same pattern as M4-JP-23/M4-JP-24.
+### M4 — Core Runtime: EntityManagerFactory + EntityManager
+- M4-JP-23 — MansartPersistenceProvider — DONE
+- M4-JP-24 — MansartEntityManagerFactory — DONE
+- M4-JP-25 — MansartEntityManager — DONE
+- M4-JP-26 — Persistence context state machine — DONE
+- M4-JP-27 — Transaction integration — DONE
+- M4-JP-28 — Connection management — DONE
 
+### M5 — Object-Relational Mapping (Basic)
+- M5-JP-29 — EntityMapper (CRUD via dialect SPI) — DONE
+- M5-JP-30 — ID generation (AUTO, IDENTITY, SEQUENCE, TABLE) — TODO
+- M5-JP-31 — Column mapping — TODO
+- M5-JP-32 — Table mapping — TODO
+- M5-JP-33 — Integration tests with H2 — TODO
+
+### M6 — Query Execution (JPQL)
+- M6-JP-34 — JPQL parser — TODO
+- M6-JP-35 — SELECT queries — TODO
+- M6-JP-36 — FROM clause — TODO
+- M6-JP-37 — WHERE expressions — TODO
+- M6-JP-38 — UPDATE queries — TODO
+- M6-JP-39 — DELETE queries — TODO
+- M6-JP-40 — Named and positional parameters — TODO
+- M6-JP-41 — Aggregate functions — TODO
+- M6-JP-42 — String functions — TODO
+- M6-JP-43 — Date/time functions — TODO
+- M6-JP-44 — CASE expressions — TODO
+- M6-JP-45 — Subqueries — TODO
+
+### M7 — Advanced Mapping
+- M7-JP-46 — @ManyToOne, @OneToOne — TODO
+- M7-JP-47 — @OneToMany, @ManyToMany — TODO
+- M7-JP-48 — @JoinColumn, @JoinTable — TODO
+- M7-JP-49 — @Inheritance — TODO
+- M7-JP-50 — @DiscriminatorColumn, @DiscriminatorValue — TODO
+- M7-JP-51 — @Embedded, @Embeddable — TODO
+- M7-JP-52 — @Enumerated — TODO
+- M7-JP-53 — @Temporal — TODO
+- M7-JP-54 — @Lob — TODO
+- M7-JP-55 — @Version — TODO
+- M7-JP-56 — @Transient — TODO
+- M7-JP-57 — @Convert — TODO
+
+### M8 — Entity Lifecycle + Callbacks
+- M8-JP-58 — Lifecycle callback annotations — TODO
+- M8-JP-59 — @EntityListeners — TODO
+- M8-JP-60 — Callback ordering — TODO
+- M8-JP-61 — Inherited callbacks — TODO
+
+### M9 — Cascading + Orphan Removal
+- M9-JP-62 — @CascadeType — TODO
+- M9-JP-63 — orphanRemoval — TODO
+- M9-JP-64 — Cascade ordering and edge cases — TODO
+
+### M10 — Fetch Types + Lazy Loading
+- M10-JP-65 — @FetchType LAZY/EAGER — TODO
+- M10-JP-66 — Lazy loading proxies — TODO
+- M10-JP-67 — Fetch join hints — TODO
+
+### M11 — Criteria API
+- M11-JP-68 — CriteriaBuilder — TODO
+- M11-JP-69 — CriteriaQuery — TODO
+- M11-JP-70 — Root, Join, Fetch, Path — TODO
+- M11-JP-71 — Predicate — TODO
+- M11-JP-72 — Order — TODO
+- M11-JP-73 — GroupBy, Having — TODO
+- M11-JP-74 — Subquery — TODO
+- M11-JP-75 — Metamodel-based queries — TODO
+
+### M12 — Named Queries + Native Queries
+- M12-JP-76 — @NamedQuery — TODO
+- M12-JP-77 — @NamedNativeQuery — TODO
+- M12-JP-78 — @SqlResultSetMapping — TODO
+- M12-JP-79 — Query hints — TODO
+- M12-JP-80 — Native query execution — TODO
+
+### M13 — Persistence Context + Caching
+- M13-JP-81 — Persistence context propagation — TODO
+- M13-JP-82 — First-level cache — TODO
+- M13-JP-83 — Cache interface — TODO
+- M13-JP-84 — SharedCacheMode — TODO
+- M13-JP-85 — Cache invalidation and eviction — TODO
+
+### M14 — Transaction Management + Synchronization
+- M14-JP-86 — Local transaction (RESOURCE_LOCAL) — TODO
+- M14-JP-87 — JTA transaction — TODO
+- M14-JP-88 — TransactionSynchronizationRegistry — TODO
+- M14-JP-89 — Synchronization callbacks — TODO
+- M14-JP-90 — Transaction timeout and isolation — TODO
+
+### M15 — CDI Integration (Vauban)
+- M15-JP-91 — MansartPersistenceExtension — TODO
+- M15-JP-92 — Producer for EM/EMF/Provider — TODO
+- M15-JP-93 — @PersistenceContext injection — TODO
+- M15-JP-94 — @PersistenceUnit injection — TODO
+- M15-JP-95 — CDI scoping — TODO
+- M15-JP-96 — Integration tests with Vauban — TODO
+
+### M16 — PostgreSQL Dialect Support
+- M16-JP-97 — PostgreSQL dialect — TODO
+- M16-JP-98 — PostgreSQL-specific features — TODO
+- M16-JP-99 — Integration tests with Testcontainers PG — TODO
+
+### M17 — Error Handling + Exceptions
+- M17-JP-100 — SQLState mapping — TODO
+- M17-JP-101 — PersistenceException hierarchy — TODO
+- M17-JP-102 — Constraint violation handling — TODO
+- M17-JP-103 — Transaction rollback handling — TODO
+- M17-JP-104 — Entity not found / illegal state — TODO
+
+### M18 — Validation + Schema Generation
+- M18-JP-105 — Schema validation — TODO
+- M18-JP-106 — Schema generation — TODO
+- M18-JP-107 — persistence.xml schema generation properties — TODO
+- M18-JP-108 — Integration tests with schema generation — TODO
+
+### M19 — Performance + Benchmarks
+- M19-JP-109 — BENCH.md baseline — TODO
+- M19-JP-110 — JMH benchmarks — TODO
+- M19-JP-111 — Virtual thread pinning verification — TODO
+- M19-JP-112 — Performance tuning — TODO
+
+### M20 — Official Jakarta Persistence 3.2 TCK
+- M20-JP-113 — TCK infrastructure — TODO
+- M20-JP-114 — TCK EntityTests — TODO
+- M20-JP-115 — TCK PersistenceTests — TODO
+- M20-JP-116 — TCK QueryTests — TODO
+- M20-JP-117 — TCK SignatureTests — TODO
+- M20-JP-118 — Full TCK run 1745/1745 — TODO
 
 ---
-*Generated for milestone M0. All numbers are not measured unless stated otherwise.*
+
+## Session Log
+- M0: skeleton + 9 sub-modules, TCK harness baseline 2/0/2 PASS
+- M1: APT metamodel generation (_Entity + Entity_), 17/17 tests
+- M2: Maven plugin tier-2 + external-it 15/15, proves tier-1 ~ tier-2
+- M3: runtime Class-File API fallback, 17/17 tests
+- M4-JP-23: PersistenceProvider parses persistence.xml, 7/7 tests, Sonar clean on new code
+- M4-JP-24: EMF manages EMs, cascade close, 19/19 tests (43/43 module)
+- M4-JP-25: EM delegates to persistence context, 28/28 tests (71/71 module)
+- M4-JP-26: persistence context state machine + identity map, 18/18 tests (89/89 module)
+- M4-JP-27: transaction integration (RESOURCE_LOCAL + JTA), 8/8 tests (221/221 module), Sonar OK
+- M4-JP-28: connection management (runWithConnection/callWithConnection), 223/223 module, Sonar OK
+- M5-JP-29: EntityMapper CRUD via dialect SPI, 239/239 module, Sonar clean on changed files
