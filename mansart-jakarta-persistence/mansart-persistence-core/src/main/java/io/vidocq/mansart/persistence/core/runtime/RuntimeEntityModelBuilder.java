@@ -45,6 +45,109 @@ public final class RuntimeEntityModelBuilder {
     private final Tier3WarningCollector warningCollector;
 
     /**
+     * Context for field parsing operations.
+     */
+    private static final class FieldParsingContext {
+        private final FieldModel fieldModel;
+        private final Class<?> entityClass;
+        private final EntityModel<?> entityModel;
+        private final java.util.Map<String, String[]> sequenceGenerators;
+        private final java.util.Map<String, String[]> tableGenerators;
+
+        FieldParsingContext(FieldModel fieldModel, Class<?> entityClass, EntityModel<?> entityModel,
+                           java.util.Map<String, String[]> sequenceGenerators,
+                           java.util.Map<String, String[]> tableGenerators) {
+            this.fieldModel = fieldModel;
+            this.entityClass = entityClass;
+            this.entityModel = entityModel;
+            this.sequenceGenerators = sequenceGenerators;
+            this.tableGenerators = tableGenerators;
+        }
+
+        String getName() {
+            return fieldModel.fieldName().toString();
+        }
+
+        String getInternalType() {
+            return fieldModel.fieldType().toString();
+        }
+
+        Class<?> getJavaType() {
+            return toJavaType(getInternalType(), entityClass.getClassLoader());
+        }
+
+        boolean isId() {
+            return hasAnnotation(fieldModel, JPA_ID);
+        }
+
+        boolean isVersion() {
+            return hasAnnotation(fieldModel, JPA_VERSION);
+        }
+
+        String getColumnName() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "name")
+                    .filter(n -> !n.isEmpty())
+                    .orElseGet(() -> toSnakeCase(getName()));
+        }
+
+        boolean isNullable() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "nullable")
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+        }
+
+        boolean isUnique() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "unique")
+                    .map(Boolean::parseBoolean)
+                    .orElse(false);
+        }
+
+        int getLength() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "length")
+                    .map(Integer::parseInt)
+                    .orElse(-1);
+        }
+
+        int getPrecision() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "precision")
+                    .map(Integer::parseInt)
+                    .orElse(-1);
+        }
+
+        int getScale() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "scale")
+                    .map(Integer::parseInt)
+                    .orElse(-1);
+        }
+
+        boolean isInsertable() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "insertable")
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+        }
+
+        boolean isUpdatable() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "updatable")
+                    .map(Boolean::parseBoolean)
+                    .orElse(true);
+        }
+
+        String getColumnDefinition() {
+            return getAnnotationValue(fieldModel, JPA_COLUMN, "columnDefinition")
+                    .orElse("");
+        }
+
+        Optional<String> getGeneratedValueStrategy() {
+            return RuntimeEntityModelBuilder.getGeneratedValueStrategy(fieldModel);
+        }
+
+        Optional<String> getGeneratedValueGenerator() {
+            return RuntimeEntityModelBuilder.getGeneratedValueGenerator(fieldModel);
+        }
+
+    }
+
+    /**
      * Creates a builder with no warning collection.
      */
     public RuntimeEntityModelBuilder() {
@@ -98,17 +201,6 @@ public final class RuntimeEntityModelBuilder {
         String schema = getTableAnnotationValue(classModel, "schema").orElse("");
         String catalog = getTableAnnotationValue(classModel, "catalog").orElse("");
 
-        List<Attribute<?, ?>> attributes = new ArrayList<>();
-        for (FieldModel fieldModel : classModel.fields()) {
-            if (hasAnnotation(fieldModel, JPA_TRANSIENT)) {
-                continue;
-            }
-            Attribute<T, ?> attr = parseField(fieldModel, entityClass);
-            if (attr != null) {
-                attributes.add(attr);
-            }
-        }
-
         // Parse generator annotations from class
         java.util.Map<String, String[]> sequenceGenerators = parseSequenceGenerators(classModel);
         java.util.Map<String, String[]> tableGenerators = parseTableGenerators(classModel);
@@ -117,30 +209,17 @@ public final class RuntimeEntityModelBuilder {
         RuntimeEntityModel<T> model = new RuntimeEntityModel<>(
                 entityClass, tableName, schema, catalog, List.of());
 
-        // Rebuild attributes with correct entity model reference and generator info
+        // Build attributes with correct entity model reference and generator info
         List<Attribute<?, ?>> attrsWithModel = new ArrayList<>();
         for (FieldModel fieldModel : classModel.fields()) {
             if (hasAnnotation(fieldModel, JPA_TRANSIENT)) {
                 continue;
             }
             Attribute<T, ?> attr = parseField(fieldModel, entityClass, model, sequenceGenerators, tableGenerators);
-            if (attr != null) {
-                attrsWithModel.add(attr);
-            }
+            attrsWithModel.add(attr);
         }
 
         return new RuntimeEntityModel<>(entityClass, tableName, schema, catalog, attrsWithModel);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> Attribute<T, ?> parseField(FieldModel fieldModel, Class<T> entityClass) {
-        return parseField(fieldModel, entityClass, null, java.util.Map.of(), java.util.Map.of());
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> Attribute<T, ?> parseField(FieldModel fieldModel, Class<T> entityClass,
-                                           EntityModel<T> entityModel) {
-        return parseField(fieldModel, entityClass, entityModel, java.util.Map.of(), java.util.Map.of());
     }
 
     @SuppressWarnings("unchecked")
@@ -148,98 +227,92 @@ public final class RuntimeEntityModelBuilder {
                                            EntityModel<T> entityModel,
                                            java.util.Map<String, String[]> sequenceGenerators,
                                            java.util.Map<String, String[]> tableGenerators) {
-        String name = fieldModel.fieldName().toString();
-        String internalType = fieldModel.fieldType().toString();
+        return parseField(new FieldParsingContext(fieldModel, entityClass, entityModel, sequenceGenerators, tableGenerators));
+    }
 
-        Class<?> javaType = toJavaType(internalType, entityClass.getClassLoader());
+    @SuppressWarnings("unchecked")
+    private <T> Attribute<T, ?> parseField(FieldParsingContext ctx) {
+        String name = ctx.getName();
+        Class<?> javaType = ctx.getJavaType();
 
-        boolean isId = hasAnnotation(fieldModel, JPA_ID);
-        boolean isVersion = hasAnnotation(fieldModel, JPA_VERSION);
+        boolean isId = ctx.isId();
+        boolean isVersion = ctx.isVersion();
 
-        String columnName = getAnnotationValue(fieldModel, JPA_COLUMN, "name")
-                .filter(n -> !n.isEmpty())
-                .orElseGet(() -> toSnakeCase(name));
-
-        boolean nullable = getAnnotationValue(fieldModel, JPA_COLUMN, "nullable")
-                .map(Boolean::parseBoolean)
-                .orElse(true);
-
-        boolean unique = getAnnotationValue(fieldModel, JPA_COLUMN, "unique")
-                .map(Boolean::parseBoolean)
-                .orElse(false);
-
-        int length = getAnnotationValue(fieldModel, JPA_COLUMN, "length")
-                .map(Integer::parseInt)
-                .orElse(-1);
-        int precision = getAnnotationValue(fieldModel, JPA_COLUMN, "precision")
-                .map(Integer::parseInt)
-                .orElse(-1);
-        int scale = getAnnotationValue(fieldModel, JPA_COLUMN, "scale")
-                .map(Integer::parseInt)
-                .orElse(-1);
-        boolean insertable = getAnnotationValue(fieldModel, JPA_COLUMN, "insertable")
-                .map(Boolean::parseBoolean)
-                .orElse(true);
-        boolean updatable = getAnnotationValue(fieldModel, JPA_COLUMN, "updatable")
-                .map(Boolean::parseBoolean)
-                .orElse(true);
-        String columnDefinition = getAnnotationValue(fieldModel, JPA_COLUMN, "columnDefinition")
-                .orElse("");
+        String columnName = ctx.getColumnName();
+        boolean nullable = ctx.isNullable();
+        boolean unique = ctx.isUnique();
+        int length = ctx.getLength();
+        int precision = ctx.getPrecision();
+        int scale = ctx.getScale();
+        boolean insertable = ctx.isInsertable();
+        boolean updatable = ctx.isUpdatable();
+        String columnDefinition = ctx.getColumnDefinition();
 
         if (isId) {
-            Optional<String> strategyOpt = getGeneratedValueStrategy(fieldModel);
-            IdAttribute.GenerationStrategy strategy = null;
-            String generator = "";
-            String sequenceName = "";
-            String tableGeneratorTable = "";
-            String tablePkColumnName = SEQUENCE_NAME;
-            String tableValueColumnName = SEQUENCE_NEXT_VAL;
-            String tablePkColumnValue = "";
-            
-            if (strategyOpt.isPresent()) {
-                String strategyStr = strategyOpt.get();
-                try {
-                    strategy = IdAttribute.GenerationStrategy.valueOf(strategyStr);
-                } catch (IllegalArgumentException _) {
-                    strategy = IdAttribute.GenerationStrategy.AUTO;
-                }
-            }
-            
-            // Parse @GeneratedValue generator name
-            generator = getGeneratedValueGenerator(fieldModel).orElse("");
-            
-            // For SEQUENCE and TABLE strategies, look up generator metadata
-            if (strategy == IdAttribute.GenerationStrategy.SEQUENCE && generator.isEmpty()) {
-                // No named generator - derive sequence name from table name
-                sequenceName = entityModel != null ? entityModel.getTableName().toUpperCase() + "_SEQ" : "";
-            } else if (strategy == IdAttribute.GenerationStrategy.SEQUENCE && !generator.isEmpty() && sequenceGenerators.containsKey(generator)) {
-                sequenceName = sequenceGenerators.get(generator)[0];
-            } else if (strategy == IdAttribute.GenerationStrategy.TABLE && !generator.isEmpty() && tableGenerators.containsKey(generator)) {
-                String[] tg = tableGenerators.get(generator);
-                tableGeneratorTable = tg[0];
-                tablePkColumnName = tg.length > 1 ? tg[1] : SEQUENCE_NAME;
-                tableValueColumnName = tg.length > 2 ? tg[2] : SEQUENCE_NEXT_VAL;
-                tablePkColumnValue = tg.length > 3 ? tg[3] : generator;
-            }
-            
-            return new RuntimeIdAttribute<>(
-                    name, columnName, entityModel,
-                    (Class) javaType, nullable, isVersion, unique, true,
-                    length, precision, scale,
-                    insertable, updatable, columnDefinition,
-                    strategy, generator,
-                    sequenceName,
-                    tableGeneratorTable,
-                    tablePkColumnName,
-                    tableValueColumnName,
-                    tablePkColumnValue);
+            return parseIdAttribute(ctx, name, columnName, javaType, nullable, isVersion, unique,
+                    length, precision, scale, insertable, updatable, columnDefinition);
         }
 
         return new RuntimeAttribute<>(
-                name, columnName, entityModel,
+                name, columnName, ctx.entityModel,
                 (Class) javaType, nullable, isId, isVersion, unique, true,
                 length, precision, scale,
                 insertable, updatable, columnDefinition);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private <T> RuntimeIdAttribute<T, ?> parseIdAttribute(FieldParsingContext ctx, String name, String columnName,
+                                                      Class<?> javaType, boolean nullable, boolean isVersion,
+                                                      boolean unique, int length, int precision, int scale,
+                                                      boolean insertable, boolean updatable, String columnDefinition) {
+        Optional<String> strategyOpt = ctx.getGeneratedValueStrategy();
+        IdAttribute.GenerationStrategy strategy = null;
+        String generator = "";
+        String sequenceName = "";
+        String tableGeneratorTable = "";
+        String tablePkColumnName = SEQUENCE_NAME;
+        String tableValueColumnName = SEQUENCE_NEXT_VAL;
+        String tablePkColumnValue = "";
+        
+        if (strategyOpt.isPresent()) {
+            String strategyStr = strategyOpt.get();
+            try {
+                strategy = IdAttribute.GenerationStrategy.valueOf(strategyStr);
+            } catch (IllegalArgumentException _) {
+                strategy = IdAttribute.GenerationStrategy.AUTO;
+            }
+        }
+
+        // Parse @GeneratedValue generator name
+        generator = ctx.getGeneratedValueGenerator().orElse("");
+
+        // For SEQUENCE and TABLE strategies, look up generator metadata
+        if (strategy == IdAttribute.GenerationStrategy.SEQUENCE) {
+            if (generator.isEmpty()) {
+                // No named generator - derive sequence name from table name
+                sequenceName = ctx.entityModel != null ? ctx.entityModel.getTableName().toUpperCase() + "_SEQ" : "";
+            } else if (ctx.sequenceGenerators.containsKey(generator)) {
+                sequenceName = ctx.sequenceGenerators.get(generator)[0];
+            }
+        } else if (strategy == IdAttribute.GenerationStrategy.TABLE && !generator.isEmpty() && ctx.tableGenerators.containsKey(generator)) {
+            String[] tg = ctx.tableGenerators.get(generator);
+            tableGeneratorTable = tg[0];
+            tablePkColumnName = tg.length > 1 ? tg[1] : SEQUENCE_NAME;
+            tableValueColumnName = tg.length > 2 ? tg[2] : SEQUENCE_NEXT_VAL;
+            tablePkColumnValue = tg.length > 3 ? tg[3] : generator;
+        }
+        
+        return new RuntimeIdAttribute<>(
+                name, columnName, ctx.entityModel,
+                (Class) javaType, nullable, isVersion, unique, true,
+                length, precision, scale,
+                insertable, updatable, columnDefinition,
+                strategy, generator,
+                sequenceName,
+                tableGeneratorTable,
+                tablePkColumnName,
+                tableValueColumnName,
+                tablePkColumnValue);
     }
 
     // --- Annotation helpers ---

@@ -57,6 +57,7 @@ public interface EntityModel<T> {
      * @param name the attribute name
      * @return the attribute, or null if not found
      */
+    @SuppressWarnings("java:S1452")
     Attribute<?, ?> getAttribute(String name);
 
     /**
@@ -64,6 +65,7 @@ public interface EntityModel<T> {
      *
      * @return list of id attributes (single or composite)
      */
+    @SuppressWarnings("java:S1452")
     List<Attribute<?, ?>> getIdAttributes();
 
     /**
@@ -71,6 +73,7 @@ public interface EntityModel<T> {
      *
      * @return the version attribute, or null if not present
      */
+    @SuppressWarnings("java:S1452")
     Attribute<?, ?> getVersionAttribute();
 
     /**

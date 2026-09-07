@@ -408,17 +408,19 @@ public final class EntityMapper {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private <T> Object allocateId(Connection conn, T entity, Class<T> entityClass,
             io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr) throws SQLException {
-        var strategy = spiIdAttr.getGenerationStrategy();
+        Object idValue = allocateIdFromStrategy(conn, spiIdAttr);
+        // Set the allocated ID on the entity
+        callback.getAccessor(entityClass).set(entity, spiIdAttr.getName(), idValue);
+        return idValue;
+    }
 
-        Object idValue = switch (strategy) {
+    private <T> Object allocateIdFromStrategy(Connection conn, io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr) throws SQLException {
+        var strategy = spiIdAttr.getGenerationStrategy();
+        return switch (strategy) {
             case SEQUENCE -> allocateSequenceId(conn, spiIdAttr);
             case TABLE -> allocateTableId(conn, spiIdAttr);
             default -> throw new IllegalStateException("Unsupported strategy for pre-insert allocation: " + strategy);
         };
-
-        // Set the allocated ID on the entity
-        callback.getAccessor(entityClass).set(entity, spiIdAttr.getName(), idValue);
-        return idValue;
     }
 
     private <T> Object allocateSequenceId(Connection conn, io.vidocq.mansart.persistence.spi.IdAttribute<T, ?> spiIdAttr) throws SQLException {

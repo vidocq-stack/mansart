@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class MansartPersistenceProviderTest {
 
     @Test
-    public void createEntityManagerFactoryFromXmlReturnsMansartFactory() {
+    void createEntityManagerFactoryFromXmlReturnsMansartFactory() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
 
         assertThat(emf).isInstanceOf(MansartEntityManagerFactory.class);
@@ -32,7 +32,7 @@ public class MansartPersistenceProviderTest {
     }
 
     @Test
-    public void xmlPropertiesAreExposedByFactory() {
+    void xmlPropertiesAreExposedByFactory() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
 
         assertThat(emf.getProperties())
@@ -43,7 +43,7 @@ public class MansartPersistenceProviderTest {
     }
 
     @Test
-    public void runtimePropertiesOverrideXmlProperties() {
+    void runtimePropertiesOverrideXmlProperties() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu",
                 java.util.Map.of("io.vidocq.mansart.test.marker", "overridden"));
 
@@ -54,7 +54,7 @@ public class MansartPersistenceProviderTest {
     }
 
     @Test
-    public void unknownPersistenceUnitReturnsNullFromProvider() {
+    void unknownPersistenceUnitReturnsNullFromProvider() {
         MansartPersistenceProvider provider = new MansartPersistenceProvider();
         EntityManagerFactory emf = provider.createEntityManagerFactory("does-not-exist", java.util.Map.of());
 
@@ -62,7 +62,7 @@ public class MansartPersistenceProviderTest {
     }
 
     @Test
-    public void secondPersistenceUnitIsParsed() {
+    void secondPersistenceUnitIsParsed() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("second-pu");
 
         assertThat(emf.getName()).isEqualTo("second-pu");
@@ -73,7 +73,7 @@ public class MansartPersistenceProviderTest {
     }
 
     @Test
-    public void programmaticConfigurationCreatesFactory() {
+    void programmaticConfigurationCreatesFactory() {
         PersistenceConfiguration config = new PersistenceConfiguration("prog-pu")
                 .transactionType(jakarta.persistence.PersistenceUnitTransactionType.RESOURCE_LOCAL)
                 .property("io.vidocq.mansart.test.marker", "programmatic");
@@ -90,7 +90,7 @@ public class MansartPersistenceProviderTest {
     }
 
     @Test
-    public void closingAlreadyClosedFactoryThrows() {
+    void closingAlreadyClosedFactoryThrows() {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
         emf.close();
 

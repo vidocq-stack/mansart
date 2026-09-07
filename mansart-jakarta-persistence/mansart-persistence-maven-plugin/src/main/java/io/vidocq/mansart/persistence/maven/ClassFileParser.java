@@ -17,8 +17,6 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.Map;
-import java.util.HashMap;
 
 /**
  * Class-File API parser for entity class scanning and processing.
@@ -27,6 +25,7 @@ import java.util.HashMap;
 public final class ClassFileParser {
 
     private static final String JAKARTA_PERSISTENCE_ENTITY = "jakarta/persistence/Entity";
+    private static final System.Logger LOG = System.getLogger(ClassFileParser.class.getName());
     private static final String JAKARTA_PERSISTENCE_TABLE = "jakarta/persistence/Table";
     private static final String JAKARTA_PERSISTENCE_ID = "jakarta/persistence/Id";
     private static final String JAKARTA_PERSISTENCE_COLUMN = "jakarta/persistence/Column";
@@ -88,8 +87,8 @@ public final class ClassFileParser {
             return new EntityMetadata(packageName, simpleName, tableName, schema, catalog, fields);
             
         } catch (Exception e) {
-            System.err.println("Failed to parse entity class " + className + ": " + e.getMessage());
-            e.printStackTrace();
+            LOG.log(System.Logger.Level.ERROR, "Failed to parse entity class " + className + ": " + e.getMessage());
+            LOG.log(System.Logger.Level.ERROR, e);
             return null;
         }
     }

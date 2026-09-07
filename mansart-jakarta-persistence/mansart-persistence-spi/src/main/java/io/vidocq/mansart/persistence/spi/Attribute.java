@@ -4,8 +4,6 @@
 package io.vidocq.mansart.persistence.spi;
 
 import java.lang.invoke.MethodHandle;
-import java.util.function.BiConsumer;
-import java.util.function.Function;
 
 /**
  * Base interface for entity attributes.

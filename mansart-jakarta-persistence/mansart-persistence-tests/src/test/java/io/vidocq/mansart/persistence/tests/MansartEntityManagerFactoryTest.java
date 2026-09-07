@@ -90,7 +90,8 @@ class MansartEntityManagerFactoryTest {
         EntityManagerFactory emf = Persistence.createEntityManagerFactory("test-pu");
         emf.close();
 
-        assertThatThrownBy(() -> emf.createEntityManager(java.util.Map.of()))
+        Map<String, Object> props = java.util.Map.of();
+        assertThatThrownBy(() -> emf.createEntityManager(props))
                 .isInstanceOf(IllegalStateException.class);
     }
 

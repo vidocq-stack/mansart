@@ -18,7 +18,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Generates hidden classes at runtime via {@link MethodHandles.Lookup#defineHiddenClass}
@@ -37,6 +36,11 @@ public final class RuntimeEntityClassGenerator {
     private static final ClassDesc CD_ILLEGAL_ARG = ClassDesc.of("java.lang.IllegalArgumentException");
     private static final ClassDesc CD_INTEGER = ClassDesc.of("java.lang.Integer");
     private static final ClassDesc CD_LONG_OBJ = ClassDesc.of("java.lang.Long");
+    private static final String INIT = "<init>";
+    private static final String VALUE_OF = "valueOf";
+    private static final ClassDesc CD_BOOLEAN = ClassDesc.of("java.lang.Boolean");
+    private static final ClassDesc CD_DOUBLE = ClassDesc.of("java.lang.Double");
+    private static final ClassDesc CD_FLOAT = ClassDesc.of("java.lang.Float");
 
     /**
      * Generates a hidden {@link EntityAccessor} for the given entity class.
@@ -114,10 +118,10 @@ public final class RuntimeEntityClassGenerator {
                 classBuilder -> classBuilder
                         .withSuperclass(ConstantDescs.CD_Object)
                         .withInterfaceSymbols(accessorDesc)
-                        .withMethod("<init>", MethodTypeDesc.of(ConstantDescs.CD_void),
+                        .withMethod(INIT, MethodTypeDesc.of(ConstantDescs.CD_void),
                                 ClassFile.ACC_PUBLIC, mb -> mb.withCode(cb -> {
                                     cb.aload(0);
-                                    cb.invokespecial(ConstantDescs.CD_Object, "<init>",
+                                    cb.invokespecial(ConstantDescs.CD_Object, INIT,
                                             MethodTypeDesc.of(ConstantDescs.CD_void));
                                     cb.return_();
                                 }))
@@ -196,20 +200,20 @@ public final class RuntimeEntityClassGenerator {
 
     private void boxIfPrimitive(java.lang.classfile.CodeBuilder cb, Class<?> type) {
         if (type == int.class) {
-            cb.invokestatic(CD_INTEGER, "valueOf",
+            cb.invokestatic(CD_INTEGER, VALUE_OF,
                     MethodTypeDesc.of(CD_INTEGER, ConstantDescs.CD_int));
         } else if (type == long.class) {
-            cb.invokestatic(CD_LONG_OBJ, "valueOf",
+            cb.invokestatic(CD_LONG_OBJ, VALUE_OF,
                     MethodTypeDesc.of(CD_LONG_OBJ, ConstantDescs.CD_long));
         } else if (type == boolean.class) {
-            cb.invokestatic(ClassDesc.of("java.lang.Boolean"), "valueOf",
-                    MethodTypeDesc.of(ClassDesc.of("java.lang.Boolean"), ConstantDescs.CD_boolean));
+            cb.invokestatic(CD_BOOLEAN, VALUE_OF,
+                    MethodTypeDesc.of(CD_BOOLEAN, ConstantDescs.CD_boolean));
         } else if (type == double.class) {
-            cb.invokestatic(ClassDesc.of("java.lang.Double"), "valueOf",
-                    MethodTypeDesc.of(ClassDesc.of("java.lang.Double"), ConstantDescs.CD_double));
+            cb.invokestatic(CD_DOUBLE, VALUE_OF,
+                    MethodTypeDesc.of(CD_DOUBLE, ConstantDescs.CD_double));
         } else if (type == float.class) {
-            cb.invokestatic(ClassDesc.of("java.lang.Float"), "valueOf",
-                    MethodTypeDesc.of(ClassDesc.of("java.lang.Float"), ConstantDescs.CD_float));
+            cb.invokestatic(CD_FLOAT, VALUE_OF,
+                    MethodTypeDesc.of(CD_FLOAT, ConstantDescs.CD_float));
         }
     }
 
@@ -223,16 +227,16 @@ public final class RuntimeEntityClassGenerator {
             cb.invokevirtual(CD_LONG_OBJ, "longValue",
                     MethodTypeDesc.of(ConstantDescs.CD_long));
         } else if (type == boolean.class) {
-            cb.checkcast(ClassDesc.of("java.lang.Boolean"));
-            cb.invokevirtual(ClassDesc.of("java.lang.Boolean"), "booleanValue",
+            cb.checkcast(CD_BOOLEAN);
+            cb.invokevirtual(CD_BOOLEAN, "booleanValue",
                     MethodTypeDesc.of(ConstantDescs.CD_boolean));
         } else if (type == double.class) {
-            cb.checkcast(ClassDesc.of("java.lang.Double"));
-            cb.invokevirtual(ClassDesc.of("java.lang.Double"), "doubleValue",
+            cb.checkcast(CD_DOUBLE);
+            cb.invokevirtual(CD_DOUBLE, "doubleValue",
                     MethodTypeDesc.of(ConstantDescs.CD_double));
         } else if (type == float.class) {
-            cb.checkcast(ClassDesc.of("java.lang.Float"));
-            cb.invokevirtual(ClassDesc.of("java.lang.Float"), "floatValue",
+            cb.checkcast(CD_FLOAT);
+            cb.invokevirtual(CD_FLOAT, "floatValue",
                     MethodTypeDesc.of(ConstantDescs.CD_float));
         } else {
             cb.checkcast(toClassDesc(type));

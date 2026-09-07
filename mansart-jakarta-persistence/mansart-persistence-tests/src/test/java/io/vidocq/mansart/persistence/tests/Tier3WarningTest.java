@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class Tier3WarningTest {
 
     @Test
-    public void testWarningCollectedWhenBuildingTier3Model() {
+    void testWarningCollectedWhenBuildingTier3Model() {
         Tier3WarningCollector collector = new Tier3WarningCollector();
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder(collector);
 
@@ -33,7 +33,7 @@ public class Tier3WarningTest {
     }
 
     @Test
-    public void testWarningCollectorAccumulatesMultipleEntities() {
+    void testWarningCollectorAccumulatesMultipleEntities() {
         Tier3WarningCollector collector = new Tier3WarningCollector();
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder(collector);
 
@@ -47,7 +47,7 @@ public class Tier3WarningTest {
     }
 
     @Test
-    public void testWarningCollectorEmptyByDefault() {
+    void testWarningCollectorEmptyByDefault() {
         Tier3WarningCollector collector = new Tier3WarningCollector();
         assertThat(collector.getWarnings()).isEmpty();
     }

@@ -8,11 +8,8 @@ import io.vidocq.mansart.persistence.external.ExternalPerson;
 import io.vidocq.mansart.persistence.external.lib.Book;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,7 +33,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testExternalPersonEntity() {
+    void testExternalPersonEntity() {
         // Test that ExternalPerson can be instantiated
         ExternalPerson person = new ExternalPerson("John Doe", "Test Developer");
         
@@ -46,7 +43,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testExternalDepartmentEntity() {
+    void testExternalDepartmentEntity() {
         // Test that ExternalDepartment can be instantiated
         ExternalPerson manager = new ExternalPerson("Jane Doe", "Manager");
         ExternalDepartment dept = new ExternalDepartment("Engineering", manager);
@@ -57,7 +54,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testEntityRelationships() {
+    void testEntityRelationships() {
         ExternalPerson person1 = new ExternalPerson("Alice", "Developer");
         ExternalPerson person2 = new ExternalPerson("Bob", "Developer");
         
@@ -73,7 +70,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testEntityLifecycleMethods() {
+    void testEntityLifecycleMethods() {
         ExternalPerson person = new ExternalPerson("Charlie", "Architect");
         
         // Test getters and setters
@@ -85,7 +82,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testBookEntityFromExternalLib() {
+    void testBookEntityFromExternalLib() {
         Book book = new Book(1L, "Test Title", "Test Author", "123-456");
         
         assertThat(book).isNotNull();
@@ -96,7 +93,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedEntityModelForExternalPerson() {
+    void testMavenPluginGeneratedEntityModelForExternalPerson() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/_ExternalPerson.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated _ExternalPerson.java should exist").isTrue();
@@ -107,7 +104,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedStandardMetamodelForExternalPerson() {
+    void testMavenPluginGeneratedStandardMetamodelForExternalPerson() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated ExternalPerson_.java should exist").isTrue();
@@ -121,7 +118,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedEntityModelForExternalDepartment() {
+    void testMavenPluginGeneratedEntityModelForExternalDepartment() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/_ExternalDepartment.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated _ExternalDepartment.java should exist").isTrue();
@@ -132,7 +129,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedStandardMetamodelForExternalDepartment() {
+    void testMavenPluginGeneratedStandardMetamodelForExternalDepartment() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalDepartment_.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated ExternalDepartment_.java should exist").isTrue();
@@ -146,7 +143,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedEntityModelForBook() {
+    void testMavenPluginGeneratedEntityModelForBook() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/lib/_Book.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated _Book.java should exist").isTrue();
@@ -157,7 +154,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedStandardMetamodelForBook() {
+    void testMavenPluginGeneratedStandardMetamodelForBook() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/lib/Book_.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated Book_.java should exist").isTrue();
@@ -182,7 +179,7 @@ public class ExternalEntityIT {
     // --- M2-JP-16: Lazy association proxies ---
 
     @Test
-    public void testMavenPluginGeneratedLazyProxyForExternalPerson() {
+    void testMavenPluginGeneratedLazyProxyForExternalPerson() {
         // ExternalPerson is the target of ExternalDepartment's @ManyToOne, so a proxy should be generated
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_Lazy.java");
         
@@ -198,7 +195,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedLazyProxyOverridesGetters() {
+    void testMavenPluginGeneratedLazyProxyOverridesGetters() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_Lazy.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated ExternalPerson_Lazy.java should exist").isTrue();
@@ -212,7 +209,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testMavenPluginGeneratedLazyProxyHasIsLoadedMethod() {
+    void testMavenPluginGeneratedLazyProxyHasIsLoadedMethod() {
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/ExternalPerson_Lazy.java");
         
         assertThat(Files.exists(generatedFile)).as("Generated ExternalPerson_Lazy.java should exist").isTrue();
@@ -223,7 +220,7 @@ public class ExternalEntityIT {
     }
 
     @Test
-    public void testNoLazyProxyGeneratedForNonReferencedEntities() {
+    void testNoLazyProxyGeneratedForNonReferencedEntities() {
         // Book is not the target of any @ManyToOne/@OneToOne, so no proxy should be generated
         Path generatedFile = Path.of(GENERATED_SOURCES_DIR, "io/vidocq/mansart/persistence/external/lib/Book_Lazy.java");
         

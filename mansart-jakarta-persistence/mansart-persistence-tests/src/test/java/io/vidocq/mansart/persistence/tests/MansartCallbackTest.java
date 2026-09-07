@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class MansartCallbackTest {
 
     @Test
-    public void testGetAccessorForEntity() {
+    void testGetAccessorForEntity() {
         MansartCallback callback = new MansartCallback();
 
         EntityAccessor<DispatchEntity> accessor = callback.getAccessor(DispatchEntity.class);
@@ -30,7 +30,7 @@ public class MansartCallbackTest {
     }
 
     @Test
-    public void testGetEntityModelForEntity() {
+    void testGetEntityModelForEntity() {
         MansartCallback callback = new MansartCallback();
 
         EntityModel<DispatchEntity> model = callback.getEntityModel(DispatchEntity.class);
@@ -41,7 +41,7 @@ public class MansartCallbackTest {
     }
 
     @Test
-    public void testAccessorIsCached() {
+    void testAccessorIsCached() {
         MansartCallback callback = new MansartCallback();
 
         EntityAccessor<DispatchEntity> accessor1 = callback.getAccessor(DispatchEntity.class);
@@ -51,7 +51,7 @@ public class MansartCallbackTest {
     }
 
     @Test
-    public void testEntityModelIsCached() {
+    void testEntityModelIsCached() {
         MansartCallback callback = new MansartCallback();
 
         EntityModel<DispatchEntity> model1 = callback.getEntityModel(DispatchEntity.class);
@@ -61,7 +61,7 @@ public class MansartCallbackTest {
     }
 
     @Test
-    public void testGetWarnings() {
+    void testGetWarnings() {
         MansartCallback callback = new MansartCallback();
         callback.getEntityModel(DispatchEntity.class);
 

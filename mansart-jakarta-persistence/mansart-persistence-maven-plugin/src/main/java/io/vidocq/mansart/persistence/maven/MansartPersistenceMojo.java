@@ -33,6 +33,8 @@ public class MansartPersistenceMojo extends AbstractMojo {
     @Parameter(defaultValue = "${project.build.directory}/generated-sources/mansart", readonly = true)
     private File generatedSourcesDirectory;
 
+    private static final String JAVA_EXTENSION = ".java";
+
     @Override
     public void execute() {
         try {
@@ -80,30 +82,34 @@ public class MansartPersistenceMojo extends AbstractMojo {
             // Scan dependency classpath for external JARs
             scanDependencyClasspath(entityClasses);
             
-        } catch (Exception e) {
+        } catch (IOException e) {
             getLog().warn("Failed to scan project output: " + e.getMessage());
         }
         
         return entityClasses;
     }
 
-    private void scanDependencyClasspath(List<EntityClassInfo> entityClasses) throws Exception {
-        // Get the classpath elements from the project
-        List<String> classpathElements = project.getCompileClasspathElements();
-        
-        for (String classpathElement : classpathElements) {
-            Path elementPath = Path.of(classpathElement);
-            if (Files.exists(elementPath) && Files.isDirectory(elementPath)) {
-                // This is a directory, scan it
-                scanDirectoryForEntities(elementPath, entityClasses);
-            } else if (Files.exists(elementPath) && elementPath.toString().endsWith(".jar")) {
-                // This is a JAR file, extract and scan it
-                scanJarForEntities(elementPath, entityClasses);
+    private void scanDependencyClasspath(List<EntityClassInfo> entityClasses) {
+        try {
+            // Get the classpath elements from the project
+            List<String> classpathElements = project.getCompileClasspathElements();
+            
+            for (String classpathElement : classpathElements) {
+                Path elementPath = Path.of(classpathElement);
+                if (Files.exists(elementPath) && Files.isDirectory(elementPath)) {
+                    // This is a directory, scan it
+                    scanDirectoryForEntities(elementPath, entityClasses);
+                } else if (Files.exists(elementPath) && elementPath.toString().endsWith(".jar")) {
+                    // This is a JAR file, extract and scan it
+                    scanJarForEntities(elementPath);
+                }
             }
+        } catch (Exception e) {
+            getLog().warn("Failed to scan dependency classpath: " + e.getMessage());
         }
     }
 
-    private void scanJarForEntities(Path jarFile, List<EntityClassInfo> entityClasses) {
+    private void scanJarForEntities(Path jarFile) {
         // For now, skip JAR scanning as it requires more complex implementation
         // This will be implemented in a future iteration
         getLog().debug("Skipping JAR scanning for now: " + jarFile);
@@ -164,7 +170,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
         
         try {
             String javaContent = generateEntityModelJava(metadata, className, entityModelClassName);
-            Path outputFile = Path.of(generatedSourcesDirectory.toString(), packageName.replace('.', '/'), entityModelClassName + ".java");
+            Path outputFile = Path.of(generatedSourcesDirectory.toString(), packageName.replace('.', '/'), entityModelClassName + JAVA_EXTENSION);
             Files.createDirectories(outputFile.getParent());
             Files.writeString(outputFile, javaContent);
             getLog().info("Generated EntityModel class: " + packageName + "." + entityModelClassName);
@@ -176,7 +182,6 @@ public class MansartPersistenceMojo extends AbstractMojo {
     private String generateEntityModelJava(ClassFileParser.EntityMetadata metadata, 
             String className, String entityModelClassName) {
         String pkg = metadata.packageName();
-        String simpleClassName = metadata.entityName();
         String tableName = metadata.tableName();
         String schema = metadata.schema();
         String catalog = metadata.catalog();
@@ -215,7 +220,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
         
         try {
             String javaContent = generateStandardMetamodelJava(metadata, metamodelClassName);
-            Path outputFile = Path.of(generatedSourcesDirectory.toString(), packageName.replace('.', '/'), metamodelClassName + ".java");
+            Path outputFile = Path.of(generatedSourcesDirectory.toString(), packageName.replace('.', '/'), metamodelClassName + JAVA_EXTENSION);
             Files.createDirectories(outputFile.getParent());
             Files.writeString(outputFile, javaContent);
             getLog().info("Generated standard metamodel class: " + packageName + "." + metamodelClassName);
@@ -244,6 +249,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
             case "S": return "short";
             case "Z": return "boolean";
             case "V": return "void";
+            default: break;
         }
         
         // Handle reference types: Ljava/lang/Long; -> java.lang.Long
@@ -361,7 +367,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
             
             Path outputFile = Path.of(generatedSourcesDirectory.toString(), 
                                      packageName.replace('.', '/'), 
-                                     proxyClassName + ".java");
+                                     proxyClassName + JAVA_EXTENSION);
             Files.createDirectories(outputFile.getParent());
             Files.writeString(outputFile, proxyContent);
             

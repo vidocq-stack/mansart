@@ -15,7 +15,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
@@ -78,10 +77,8 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         Set<? extends Element> entityElements = roundEnv.getElementsAnnotatedWith(entityAnnotation);
         List<TypeElement> newEntities = new ArrayList<>();
         for (Element element : entityElements) {
-            if (element instanceof TypeElement typeElement) {
-                if (processedEntities.add(typeElement)) {
-                    newEntities.add(typeElement);
-                }
+            if (element instanceof TypeElement typeElement && processedEntities.add(typeElement)) {
+                newEntities.add(typeElement);
             }
         }
 
@@ -166,6 +163,8 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         return sb.toString();
     }
 
+    private static final String COMMA_SPACE = ", ";
+
     private String toPlural(String s) {
         if (s == null || s.isEmpty()) return s;
         
@@ -197,15 +196,19 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         return s + "s";
     }
 
+    private static boolean isTrue(Boolean value) {
+        return Boolean.TRUE.equals(value);
+    }
+
     private boolean isVowel(char c) {
         return c == 'a' || c == 'e' || c == 'i' || c == 'o' || c == 'u' || 
                c == 'A' || c == 'E' || c == 'I' || c == 'O' || c == 'U';
     }
 
-    private String determineGenerationStrategy(VariableElement field, boolean isId) {
+    private String determineGenerationStrategy(VariableElement fieldElement, boolean isId) {
         TypeElement generatedValueAnnot = elementUtils.getTypeElement("jakarta.persistence.GeneratedValue");
         if (generatedValueAnnot != null) {
-            AnnotationMirror mirror = getAnnotationMirror(field, generatedValueAnnot);
+            AnnotationMirror mirror = getAnnotationMirror(fieldElement, generatedValueAnnot);
             if (mirror != null) {
                 String strategy = getAnnotationValue(mirror, "strategy");
                 if (strategy != null && !strategy.isEmpty()) {
@@ -220,11 +223,29 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         return null;
     }
 
+    private static boolean isTemporalType(String type) {
+        return type.equals("java.util.Date") || type.equals("java.time.LocalDate") ||
+               type.equals("java.time.LocalDateTime") || type.equals("java.time.LocalTime") ||
+               type.equals("java.time.Instant") || type.equals("java.sql.Date") ||
+               type.equals("java.sql.Time") || type.equals("java.sql.Timestamp");
+    }
+
+    private static final String NUMERIC_TYPE_DOUBLE = "java.lang.Double";
+    private static final String NUMERIC_TYPE_FLOAT = "java.lang.Float";
+
+    private static boolean isNumericType(String type) {
+        return type.equals("java.lang.Integer") || type.equals("java.lang.Long") ||
+               type.equals("java.lang.Double") || type.equals("java.lang.Float") ||
+               type.equals("int") || type.equals("long") || type.equals("double") ||
+               type.equals("float") || type.equals("java.math.BigInteger") ||
+               type.equals("java.math.BigDecimal");
+    }
+
     private String determineVersionStrategy(VariableElement field, String type) {
-        if (isNumeric(type)) {
+        if (isNumericType(type)) {
             return "NUMERIC";
         }
-        if (isTemporal(type)) {
+        if (isTemporalType(type)) {
             return "TIMESTAMP";
         }
         return null;
@@ -416,18 +437,11 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
     }
 
     private boolean isTemporal(String type) {
-        return type.equals("java.util.Date") || type.equals("java.time.LocalDate") ||
-               type.equals("java.time.LocalDateTime") || type.equals("java.time.LocalTime") ||
-               type.equals("java.time.Instant") || type.equals("java.sql.Date") ||
-               type.equals("java.sql.Time") || type.equals("java.sql.Timestamp");
+        return isTemporalType(type);
     }
 
     private boolean isNumeric(String type) {
-        return type.equals("java.lang.Integer") || type.equals("java.lang.Long") ||
-               type.equals("java.lang.Double") || type.equals("java.lang.Float") ||
-               type.equals("int") || type.equals("long") || type.equals("double") ||
-               type.equals("float") || type.equals("java.math.BigInteger") ||
-               type.equals("java.math.BigDecimal");
+        return isNumericType(type);
     }
 
     private AnnotationMirror getAnnotationMirror(Element element, TypeElement annotationType) {
@@ -471,6 +485,8 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             messager.printMessage(Diagnostic.Kind.ERROR, "Failed to generate _" + metadata.entityName() + ": " + e.getMessage());
         }
     }
+
+    private static final String TWELVE_SPACES = "            ";
 
     private void generateEntityClassContent(Writer w, String className, String pkg, EntityMetadata metadata) throws IOException {
         w.write("package " + pkg + ";\n\n");
@@ -541,21 +557,6 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("    }\n");
 
         w.write("}\n");
-    }
-
-    private void generateStandardMetamodelClass(EntityMetadata metadata) {
-        String className = metadata.entityName() + "_";
-        String pkg = metadata.packageName();
-        String fullName = pkg + "." + className;
-
-        try {
-            JavaFileObject file = filer.createSourceFile(fullName);
-            try (Writer w = file.openWriter()) {
-                generateMetamodelClassContent(w, className, pkg, metadata);
-            }
-        } catch (IOException e) {
-            messager.printMessage(Diagnostic.Kind.ERROR, "Failed to generate " + className + ": " + e.getMessage());
-        }
     }
 
     private void generateMetamodelClassContent(Writer w, String className, String pkg, EntityMetadata metadata) throws IOException {
@@ -639,15 +640,15 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         }
 
         w.write("    private static final class " + name + "<T, V" + vBound + "> implements " + iface + "<T, V> {\n");
-        w.write("        private final String name, columnName;\n");
-        w.write("        private final EntityModel<T> entityModel;\n");
-        w.write("        private final boolean nullable, unique, isId, isVersion;\n");
-        w.write("        private final int length, precision, scale;\n");
-        w.write("        private final boolean insertable, updatable;\n");
-        w.write("        private final String columnDefinition;\n");
-        w.write("        private final String generationStrategy;\n");
-        w.write("        private final String versionStrategy;\n");
-        w.write("        private final java.lang.invoke.MethodHandle getter, setter;\n\n");
+        w.write(TWELVE_SPACES + "private final String name, columnName;\n");
+        w.write(TWELVE_SPACES + "private final EntityModel<T> entityModel;\n");
+        w.write(TWELVE_SPACES + "private final boolean nullable, unique, isId, isVersion;\n");
+        w.write(TWELVE_SPACES + "private final int length, precision, scale;\n");
+        w.write(TWELVE_SPACES + "private final boolean insertable, updatable;\n");
+        w.write(TWELVE_SPACES + "private final String columnDefinition;\n");
+        w.write(TWELVE_SPACES + "private final String generationStrategy;\n");
+        w.write(TWELVE_SPACES + "private final String versionStrategy;\n");
+        w.write(TWELVE_SPACES + "private final java.lang.invoke.MethodHandle getter, setter;\n\n");
 
         w.write("        @SuppressWarnings(\"unchecked\")\n");
         w.write("        public " + name + "(String name, String columnName, EntityModel<T> entityModel,\n");
@@ -743,16 +744,25 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("    }\n\n");
     }
 
+    private static final String BOXED_INT = "java.lang.Integer";
+    private static final String BOXED_LONG = "java.lang.Long";
+    private static final String BOXED_DOUBLE = "java.lang.Double";
+    private static final String BOXED_FLOAT = "java.lang.Float";
+    private static final String BOXED_SHORT = "java.lang.Short";
+    private static final String BOXED_BYTE = "java.lang.Byte";
+    private static final String BOXED_BOOLEAN = "java.lang.Boolean";
+    private static final String BOXED_CHAR = "java.lang.Character";
+
     private static String boxType(String type) {
         return switch (type) {
-            case "int" -> "java.lang.Integer";
-            case "long" -> "java.lang.Long";
-            case "double" -> "java.lang.Double";
-            case "float" -> "java.lang.Float";
-            case "short" -> "java.lang.Short";
-            case "byte" -> "java.lang.Byte";
-            case "boolean" -> "java.lang.Boolean";
-            case "char" -> "java.lang.Character";
+            case "int" -> BOXED_INT;
+            case "long" -> BOXED_LONG;
+            case "double" -> BOXED_DOUBLE;
+            case "float" -> BOXED_FLOAT;
+            case "short" -> BOXED_SHORT;
+            case "byte" -> BOXED_BYTE;
+            case "boolean" -> BOXED_BOOLEAN;
+            case "char" -> BOXED_CHAR;
             default -> type;
         };
     }

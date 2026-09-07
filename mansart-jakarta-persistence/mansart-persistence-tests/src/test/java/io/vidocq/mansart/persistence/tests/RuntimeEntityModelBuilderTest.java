@@ -18,7 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RuntimeEntityModelBuilderTest {
 
     @Test
-    public void testBuildEntityModelFromTestClass() {
+    void testBuildEntityModelFromTestClass() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<UnprocessedEntity> model = builder.build(UnprocessedEntity.class);
 
@@ -28,7 +28,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelExtractsAttributes() {
+    void testBuildEntityModelExtractsAttributes() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<UnprocessedEntity> model = builder.build(UnprocessedEntity.class);
 
@@ -39,7 +39,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelExtractsIdAttribute() {
+    void testBuildEntityModelExtractsIdAttribute() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<UnprocessedEntity> model = builder.build(UnprocessedEntity.class);
 
@@ -50,7 +50,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelExtractsVersionAttribute() {
+    void testBuildEntityModelExtractsVersionAttribute() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<UnprocessedEntity> model = builder.build(UnprocessedEntity.class);
 
@@ -61,7 +61,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelExtractsColumnNames() {
+    void testBuildEntityModelExtractsColumnNames() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<UnprocessedEntity> model = builder.build(UnprocessedEntity.class);
 
@@ -76,7 +76,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelHandlesCustomTableName() {
+    void testBuildEntityModelHandlesCustomTableName() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<CustomTableEntity> model = builder.build(CustomTableEntity.class);
 
@@ -84,7 +84,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelExtractsSchemaAndCatalog() {
+    void testBuildEntityModelExtractsSchemaAndCatalog() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<SchemaAwareEntity> model = builder.build(SchemaAwareEntity.class);
 
@@ -94,7 +94,7 @@ class RuntimeEntityModelBuilderTest {
     }
 
     @Test
-    public void testBuildEntityModelDefaultsSchemaAndCatalogWhenAbsent() {
+    void testBuildEntityModelDefaultsSchemaAndCatalogWhenAbsent() {
         RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
         EntityModel<CustomTableEntity> model = builder.build(CustomTableEntity.class);
 

@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class RuntimeEntityClassGeneratorTest {
 
     @Test
-    public void testGenerateAccessorCanReadFields() {
+    void testGenerateAccessorCanReadFields() {
         RuntimeEntityClassGenerator generator = new RuntimeEntityClassGenerator();
         EntityAccessor<SimpleEntity> accessor = generator.generateAccessor(SimpleEntity.class);
 
@@ -29,7 +29,7 @@ public class RuntimeEntityClassGeneratorTest {
     }
 
     @Test
-    public void testGenerateAccessorCanWriteFields() {
+    void testGenerateAccessorCanWriteFields() {
         RuntimeEntityClassGenerator generator = new RuntimeEntityClassGenerator();
         EntityAccessor<SimpleEntity> accessor = generator.generateAccessor(SimpleEntity.class);
 
@@ -42,7 +42,7 @@ public class RuntimeEntityClassGeneratorTest {
     }
 
     @Test
-    public void testGenerateAccessorForEntityWithVersion() {
+    void testGenerateAccessorForEntityWithVersion() {
         RuntimeEntityClassGenerator generator = new RuntimeEntityClassGenerator();
         EntityAccessor<VersionedEntity> accessor = generator.generateAccessor(VersionedEntity.class);
 

@@ -149,7 +149,7 @@ class EntityMapperTest {
     }
 
     @Test
-    void selectNonExistent() {
+    void selectNonExistent() throws SQLException {
         GeneratedIdEntity entity = mapper.select(connection, GeneratedIdEntity.class, 9999L);
         assertThat(entity).isNull();
     }
@@ -242,27 +242,23 @@ class EntityMapperTest {
     }
 
     @Test
-    void insertWithPersistenceException() {
+    void insertWithPersistenceException() throws SQLException {
         try (var conn = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "", "")) {
             conn.close();
             GeneratedIdEntity entity = new GeneratedIdEntity();
             assertThatThrownBy(() -> mapper.insert(conn, entity))
                 .isInstanceOf(PersistenceException.class);
-        } catch (SQLException e) {
-            throw new PersistenceException(e);
         }
     }
 
     @Test
-    void updateWithPersistenceException() {
+    void updateWithPersistenceException() throws SQLException {
         try (var conn = DriverManager.getConnection("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "", "")) {
             conn.close();
             GeneratedIdEntity entity = new GeneratedIdEntity();
             entity.setId(1L);
             assertThatThrownBy(() -> mapper.update(conn, entity))
                 .isInstanceOf(PersistenceException.class);
-        } catch (SQLException e) {
-            throw new PersistenceException(e);
         }
     }
 
@@ -296,7 +292,7 @@ class EntityMapperTest {
     }
 
     @Test
-    void insertAndSelectVersionedEntity() throws SQLException {
+    void insertAndSelectVersionedEntity() {
         VersionedEntity entity = new VersionedEntity();
         entity.setId(1L);
         entity.setName("Versioned");
