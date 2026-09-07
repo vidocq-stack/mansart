@@ -152,19 +152,26 @@ anyone could read it, so "only commit if the build passes" was not a checkable
 rule.
 
 The scripts `set -euo pipefail`, keep the full output in
-`target/agent-build.log` / `target/agent-verify.log`, print the last 60 lines,
+`.agent-logs/build.log` / `.agent-logs/verify.log`, print the last 60 lines,
 and **propagate Maven's exit code**. They end with a machine-readable verdict
 line (`BUILD_RESULT=…`, `BUILD=… tests=… passed=… failed=…`).
+
+Maven runs in batch mode with **stdin closed** and under a **wall-clock limit**
+(`BUILD_TIMEOUT`, default 1800s). A run that exceeds it is killed and reported
+as `BUILD_RESULT=TIMEOUT` — a killed run is not a failure of the code, and its
+counts are never recorded. If a run seems stuck, `tail -f .agent-logs/*.log`
+shows whether it is progressing, and `docker info` is worth checking first:
+`mansart-persistence-tests` uses Testcontainers.
 
 **Never pipe a build command — the scripts included.** `./scripts/build.sh |
 tee …` throws the exit code away exactly as `mvn | tail` did. Run the script
 bare; it already prints the last 60 lines and ends with a `BUILD_RESULT=` line.
 
 **Never write to `/tmp`.** The full log is already inside the project at
-`target/agent-build.log` and `target/agent-verify.log`. Anything under `/tmp`
+`.agent-logs/build.log` and `.agent-logs/verify.log`. Anything under `/tmp`
 is outside the workdir, so it costs an approval prompt on every single call —
 and duplicates a file you already have. Need more than the printed tail?
-`tail -n 200 target/agent-build.log` or `grep -n ERROR target/agent-build.log`.
+`tail -n 200 .agent-logs/build.log` or `grep -n ERROR .agent-logs/build.log`.
 Never `cat file | tail`: that reads the whole file to show you its end.
 
 TCK runs: see the `mansart-jpa-tck` skill (out-of-reactor runner, profiles

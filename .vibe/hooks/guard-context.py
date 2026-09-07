@@ -94,6 +94,13 @@ _LEADING_PROXY = re.compile(r"^\s*(rtk|command|env|time|nice)\s+")
 _TRAILING_REDIR = re.compile(r"\s*2>\s*(/dev/null|&1)\s*$")
 
 
+_HEREDOC = re.compile(r"<<-?\s*(['\"]?)(\w+)\1\r?\n.*?\r?\n\2\b", re.DOTALL)
+# Single quotes take no escapes in POSIX shell; double quotes do, so a
+# naive "[^"]*" splits `python3 -c "open(\"x\")"` into fragments and leaks the
+# payload back into the intent text.
+_QUOTED = re.compile(r"'[^']*'|\"(?:[^\"\\]|\\.)*\"")
+
+
 def normalise(command: str) -> str:
     """Collapse the spellings that made 75 identical searches look distinct."""
     c = " ".join(command.split())
@@ -104,6 +111,25 @@ def normalise(command: str) -> str:
         c = _LEADING_PROXY.sub("", c)
         c = _TRAILING_REDIR.sub("", c)
     return c.strip()
+
+
+def payload_free(command: str) -> str:
+    """The command with its *data* removed, for rules that match on intent.
+
+    Observed twice in one session: writing STATUS.md and TASKS.md through a
+    heredoc was refused — once as "call ./scripts/build.sh rather than mvn",
+    once as "conformance directories are read-only" — because the documents
+    being written happen to mention `mvn` and a `*-tck/` path. The rule was
+    reading the payload as if it were the command.
+
+    So the build/TCK/tmp rules run against this reduction: heredoc bodies
+    dropped, then quoted literals dropped. What survives is the command and
+    its unquoted operands, which is where a real `mvn …` or a real redirect
+    into a TCK directory lives. `echo hack > path/to/x-tck/T.java` and
+    `sed -i "" s/a/b/ mansart-persistence-tck/pom.xml` both keep their paths
+    unquoted and are still caught — see the guard's test set.
+    """
+    return _QUOTED.sub(" ", _HEREDOC.sub(" ", command))
 
 
 def deny(reason: str) -> None:
@@ -152,21 +178,26 @@ def line_count(path: Path) -> int | None:
 
 def guard_bash(command: str, cwd: Path, session_id: str) -> None:
     norm = normalise(command)
+    # Rules about *intent* look at the command with its data stripped, so that
+    # writing a document that merely mentions `mvn` or a TCK path is not read
+    # as running a build or writing into the TCK. Rules about *repetition*
+    # (searches, re-reads) keep using `norm`, which is what identifies a call.
+    intent = normalise(payload_free(command))
 
     # 1. A build command must never be piped — the scripts included. Piping
     #    ./scripts/build.sh into `tee` or `tail` discards its exit code exactly
     #    as piping mvn did, which defeats the whole point of calling it.
-    if PIPE_AFTER_BUILD.search(norm):
+    if PIPE_AFTER_BUILD.search(intent):
         deny(
             "Do not pipe a build command — not even ./scripts/build.sh. The "
             "shell reports the filter's exit code, not the build's, so a "
             "failure becomes indistinguishable from success. Run the script "
             "bare: it already sets -o pipefail, prints the last 60 lines, "
-            "writes the full log to target/agent-build.log, and ends with a "
+            "writes the full log to .agent-logs/build.log, and ends with a "
             "BUILD_RESULT= line. Need more of the log? Read that file."
         )
-    if BUILD_RAW.search(norm) and "scripts/build.sh" not in norm and (
-        "scripts/verify.sh" not in norm
+    if BUILD_RAW.search(intent) and "scripts/build.sh" not in intent and (
+        "scripts/verify.sh" not in intent
     ):
         deny(
             "Call ./scripts/build.sh or ./scripts/verify.sh rather than "
@@ -175,16 +206,16 @@ def guard_bash(command: str, cwd: Path, session_id: str) -> None:
         )
 
     # 1b. Never stage build output in the system temp tree.
-    if TMP_WRITE.search(norm):
+    if TMP_WRITE.search(intent):
         deny(
             "Do not write into /tmp. Every access there is outside the "
             "workdir, so it costs an approval prompt on each call, and the "
             "build scripts already keep the full output inside the project at "
-            "target/agent-build.log and target/agent-verify.log. Read those."
+            ".agent-logs/build.log and .agent-logs/verify.log. Read those."
         )
 
     # 1c. Reading a whole file to look at the end of it.
-    if CAT_INTO_PAGER.search(norm):
+    if CAT_INTO_PAGER.search(intent):
         deny(
             "`cat file | tail` reads the entire file to show you its end. Use "
             "`tail -n 100 <file>` directly, or `grep -n` if you are looking "
@@ -193,7 +224,7 @@ def guard_bash(command: str, cwd: Path, session_id: str) -> None:
 
     # 2. TCK directories are read-only, including through a shell redirect —
     #    which the write_file/edit path denylist cannot see.
-    if TCK_PATH.search(norm) and WRITE_ISH.search(norm):
+    if TCK_PATH.search(intent) and WRITE_ISH.search(intent):
         deny(
             "Conformance-test directories are read-only. A failing TCK test is "
             "reported upward (FQCN, expected vs actual, suspected production "
@@ -201,7 +232,7 @@ def guard_bash(command: str, cwd: Path, session_id: str) -> None:
         )
 
     # 3. Never unpack an archive into the context.
-    if JAR_INSPECT.search(norm):
+    if JAR_INSPECT.search(intent):
         deny(
             "Do not inspect archive contents from a session — each call dumps "
             "hundreds of entries into a context that is re-sent on every later "
@@ -210,7 +241,7 @@ def guard_bash(command: str, cwd: Path, session_id: str) -> None:
         )
 
     # 3b. `find -exec` — always prompts, and there is a better command anyway.
-    if FIND_EXEC.search(norm):
+    if FIND_EXEC.search(intent):
         deny(
             "Do not use `find -exec`: Vibe hardwires an approval prompt for it "
             "at any permission level, so it stops the session every time. Use "

@@ -4,49 +4,43 @@
 # numeric report, parsed from surefire/failsafe XML rather than from console
 # prose — the console can say "BUILD SUCCESS" while a suite was skipped.
 #
-# This is what the `verify` agent runs, and the only source of the numbers
-# that may be written into STATUS.md. Over 3 days, 24 cards were marked DONE
-# while the conformance counter stayed frozen at 2/0/2; a measurement has to
-# come from something with no stake in the result.
+# This is what the `verify` agent runs, and the only source of the numbers that
+# may be written into STATUS.md. Over 3 days, 24 cards were marked DONE while
+# the conformance counter stayed frozen at 2/0/2; a measurement has to come
+# from something with no stake in the result.
 #
 # Usage:
 #   ./scripts/verify.sh                 # unit tests across the reactor
 #   ./scripts/verify.sh -pl <module>    # extra Maven args pass through
 #
-# Exit code: Maven's (0 = build green; non-zero = build or tests red).
-# Full output: target/agent-verify.log. Previous report, for the delta:
-# target/agent-verify-last.txt.
+# Exit code: Maven's (0 = build green), or 124 on the wall-clock limit.
+# Full output: .agent-logs/verify.log   Previous report: .agent-logs/last.txt
+#
+# NOTE ON TESTCONTAINERS: mansart-persistence-tests uses Testcontainers, so a
+# full run needs a reachable Docker daemon. A sleeping or unreachable daemon is
+# the most likely cause of a run that appears alive but never progresses —
+# check `docker info` before blaming the build, and watch .agent-logs/verify.log.
 
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOG_DIR="${ROOT}/target"
-LOG="${LOG_DIR}/agent-verify.log"
-LAST="${LOG_DIR}/agent-verify-last.txt"
+# shellcheck source=_agent_build_lib.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_agent_build_lib.sh"
+
+LOG="$(agent_log_path verify)"
+LAST="${LOG_DIR}/last.txt"
 TAIL_LINES="${VERIFY_TAIL_LINES:-60}"
-
-mkdir -p "${LOG_DIR}"
-
-if [[ -x "${ROOT}/mvnw" ]]; then
-    MVN=("${ROOT}/mvnw")
-else
-    MVN=(mvn)
-fi
 
 if [[ $# -eq 0 ]]; then
     set -- test
 fi
 
-printf '=== %s :: %s %s\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${MVN[*]}" "$*" > "${LOG}"
+agent_run_maven "${LOG}" "$@"
 
-status=0
-"${MVN[@]}" -ntp "$@" >> "${LOG}" 2>&1 || status=$?
+agent_print_tail "${LOG}" "${TAIL_LINES}"
 
-echo "--- last ${TAIL_LINES} lines of ${LOG#"${ROOT}/"} ---"
-tail -n "${TAIL_LINES}" "${LOG}"
-echo "--- end ---"
-
-# Counts come from the XML reports, not from the console summary.
+# Counts come from the XML reports, not from the console summary. The log is
+# created before Maven starts and lives outside target/, so it is a stable
+# "written during this run" reference even across a `clean`.
 read -r TESTS FAILURES ERRORS SKIPPED <<<"$(
     find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${LOG}" -print0 2>/dev/null \
         | xargs -0 -r cat 2>/dev/null \
@@ -54,10 +48,10 @@ read -r TESTS FAILURES ERRORS SKIPPED <<<"$(
         | awk '
             /<testsuite / {
                 t=f=e=s=0
-                if (match($0, /tests="[0-9]+"/))      { t = substr($0, RSTART+7, RLENGTH-8) }
-                if (match($0, /failures="[0-9]+"/))   { f = substr($0, RSTART+10, RLENGTH-11) }
-                if (match($0, /errors="[0-9]+"/))     { e = substr($0, RSTART+8, RLENGTH-9) }
-                if (match($0, /skipped="[0-9]+"/))    { s = substr($0, RSTART+9, RLENGTH-10) }
+                if (match($0, /tests="[0-9]+"/))    { t = substr($0, RSTART+7,  RLENGTH-8)  }
+                if (match($0, /failures="[0-9]+"/)) { f = substr($0, RSTART+10, RLENGTH-11) }
+                if (match($0, /errors="[0-9]+"/))   { e = substr($0, RSTART+8,  RLENGTH-9)  }
+                if (match($0, /skipped="[0-9]+"/))  { s = substr($0, RSTART+9,  RLENGTH-10) }
                 T+=t; F+=f; E+=e; S+=s
             }
             END { printf "%d %d %d %d", T+0, F+0, E+0, S+0 }
@@ -66,12 +60,24 @@ read -r TESTS FAILURES ERRORS SKIPPED <<<"$(
 PASSED=$(( TESTS - FAILURES - ERRORS - SKIPPED ))
 [[ ${PASSED} -lt 0 ]] && PASSED=0
 
-if [[ ${status} -eq 0 ]]; then BUILD=GREEN; else BUILD=RED; fi
+if [[ "${AGENT_TIMED_OUT}" == "1" ]]; then
+    BUILD=TIMEOUT
+elif [[ ${AGENT_STATUS} -eq 0 ]]; then
+    BUILD=GREEN
+else
+    BUILD=RED
+fi
 
-REPORT="BUILD=${BUILD} exit_code=${status} tests=${TESTS} passed=${PASSED} failed=${FAILURES} errors=${ERRORS} skipped=${SKIPPED}"
+REPORT="BUILD=${BUILD} exit_code=${AGENT_STATUS} tests=${TESTS} passed=${PASSED} failed=${FAILURES} errors=${ERRORS} skipped=${SKIPPED}"
 
 echo "=== VERIFY REPORT ==="
 echo "${REPORT}"
+
+if [[ "${BUILD}" == "TIMEOUT" ]]; then
+    echo "The run was KILLED at ${BUILD_TIMEOUT}s, not finished. These counts are"
+    echo "partial and must NOT be recorded. Check that Docker is reachable"
+    echo "(Testcontainers), then re-run — or raise BUILD_TIMEOUT deliberately."
+fi
 
 if [[ -f "${LAST}" ]]; then
     echo "PREVIOUS: $(cat "${LAST}")"
@@ -85,10 +91,19 @@ fi
 
 if [[ ${FAILURES} -gt 0 || ${ERRORS} -gt 0 ]]; then
     echo "--- failing tests ---"
-    grep -hoE '<testcase name="[^"]+" classname="[^"]+"' \
-        $(find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${LOG}" 2>/dev/null) 2>/dev/null \
+    find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${LOG}" -print0 2>/dev/null \
+        | xargs -0 -r grep -hoE '<testcase name="[^"]+" classname="[^"]+"' 2>/dev/null \
         | head -n 40 || true
 fi
 
-echo "${REPORT}" > "${LAST}"
-exit "${status}"
+# Only a run that actually measured something may become the new baseline.
+# A killed run, or a build that died before any test executed, produces
+# tests=0 — recording that would destroy the delta reference and make the next
+# run look like a huge regression or a huge win, neither of which happened.
+if [[ "${BUILD}" != "TIMEOUT" && ${TESTS} -gt 0 ]]; then
+    echo "${REPORT}" > "${LAST}"
+else
+    echo "NOT RECORDED as the new baseline (no test executed) — ${LAST#"${ROOT}/"} left untouched."
+fi
+
+exit "${AGENT_STATUS}"

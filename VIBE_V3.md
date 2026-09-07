@@ -275,7 +275,7 @@ flowchart LR
     end
     subgraph after["V3"]
         A1["./scripts/build.sh"] --> A2["set -euo pipefail<br/>no pipe on the maven call"]
-        A2 --> A3["full log to<br/>target/agent-build.log"]
+        A2 --> A3["full log to<br/>.agent-logs/build.log"]
         A3 --> A4["prints tail -60<br/>+ BUILD_RESULT=…"]
         A4 --> A5["exits with MAVEN's code"]
     end

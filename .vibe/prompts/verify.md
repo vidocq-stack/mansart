@@ -15,7 +15,7 @@ Run them bare. Never `mvn` or `./mvnw` directly, and never pipe the scripts
 into `tee`/`tail`/`head`/`grep`, nor redirect their output to `/tmp`. A
 pipeline reports the filter's exit code, not the build's — that is how 262
 invocations came to be logged as successful while 38 of them had failed.
-The scripts set `-o pipefail`, keep the full output in `target/agent-*.log`,
+The scripts set `-o pipefail`, keep the full output in `.agent-logs/*.log`,
 and propagate Maven's own exit code. The `mansart-context-guard` hook will refuse
 the direct form.
 
@@ -28,7 +28,7 @@ DELTA: <+n|-n|0> passed vs previous run   (or "first measured run")
 FAILING:
   <FQCN>#<method> — <expected vs actual, one clause>
   ... at most 10, then "+N more"
-LOG: target/agent-verify.log
+LOG: .agent-logs/verify.log
 ```
 
 If a suite did not run at all, say so explicitly — `tests=0` after a green

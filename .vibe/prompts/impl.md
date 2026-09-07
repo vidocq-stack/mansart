@@ -59,8 +59,8 @@ exit code, not the build's, so a BUILD FAILURE reads as success. That is true
 of the script too, not just of Maven.
 
 The script prints the last 60 lines and ends with `BUILD_RESULT=`. The full log
-is already on disk at `target/agent-build.log` — read it with
-`tail -n 200 target/agent-build.log` or `grep -n ERROR target/agent-build.log`.
+is already on disk at `.agent-logs/build.log` — read it with
+`tail -n 200 .agent-logs/build.log` or `grep -n ERROR .agent-logs/build.log`.
 Never copy build output to `/tmp`: it is outside the workdir, so it costs an
 approval prompt every time, and it duplicates a file you already have.
 

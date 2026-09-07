@@ -11,3 +11,4 @@ mansart-transactions/.tck-cache/
 
 # Claude Code / tooling local
 .claude/
+.agent-logs/
