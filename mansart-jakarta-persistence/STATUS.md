@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M6-JP-34 — JPQL parser — DONE
-- **Milestone**: M6 (IN PROGRESS) — 1/12 done
+- **Card**: M6-JP-35 — SELECT queries — DONE
+- **Milestone**: M6 (IN PROGRESS) — 2/12 done
 
 ## Milestone Progress Overview
 
@@ -14,7 +14,7 @@
 | M3 | 4 | 4 | 100% | DONE |
 | M4 | 6 | 6 | 100% | DONE |
 | M5 | 5 | 5 | 100% | DONE |
-| M6 | 12 | 1 | 8.3% | IN PROGRESS |
+| M6 | 12 | 2 | 16.7% | IN PROGRESS |
 | M7 | 12 | 0 | 0% | TODO |
 | M8 | 4 | 0 | 0% | TODO |
 | M9 | 3 | 0 | 0% | TODO |
@@ -35,7 +35,7 @@
 
 ## Metrics
 - **Baseline TCK**: 2/0/2 PASS (ProviderDiscoveryTest — harness works, provider discoverable)
-- **Unit Tests**: 262/262 PASS (mansart-persistence-tests module) + 12/12 PASS (JpqlParserTest in core)
+- **Unit Tests**: 274/274 PASS (mansart-persistence-tests module) + 12/12 PASS (JpqlParserTest in core)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -91,7 +91,7 @@
 
 ### M6 — Query Execution (JPQL)
 - M6-JP-34 — JPQL parser — DONE
-- M6-JP-35 — SELECT queries — TODO
+- M6-JP-35 — SELECT queries — DONE
 - M6-JP-36 — FROM clause — TODO
 - M6-JP-37 — WHERE expressions — TODO
 - M6-JP-38 — UPDATE queries — TODO
@@ -219,3 +219,4 @@
 - M4-JP-28: connection management (runWithConnection/callWithConnection), 223/223 module, Sonar OK
 - M5-JP-29: EntityMapper CRUD via dialect SPI, 239/239 module, Sonar clean on changed files
 - M6-JP-34: JPQL parser (lexer + recursive descent parser + AST), 12/12 tests in core module
+- M6-JP-35: SELECT queries (JPQL execution via JpqlQueryExecutor + MansartTypedQuery), 12/12 integration tests, 563/563 total pass
