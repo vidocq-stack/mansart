@@ -280,6 +280,17 @@ permission = "always"
 [tools.web_search]
 permission = "always"
 
+# Legitimate cross-project searches: mansart shares the dialect SPI and the
+# metamodel with its siblings in this workspace. An allowlist match returns
+# ALWAYS from resolve_file_tool_permission, short-circuiting the
+# OUTSIDE_DIRECTORY check, so a real sibling path costs no prompt. A path that
+# does NOT exist is refused instantly by the `mansart-context-guard` hook —
+# 1m13s was once spent scanning a directory that was never there.
+[tools.grep]
+allowlist = [
+    "/Users/yblazart/projects/perso/vidocq/*",
+]
+
 [tools.read_file]
 # Was "/Users/yblazazart/..." — a typo (double "az") that made the rule dead.
 allowlist = [

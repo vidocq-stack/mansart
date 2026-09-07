@@ -15,7 +15,7 @@
 [[hooks]]
 name = "mansart-context-guard"
 type = "pre_tool"
-match = "re:(bash|read_file)"
+match = "re:(bash|read_file|grep)"
 # Hooks are spawned in `cwd`, which is NOT necessarily the project root —
 # start `vibe` from mansart-jakarta-persistence/ and a relative path resolves
 # to a file that does not exist. Walk up to the directory that owns .vibe
@@ -23,7 +23,7 @@ match = "re:(bash|read_file)"
 # is absent, so copying this setup to another project cannot brick it.
 command = "sh -c 'd=$PWD; while [ \"$d\" != / ]; do if [ -f \"$d/.vibe/hooks/guard-context.py\" ]; then exec python3 \"$d/.vibe/hooks/guard-context.py\"; fi; d=$(dirname \"$d\"); done; exit 0'"
 timeout = 10.0
-description = "Refuses unpiped-build violations, TCK writes through the shell, archive dumps, repeated searches, whole-file cats, and unchanged re-reads."
+description = "Refuses unpiped-build violations, TCK writes through the shell, archive dumps, repeated or non-existent searches, whole-file cats, and unchanged re-reads."
 # strict = false (default) on purpose: a bug in the guard must not brick the
 # session — it fails open with a UI warning. The write-path denylists in
 # .vibe/agents/impl.toml remain the hard, non-bypassable TCK guarantee.

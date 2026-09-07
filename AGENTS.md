@@ -45,6 +45,11 @@ summary. Nothing bulky enters the primary context.
 - **Never `find … -exec`.** Vibe hardwires an approval prompt for it at any
   permission level, so it stops the session every time. `grep -rl "<pattern>"
   --include="*.java" .` does the same job in one process, without the prompt.
+- **Never guess a path.** Searching a directory that does not exist scans
+  nothing and costs a minute plus an approval prompt — one session spent 1m13s
+  on `vidocq/ee/mansart-data-dialect-spi`, which has never existed. Search from
+  the repository root and let the pattern find the file, or ask for the
+  absolute path. The guard refuses a non-existent search path instantly.
 - **Never repeat a discovery command.** One session ran the identical
   `find … -name "EntityModel.java"` **75 times**, another the same command 17
   times — 228 steps for 5 useful results. When delegating, the parent passes

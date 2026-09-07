@@ -320,6 +320,40 @@ def guard_read_file(tool_input: dict, cwd: Path, session_id: str) -> None:
     allow()
 
 
+# ------------------------------------------------------------------------ grep
+
+
+def guard_grep(tool_input: dict, cwd: Path) -> None:
+    """Refuse a search over a path that does not exist.
+
+    Observed: a session spent 1m13s in `Searching files…`, then stopped on an
+    approval prompt, for
+        /Users/…/vidocq/ee/mansart-data-dialect-spi/src/main/java
+    — a directory that does not exist at all. The real one is inside the
+    workdir, at mansart-jakarta-data/mansart-data-dialects/mansart-data-dialect-spi.
+    Vibe was right to stop it: the path was outside the working directory. But
+    a human should not have to answer for a typo, and the agent should not
+    spend a minute discovering nothing. An instant, self-correcting tool error
+    is strictly better than either.
+
+    Only non-existent paths are refused here. A real sibling project is a
+    legitimate thing to search; those are handled by tools.grep.allowlist in
+    .vibe/config.toml, which grants them without a prompt.
+    """
+    raw = tool_input.get("path")
+    if not raw or not isinstance(raw, str):
+        allow()
+    target = (cwd / raw).expanduser()
+    if target.exists():
+        allow()
+    deny(
+        f"No such path: {raw}. Nothing was searched. Do not guess a location — "
+        "search from the repository root and let the pattern find the file, "
+        "e.g. `grep -rl \"<pattern>\" --include=\"*.java\" .`, or ask the "
+        "parent for the absolute path."
+    )
+
+
 def main() -> None:
     try:
         payload = json.load(sys.stdin)
@@ -337,6 +371,8 @@ def main() -> None:
             guard_bash(command, cwd, session_id)
     elif tool == "read_file":
         guard_read_file(tool_input, cwd, session_id)
+    elif tool == "grep":
+        guard_grep(tool_input, cwd)
 
     allow()
 
