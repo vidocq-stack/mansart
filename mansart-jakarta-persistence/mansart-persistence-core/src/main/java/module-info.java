@@ -14,6 +14,7 @@ module io.vidocq.mansart.persistence.core {
 
     exports io.vidocq.mansart.persistence.core;
     exports io.vidocq.mansart.persistence.core.runtime;
+    exports io.vidocq.mansart.persistence.core.jpql;
 
     provides jakarta.persistence.spi.PersistenceProvider
         with io.vidocq.mansart.persistence.core.MansartPersistenceProvider;
