@@ -53,6 +53,7 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
     private Filer filer;
     private Messager messager;
     private final Set<TypeElement> processedEntities = new LinkedHashSet<>();
+    private final Set<String> generatedClasses = new LinkedHashSet<>();
 
     @Override
     public synchronized void init(javax.annotation.processing.ProcessingEnvironment processingEnv) {
@@ -74,23 +75,20 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             return false;
         }
 
-        // Check if jakarta.persistence-api is on classpath for standard metamodel generation
-        boolean hasJpaApi = elementUtils.getTypeElement("jakarta.persistence.metamodel.SingularAttribute") != null;
-
         Set<? extends Element> entityElements = roundEnv.getElementsAnnotatedWith(entityAnnotation);
+        List<TypeElement> newEntities = new ArrayList<>();
         for (Element element : entityElements) {
             if (element instanceof TypeElement typeElement) {
-                processedEntities.add(typeElement);
+                if (processedEntities.add(typeElement)) {
+                    newEntities.add(typeElement);
+                }
             }
         }
 
-        for (TypeElement entity : processedEntities) {
+        for (TypeElement entity : newEntities) {
             EntityMetadata metadata = scanEntity(entity);
             if (metadata != null) {
                 generateEntityClass(metadata);
-                if (hasJpaApi) {
-                    generateStandardMetamodelClass(metadata);
-                }
             }
         }
 
@@ -118,7 +116,7 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             }
         }
 
-        return new EntityMetadata(packageName, entityName, tableName, schema, catalog, fields);
+        return new EntityMetadata(packageName, entityName, entity.getQualifiedName().toString(), tableName, schema, catalog, fields);
     }
 
     private String getTableName(TypeElement entity) {
@@ -204,6 +202,34 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
                c == 'A' || c == 'E' || c == 'I' || c == 'O' || c == 'U';
     }
 
+    private String determineGenerationStrategy(VariableElement field, boolean isId) {
+        TypeElement generatedValueAnnot = elementUtils.getTypeElement("jakarta.persistence.GeneratedValue");
+        if (generatedValueAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, generatedValueAnnot);
+            if (mirror != null) {
+                String strategy = getAnnotationValue(mirror, "strategy");
+                if (strategy != null && !strategy.isEmpty()) {
+                    return strategy;
+                }
+            }
+        }
+        // If @GeneratedValue is absent but it's an @Id field, default to AUTO per JPA spec
+        if (isId) {
+            return "AUTO";
+        }
+        return null;
+    }
+
+    private String determineVersionStrategy(VariableElement field, String type) {
+        if (isNumeric(type)) {
+            return "NUMERIC";
+        }
+        if (isTemporal(type)) {
+            return "TIMESTAMP";
+        }
+        return null;
+    }
+
     private FieldMetadata scanField(VariableElement field) {
         String name = field.getSimpleName().toString();
         String type = field.asType().toString();
@@ -223,7 +249,15 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         }
 
         AttributeType attrType = determineType(type, isId, isVersion, isManyToOne, isOneToOne, isEnumerated, isEmbedded);
-        return new FieldMetadata(name, type, column, isId, isVersion, isGenerated, nullable, unique, attrType);
+        int length = getColumnLength(field);
+        int precision = getColumnPrecision(field);
+        int scale = getColumnScale(field);
+        boolean insertable = isInsertable(field);
+        boolean updatable = isUpdatable(field);
+        String columnDefinition = getColumnDefinition(field);
+        String generationStrategy = determineGenerationStrategy(field, isId);
+        String versionStrategy = determineVersionStrategy(field, type);
+        return new FieldMetadata(name, type, column, isId, isVersion, isGenerated, nullable, unique, attrType, length, precision, scale, insertable, updatable, columnDefinition, generationStrategy, versionStrategy);
     }
 
     private String getColumnName(VariableElement field) {
@@ -291,6 +325,84 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         return false;
     }
 
+    private int getColumnLength(VariableElement field) {
+        TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
+        if (colAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
+            if (mirror != null) {
+                String lengthStr = getAnnotationValue(mirror, "length");
+                if (lengthStr != null) return Integer.parseInt(lengthStr);
+                return 255; // spec default when @Column is present
+            }
+        }
+        return -1; // @Column absent
+    }
+
+    private int getColumnPrecision(VariableElement field) {
+        TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
+        if (colAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
+            if (mirror != null) {
+                String precisionStr = getAnnotationValue(mirror, "precision");
+                if (precisionStr != null) return Integer.parseInt(precisionStr);
+                return 0; // spec default when @Column is present
+            }
+        }
+        return -1; // @Column absent
+    }
+
+    private int getColumnScale(VariableElement field) {
+        TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
+        if (colAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
+            if (mirror != null) {
+                String scaleStr = getAnnotationValue(mirror, "scale");
+                if (scaleStr != null) return Integer.parseInt(scaleStr);
+                return 0; // spec default when @Column is present
+            }
+        }
+        return -1; // @Column absent
+    }
+
+    private boolean isInsertable(VariableElement field) {
+        TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
+        if (colAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
+            if (mirror != null) {
+                String insertableStr = getAnnotationValue(mirror, "insertable");
+                if (insertableStr != null) return Boolean.parseBoolean(insertableStr);
+                return true; // spec default when @Column is present
+            }
+        }
+        return true; // @Column absent
+    }
+
+    private boolean isUpdatable(VariableElement field) {
+        TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
+        if (colAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
+            if (mirror != null) {
+                String updatableStr = getAnnotationValue(mirror, "updatable");
+                if (updatableStr != null) return Boolean.parseBoolean(updatableStr);
+                return true; // spec default when @Column is present
+            }
+        }
+        return true; // @Column absent
+    }
+
+    private String getColumnDefinition(VariableElement field) {
+        TypeElement colAnnot = elementUtils.getTypeElement("jakarta.persistence.Column");
+        if (colAnnot != null) {
+            AnnotationMirror mirror = getAnnotationMirror(field, colAnnot);
+            if (mirror != null) {
+                String columnDefinition = getAnnotationValue(mirror, "columnDefinition");
+                if (columnDefinition != null && !columnDefinition.isEmpty()) return columnDefinition;
+                return ""; // spec default when @Column is present
+            }
+        }
+        return ""; // @Column absent
+    }
+
     private AttributeType determineType(String type, boolean isId, boolean isVersion,
             boolean isManyToOne, boolean isOneToOne, boolean isEnumerated, boolean isEmbedded) {
         if (isId) return AttributeType.ID;
@@ -320,13 +432,18 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
 
     private AnnotationMirror getAnnotationMirror(Element element, TypeElement annotationType) {
         if (annotationType == null) return null;
-        return element.getAnnotationMirrors().stream()
-            .filter(m -> m.getAnnotationType().equals(annotationType))
-            .findFirst().orElse(null);
+        String annotationTypeName = annotationType.getQualifiedName().toString();
+        for (AnnotationMirror m : element.getAnnotationMirrors()) {
+            if (m.getAnnotationType().asElement() instanceof TypeElement te
+                    && te.getQualifiedName().contentEquals(annotationTypeName)) {
+                return m;
+            }
+        }
+        return null;
     }
 
     private String getAnnotationValue(AnnotationMirror mirror, String key) {
-        return mirror.getElementValues().entrySet().stream()
+        return elementUtils.getElementValuesWithDefaults(mirror).entrySet().stream()
             .filter(e -> e.getKey().getSimpleName().toString().equals(key))
             .findFirst()
             .map(e -> e.getValue().getValue().toString())
@@ -342,7 +459,9 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         String className = "_" + metadata.entityName();
         String pkg = metadata.packageName();
         String fullName = pkg + "." + className;
-
+        if (!generatedClasses.add(fullName)) {
+            return;
+        }
         try {
             JavaFileObject file = filer.createSourceFile(fullName);
             try (Writer w = file.openWriter()) {
@@ -356,7 +475,8 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
     private void generateEntityClassContent(Writer w, String className, String pkg, EntityMetadata metadata) throws IOException {
         w.write("package " + pkg + ";\n\n");
         w.write("import io.vidocq.mansart.persistence.spi.*;\n");
-        w.write("import java.util.*;\n\n");
+        w.write("import java.util.*;\n");
+        w.write("import java.util.stream.Collectors;\n\n");
 
         w.write("public final class " + className + "<T> implements EntityModel<T> {\n\n");
 
@@ -368,6 +488,10 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("    private final List<Attribute<T, ?>> attributes;\n\n");
 
         // Constructor
+        w.write("    @SuppressWarnings(\"unchecked\")\n");
+        w.write("    public " + className + "() {\n");
+        w.write("        this((Class<T>) (Class<?>) " + metadata.entityQualifiedName() + ".class);\n");
+        w.write("    }\n\n");
         w.write("    @SuppressWarnings(\"unchecked\")\n");
         w.write("    public " + className + "(Class<T> entityClass) {\n");
         w.write("        this.entityClass = Objects.requireNonNull(entityClass);\n");
@@ -382,10 +506,14 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("        List<Attribute<T, ?>> attrs = new ArrayList<>();\n");
 
         for (FieldMetadata f : metadata.fields()) {
-            w.write("        attrs.add(new " + getAttrImplClass(f) + "<T, " + f.type() + ">(\n");
+            w.write("        attrs.add(new " + getAttrImplClass(f) + "<T, " + boxType(f.type()) + ">(\n");
             w.write("            \"" + f.name() + "\", \"" + f.column() + "\", this,\n");
-            w.write("            " + f.nullable() + ", " + f.unique() + ", " + f.isId() + ", " + f.isVersion() + "\n");
-            w.write("        )));\n");
+            w.write("            " + f.nullable() + ", " + f.unique() + ", " + f.isId() + ", " + f.isVersion() + ",\n");
+            w.write("            " + f.length() + ", " + f.precision() + ", " + f.scale() + ",\n");
+            w.write("            " + f.insertable() + ", " + f.updatable() + ", \"" + f.columnDefinition() + "\",\n");
+            w.write("            \"" + (f.generationStrategy() != null ? f.generationStrategy() : "") + "\",\n");
+            w.write("            \"" + (f.versionStrategy() != null ? f.versionStrategy() : "") + "\"\n");
+            w.write("        ));\n");
         }
 
         w.write("        return Collections.unmodifiableList(attrs);\n");
@@ -467,16 +595,22 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
     }
 
     private String getAttrImplClass(FieldMetadata f) {
-        if (f.isId()) return "IdAttr";
-        if (f.isVersion()) return "VersionAttr";
+        String suffix = capitalize(f.name());
+        if (f.isId()) return "IdAttr_" + suffix;
+        if (f.isVersion()) return "VersionAttr_" + suffix;
         switch (f.attributeType()) {
-            case REFERENCE: return "RefAttr";
-            case ENUM: return "EnumAttr";
-            case EMBEDDED: return "EmbeddedAttr";
-            case TEMPORAL: return "TemporalAttr";
-            case NUMERIC: return "NumericAttr";
-            default: return "BasicAttr";
+            case REFERENCE: return "RefAttr_" + suffix;
+            case ENUM: return "EnumAttr_" + suffix;
+            case EMBEDDED: return "EmbeddedAttr_" + suffix;
+            case TEMPORAL: return "TemporalAttr_" + suffix;
+            case NUMERIC: return "NumericAttr_" + suffix;
+            default: return "BasicAttr_" + suffix;
         }
+    }
+
+    private String capitalize(String s) {
+        if (s == null || s.isEmpty()) return s;
+        return Character.toUpperCase(s.charAt(0)) + s.substring(1);
     }
 
     private String getAttrInterface(FieldMetadata f) {
@@ -497,20 +631,39 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         String iface = getAttrInterface(f);
         String fieldType = f.type();
         String fieldName = f.name();
+        String vBound = "";
+        if ("NumericAttribute".equals(iface)) {
+            vBound = " extends Number";
+        } else if ("EnumAttribute".equals(iface)) {
+            vBound = " extends Enum<V>";
+        }
 
-        w.write("    private static final class " + name + "<T, V> implements " + iface + "<T, V> {\n");
+        w.write("    private static final class " + name + "<T, V" + vBound + "> implements " + iface + "<T, V> {\n");
         w.write("        private final String name, columnName;\n");
         w.write("        private final EntityModel<T> entityModel;\n");
         w.write("        private final boolean nullable, unique, isId, isVersion;\n");
+        w.write("        private final int length, precision, scale;\n");
+        w.write("        private final boolean insertable, updatable;\n");
+        w.write("        private final String columnDefinition;\n");
+        w.write("        private final String generationStrategy;\n");
+        w.write("        private final String versionStrategy;\n");
         w.write("        private final java.lang.invoke.MethodHandle getter, setter;\n\n");
 
         w.write("        @SuppressWarnings(\"unchecked\")\n");
         w.write("        public " + name + "(String name, String columnName, EntityModel<T> entityModel,\n");
-        w.write("                boolean nullable, boolean unique, boolean isId, boolean isVersion) {\n");
+        w.write("                boolean nullable, boolean unique, boolean isId, boolean isVersion,\n");
+        w.write("                int length, int precision, int scale,\n");
+        w.write("                boolean insertable, boolean updatable, String columnDefinition,\n");
+        w.write("                String generationStrategy, String versionStrategy) {\n");
         w.write("            this.name = name; this.columnName = columnName;\n");
         w.write("            this.entityModel = entityModel;\n");
         w.write("            this.nullable = nullable; this.unique = unique;\n");
         w.write("            this.isId = isId; this.isVersion = isVersion;\n");
+        w.write("            this.length = length; this.precision = precision; this.scale = scale;\n");
+        w.write("            this.insertable = insertable; this.updatable = updatable;\n");
+        w.write("            this.columnDefinition = columnDefinition;\n");
+        w.write("            this.generationStrategy = generationStrategy;\n");
+        w.write("            this.versionStrategy = versionStrategy;\n");
         w.write("            this.getter = resolveGetter();\n");
         w.write("            this.setter = resolveSetter();\n");
         w.write("        }\n\n");;
@@ -524,6 +677,29 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("        @Override public boolean isId() { return isId; }\n");
         w.write("        @Override public boolean isVersion() { return isVersion; }\n");
         w.write("        @Override public boolean isColumn() { return true; }\n");
+        w.write("        @Override public int getLength() { return length; }\n");
+        w.write("        @Override public int getPrecision() { return precision; }\n");
+        w.write("        @Override public int getScale() { return scale; }\n");
+        w.write("        @Override public boolean isInsertable() { return insertable; }\n");
+        w.write("        @Override public boolean isUpdatable() { return updatable; }\n");
+        w.write("        @Override public String getColumnDefinition() { return columnDefinition; }\n");
+        
+        // Generate getGenerationStrategy() for IdAttribute
+        if (f.isId()) {
+            String strategy = f.generationStrategy();
+            if (strategy != null) {
+                w.write("        @Override public IdAttribute.GenerationStrategy getGenerationStrategy() { return IdAttribute.GenerationStrategy." + strategy + "; }\n");
+            }
+        }
+        
+        // Generate getVersionStrategy() for VersionAttribute
+        if (f.isVersion()) {
+            String strategy = f.versionStrategy();
+            if (strategy != null) {
+                w.write("        @Override public VersionAttribute.VersionStrategy getVersionStrategy() { return VersionAttribute.VersionStrategy." + strategy + "; }\n");
+            }
+        }
+        
         w.write("        @Override public java.lang.invoke.MethodHandle getGetter() { return getter; }\n");
         w.write("        @Override public java.lang.invoke.MethodHandle getSetter() { return setter; }\n");
         w.write("        @Override @SuppressWarnings(\"unchecked\") public V get(T instance) {\n");
@@ -543,10 +719,10 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("                        java.lang.invoke.MethodHandles.lookup()\n");
         w.write("                    );\n");
         w.write("                return lookup.findGetter(\n");
-        w.write("                    entityModel.getEntityClass(), \"" + fieldName + "\", \"" + fieldType + "\"\n");
+        w.write("                    entityModel.getEntityClass(), \"" + fieldName + "\", " + fieldType + ".class\n");
         w.write("                );\n");
         w.write("            } catch (Exception e) {\n");
-        w.write("                throw new RuntimeException(\"Failed to resolve getter for \" + fieldName, e);\n");
+        w.write("                throw new RuntimeException(\"Failed to resolve getter for \" + name, e);\n");
         w.write("            }\n");
         w.write("        }\n\n");;
         w.write("        private java.lang.invoke.MethodHandle resolveSetter() {\n");
@@ -557,25 +733,42 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("                        java.lang.invoke.MethodHandles.lookup()\n");
         w.write("                    );\n");
         w.write("                return lookup.findSetter(\n");
-        w.write("                    entityModel.getEntityClass(), \"" + fieldName + "\", \"" + fieldType + "\"\n");
+        w.write("                    entityModel.getEntityClass(), \"" + fieldName + "\", " + fieldType + ".class\n");
         w.write("                );\n");
         w.write("            } catch (Exception e) {\n");
-        w.write("                throw new RuntimeException(\"Failed to resolve setter for \" + fieldName, e);\n");
+        w.write("                throw new RuntimeException(\"Failed to resolve setter for \" + name, e);\n");
         w.write("            }\n");
         w.write("        }\n\n");
 
         w.write("    }\n\n");
     }
 
+    private static String boxType(String type) {
+        return switch (type) {
+            case "int" -> "java.lang.Integer";
+            case "long" -> "java.lang.Long";
+            case "double" -> "java.lang.Double";
+            case "float" -> "java.lang.Float";
+            case "short" -> "java.lang.Short";
+            case "byte" -> "java.lang.Byte";
+            case "boolean" -> "java.lang.Boolean";
+            case "char" -> "java.lang.Character";
+            default -> type;
+        };
+    }
+
     private record EntityMetadata(
-        String packageName, String entityName, String tableName,
+        String packageName, String entityName, String entityQualifiedName, String tableName,
         String schema, String catalog, List<FieldMetadata> fields
     ) {}
 
     private record FieldMetadata(
         String name, String type, String column,
         boolean isId, boolean isVersion, boolean isGenerated,
-        boolean nullable, boolean unique, AttributeType attributeType
+        boolean nullable, boolean unique, AttributeType attributeType,
+        int length, int precision, int scale,
+        boolean insertable, boolean updatable, String columnDefinition,
+        String generationStrategy, String versionStrategy
     ) {}
 
     private enum AttributeType {
