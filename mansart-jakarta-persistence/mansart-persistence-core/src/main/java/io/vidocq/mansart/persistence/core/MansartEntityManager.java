@@ -8,6 +8,10 @@ import io.vidocq.mansart.data.dialect.DialectFactory;
 import io.vidocq.mansart.persistence.core.context.MansartPersistenceContext;
 import io.vidocq.mansart.persistence.core.dialect.DialectEntityModelAdapter;
 import io.vidocq.mansart.persistence.core.dialect.EntityMapper;
+import io.vidocq.mansart.persistence.core.jpql.JpqlAst;
+import io.vidocq.mansart.persistence.core.jpql.JpqlParser;
+import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor;
+import io.vidocq.mansart.persistence.core.jpql.MansartTypedQuery;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
@@ -52,6 +56,10 @@ public class MansartEntityManager implements EntityManager {
     private final DataSource dataSource;
     private volatile boolean joinedToJtaTransaction = false;
 
+    private final Dialect dialect;
+    private final MansartCallback callback;
+    private final DialectEntityModelAdapter adapter;
+
     private volatile FlushModeType flushMode = FlushModeType.AUTO;
     private volatile CacheRetrieveMode cacheRetrieveMode = CacheRetrieveMode.USE;
     private volatile CacheStoreMode cacheStoreMode = CacheStoreMode.USE;
@@ -76,6 +84,7 @@ public class MansartEntityManager implements EntityManager {
                                TransactionManager transactionManager, DataSource dataSource) {
         this.entityManagerFactory = entityManagerFactory;
         this.properties = properties;
+        this.callback = callback;
         this.dataSource = dataSource;
         
         // Resolve dialect and create EntityMapper if dataSource is available
@@ -83,8 +92,12 @@ public class MansartEntityManager implements EntityManager {
         EntityMapper entityMapper = null;
         if (dataSource != null) {
             dialect = resolveDialect(dataSource);
-            entityMapper = new EntityMapper(dialect, callback, new DialectEntityModelAdapter());
+            this.adapter = new DialectEntityModelAdapter();
+            entityMapper = new EntityMapper(dialect, callback, this.adapter);
+        } else {
+            this.adapter = null;
         }
+        this.dialect = dialect;
         
         this.persistenceContext = new MansartPersistenceContext(callback, entityMapper, dataSource);
         this.transactionType = transactionType;
@@ -173,12 +186,40 @@ public class MansartEntityManager implements EntityManager {
 
     // ── Query operations (JPQL/Criteria — M6, native — M12) ──────────────
 
-    @Override public Query createQuery(String qlString) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public Query createQuery(String qlString) {
+        ensureOpen();
+        if (dialect == null || adapter == null) {
+            throw new PersistenceException("EntityManager has no DataSource; cannot execute queries");
+        }
+        JpqlAst.JpqlStatement stmt = new JpqlParser().parse(qlString);
+        if (!(stmt instanceof JpqlAst.SelectStatement select)) {
+            throw new UnsupportedOperationException("Only SELECT queries are supported");
+        }
+        JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
+        JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
+        return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, plan.entityClass(), callback, plan.dialectModel(), plan.bindParameters());
+    }
     @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
     @Override public <T> TypedQuery<T> createQuery(CriteriaSelect<T> criteriaSelect) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
     @Override public Query createQuery(CriteriaUpdate<?> criteriaUpdate) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
     @Override public Query createQuery(CriteriaDelete<?> criteriaDelete) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
-    @Override public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
+    @Override public <T> TypedQuery<T> createQuery(String qlString, Class<T> resultClass) {
+        ensureOpen();
+        if (dialect == null || adapter == null) {
+            throw new PersistenceException("EntityManager has no DataSource; cannot execute queries");
+        }
+        JpqlAst.JpqlStatement stmt = new JpqlParser().parse(qlString);
+        if (!(stmt instanceof JpqlAst.SelectStatement select)) {
+            throw new UnsupportedOperationException("Only SELECT queries are supported");
+        }
+        JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
+        JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
+        // Ensure the result class matches the entity class from the query
+        if (!plan.entityClass().isAssignableFrom(resultClass)) {
+            throw new IllegalArgumentException("Result class " + resultClass.getName() + " is not assignable from entity class " + plan.entityClass().getName());
+        }
+        return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, resultClass, callback, plan.dialectModel(), plan.bindParameters());
+    }
     @Override public Query createNamedQuery(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
     @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> resultClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
     @Override public <T> TypedQuery<T> createQuery(TypedQueryReference<T> typedQueryReference) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }

@@ -29,6 +29,7 @@ public final class MansartCallback {
 
     private final Map<Class<?>, EntityAccessor<?>> accessorCache = new ConcurrentHashMap<>();
     private final Map<Class<?>, EntityModel<?>> modelCache = new ConcurrentHashMap<>();
+    private final Map<String, Class<?>> entityNameRegistry = new ConcurrentHashMap<>();
 
     /**
      * Creates a new MansartCallback with no pre-registered entities.
@@ -70,7 +71,23 @@ public final class MansartCallback {
      */
     @SuppressWarnings("unchecked")
     public <T> EntityModel<T> getEntityModel(Class<T> entityClass) {
+        entityNameRegistry.putIfAbsent(entityClass.getSimpleName(), entityClass);
         return (EntityModel<T>) modelCache.computeIfAbsent(entityClass, modelBuilder::build);
+    }
+
+    /**
+     * Resolves a JPQL entity name (e.g. "SimpleEntity") to its entity class.
+     *
+     * @param name the entity name from a JPQL FROM clause
+     * @return the entity class
+     * @throws IllegalArgumentException if the entity name is not registered
+     */
+    public Class<?> resolveEntityName(String name) {
+        Class<?> resolved = entityNameRegistry.get(name);
+        if (resolved == null) {
+            throw new IllegalArgumentException("Unknown entity name: " + name);
+        }
+        return resolved;
     }
 
     /**

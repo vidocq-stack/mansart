@@ -12,6 +12,7 @@ import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.FlushModeType;
 import jakarta.persistence.Persistence;
 import jakarta.persistence.PersistenceException;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import org.h2.jdbcx.JdbcDataSource;
@@ -283,10 +284,11 @@ class MansartEntityManagerTest {
     // ── UnsupportedOperationException on open EM ────────────────────────────
 
     @Test
-    void createQueryStringOnOpenEmThrowsUnsupportedOperationException() {
+    @DisplayName("createQuery(String) without DataSource throws PersistenceException")
+    void createQueryStringWithoutDataSourceThrowsPersistenceException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery("select e from E e"))
-                .isInstanceOf(UnsupportedOperationException.class);
+                .isInstanceOf(PersistenceException.class);
         em.close();
     }
 
@@ -323,10 +325,11 @@ class MansartEntityManagerTest {
     }
 
     @Test
-    void createQueryStringClassOnOpenEmThrowsUnsupportedOperationException() {
+    @DisplayName("createQuery(String, Class) without DataSource throws PersistenceException")
+    void createQueryStringClassWithoutDataSourceThrowsPersistenceException() {
         EntityManager em = openEm();
         assertThatThrownBy(() -> em.createQuery("select e from E e", Object.class))
-                .isInstanceOf(UnsupportedOperationException.class);
+                .isInstanceOf(PersistenceException.class);
         em.close();
     }
 
