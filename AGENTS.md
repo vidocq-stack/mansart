@@ -174,8 +174,12 @@ and duplicates a file you already have. Need more than the printed tail?
 `tail -n 200 .agent-logs/build.log` or `grep -n ERROR .agent-logs/build.log`.
 Never `cat file | tail`: that reads the whole file to show you its end.
 
-TCK runs: see the `mansart-jpa-tck` skill (out-of-reactor runner, profiles
-`tck-run` / `tck-pg`) — invoked through `verify`.
+TCK runs: `mansart-persistence-tck/run-official-tck-persistence-3.2.sh
+[tck-run|tck-pg|tck-sig]`, invoked through `verify`. It ends with a
+`TCK_RESULT=` line, and **`TCK_RESULT=DID_NOT_RUN` is not a pass**: zero tests
+executed means the suite never started, whatever the build status says. Across
+66 recorded runs of the previous version, that case was never distinguished
+from success. See the `mansart-jpa-tck` skill.
 
 ## Layout
 

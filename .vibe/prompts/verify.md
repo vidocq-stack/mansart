@@ -33,7 +33,8 @@ LOG: .agent-logs/verify.log
 
 If a suite did not run at all, say so explicitly — `tests=0` after a green
 build means the suite was skipped, not that everything passed. That
-distinction is the whole point of your existence.
+distinction is the whole point of your existence. The TCK runner states it
+outright: `TCK_RESULT=DID_NOT_RUN` is a failure, never "0 failures".
 
 ## Rules
 

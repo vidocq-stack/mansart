@@ -30,8 +30,10 @@ LOG="$(agent_log_path verify)"
 LAST="${LOG_DIR}/last.txt"
 TAIL_LINES="${VERIFY_TAIL_LINES:-60}"
 
-if [[ $# -eq 0 ]]; then
-    set -- test
+# Append the default goal unless one was supplied. Options alone are not a
+# goal — see agent_has_goal.
+if ! agent_has_goal "$@"; then
+    set -- "$@" test
 fi
 
 agent_run_maven "${LOG}" "$@"
@@ -42,7 +44,7 @@ agent_print_tail "${LOG}" "${TAIL_LINES}"
 # created before Maven starts and lives outside target/, so it is a stable
 # "written during this run" reference even across a `clean`.
 read -r TESTS FAILURES ERRORS SKIPPED <<<"$(
-    find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${LOG}" -print0 2>/dev/null \
+    find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${AGENT_STAMP}" -print0 2>/dev/null \
         | xargs -0 -r cat 2>/dev/null \
         | tr '>' '>\n' \
         | awk '
@@ -91,7 +93,7 @@ fi
 
 if [[ ${FAILURES} -gt 0 || ${ERRORS} -gt 0 ]]; then
     echo "--- failing tests ---"
-    find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${LOG}" -print0 2>/dev/null \
+    find "${ROOT}" -path '*/target/*-reports/TEST-*.xml' -newer "${AGENT_STAMP}" -print0 2>/dev/null \
         | xargs -0 -r grep -hoE '<testcase name="[^"]+" classname="[^"]+"' 2>/dev/null \
         | head -n 40 || true
 fi

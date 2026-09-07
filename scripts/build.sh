@@ -32,8 +32,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/_agent_build_lib.sh"
 LOG="$(agent_log_path build)"
 TAIL_LINES="${BUILD_TAIL_LINES:-60}"
 
-if [[ $# -eq 0 ]]; then
-    set -- clean install -DskipTests
+# Append the default goal unless one was supplied. Options alone are not a
+# goal — see agent_has_goal.
+if ! agent_has_goal "$@"; then
+    set -- "$@" clean install -DskipTests
 fi
 
 agent_run_maven "${LOG}" "$@"

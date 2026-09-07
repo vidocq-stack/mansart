@@ -57,7 +57,14 @@ _agent_timeout_prefix() {
 }
 
 # agent_run_maven <logfile> <maven args...>
-# Echoes nothing; sets AGENT_STATUS and AGENT_TIMED_OUT.
+# Echoes nothing; sets AGENT_STATUS, AGENT_TIMED_OUT and AGENT_STAMP.
+#
+# AGENT_STAMP is a file whose mtime is fixed at the moment the run starts. Use
+# it — never the log — as the `find -newer` reference when collecting surefire
+# XML: the log is appended to for the whole run, so its mtime ends up NEWER
+# than every report, and `-newer "$log"` silently matches nothing. That defect
+# made verify.sh report tests=0 on runs where surefire had plainly printed
+# "Tests run: 2, Failures: 1".
 agent_run_maven() {
     local log="$1"; shift
     local mvn; mvn="$(agent_mvn_cmd)"
@@ -76,6 +83,11 @@ agent_run_maven() {
         printf '=== follow with: tail -f %s\n\n' "${log}"
     } > "${log}"
 
+    # Fixed reference for "written during this run". Must be created BEFORE
+    # Maven starts and never touched again.
+    AGENT_STAMP="${log}.stamp"
+    : > "${AGENT_STAMP}"
+
     AGENT_STATUS=0
     # -B: batch mode, so no plugin can decide to prompt.
     # </dev/null: a build must never block waiting on input. Under an agent,
@@ -88,6 +100,30 @@ agent_run_maven() {
         AGENT_TIMED_OUT=1
         printf '\n=== KILLED after %ss by the wall-clock limit\n' "${BUILD_TIMEOUT}" >> "${log}"
     fi
+}
+
+# agent_has_goal <args...>
+# True if the argument list already names a Maven goal or lifecycle phase.
+#
+# Without this, the documented usage `./scripts/verify.sh -pl <module>` passes
+# only options, `$# -eq 0` is false, the default goal is never appended, and
+# Maven fails with "No goals have been specified for this build" — a confusing
+# error for a command straight out of the script's own header. Option VALUES
+# are not goals, so the options that take a separate value are skipped.
+agent_has_goal() {
+    local skip_next=0 a
+    for a in "$@"; do
+        if [[ ${skip_next} -eq 1 ]]; then skip_next=0; continue; fi
+        case "${a}" in
+            -f|--file|-pl|--projects|-P|--activate-profiles|-s|--settings|-gs|\
+            --global-settings|-T|--threads|-l|--log-file|-b|--builder|-rf|\
+            --resume-from|-t|--toolchains)
+                skip_next=1; continue ;;
+            -*) continue ;;
+            *) return 0 ;;
+        esac
+    done
+    return 1
 }
 
 # agent_print_tail <logfile> [lines]
