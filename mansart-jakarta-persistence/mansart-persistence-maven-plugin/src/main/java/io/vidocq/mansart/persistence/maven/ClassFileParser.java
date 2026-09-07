@@ -72,6 +72,10 @@ public final class ClassFileParser {
                 tableName = toSnakeCase(toPlural(simpleName));
             }
             
+            // Get schema and catalog from @Table annotation
+            String schema = getAnnotationValue(classModel, JAKARTA_PERSISTENCE_TABLE, "schema").orElse("");
+            String catalog = getAnnotationValue(classModel, JAKARTA_PERSISTENCE_TABLE, "catalog").orElse("");
+            
             // Extract fields from the class
             List<FieldMetadata> fields = new ArrayList<>();
             for (FieldModel fieldModel : classModel.fields()) {
@@ -81,7 +85,7 @@ public final class ClassFileParser {
                 }
             }
             
-            return new EntityMetadata(packageName, simpleName, tableName, "", "", fields);
+            return new EntityMetadata(packageName, simpleName, tableName, schema, catalog, fields);
             
         } catch (Exception e) {
             System.err.println("Failed to parse entity class " + className + ": " + e.getMessage());

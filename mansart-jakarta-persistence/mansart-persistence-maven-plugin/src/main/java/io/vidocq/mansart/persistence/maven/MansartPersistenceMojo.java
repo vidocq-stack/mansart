@@ -178,6 +178,8 @@ public class MansartPersistenceMojo extends AbstractMojo {
         String pkg = metadata.packageName();
         String simpleClassName = metadata.entityName();
         String tableName = metadata.tableName();
+        String schema = metadata.schema();
+        String catalog = metadata.catalog();
         
         StringBuilder sb = new StringBuilder();
         sb.append("package ").append(pkg).append(";\n\n");
@@ -186,15 +188,21 @@ public class MansartPersistenceMojo extends AbstractMojo {
         sb.append("public final class ").append(entityModelClassName).append("<T> implements EntityModel<T> {\n\n");
         sb.append("    private final Class<T> entityClass;\n");
         sb.append("    private final String tableName;\n");
+        sb.append("    private final String schema;\n");
+        sb.append("    private final String catalog;\n");
         sb.append("    private final List<Attribute<T, ?>> attributes;\n\n");
         sb.append("    @SuppressWarnings(\"unchecked\")\n");
         sb.append("    public ").append(entityModelClassName).append("(Class<T> entityClass) {\n");
         sb.append("        this.entityClass = Objects.requireNonNull(entityClass);\n");
         sb.append("        this.tableName = \"").append(tableName).append("\";\n");
+        sb.append("        this.schema = \"").append(schema).append("\";\n");
+        sb.append("        this.catalog = \"").append(catalog).append("\";\n");
         sb.append("        this.attributes = Collections.emptyList();\n");
         sb.append("    }\n");
         sb.append("    @Override public Class<T> getEntityClass() { return entityClass; }\n");
         sb.append("    @Override public String getTableName() { return tableName; }\n");
+        sb.append("    @Override public String getSchema() { return schema; }\n");
+        sb.append("    @Override public String getCatalog() { return catalog; }\n");
         sb.append("    @Override public List<Attribute<?, ?>> getAttributes() { return (List) attributes; }\n");
         sb.append("}\n");
         

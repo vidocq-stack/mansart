@@ -83,6 +83,25 @@ public class RuntimeEntityModelBuilderTest {
         assertThat(model.getTableName()).isEqualTo("custom_table");
     }
 
+    @Test
+    public void testBuildEntityModelExtractsSchemaAndCatalog() {
+        RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
+        EntityModel<SchemaAwareEntity> model = builder.build(SchemaAwareEntity.class);
+
+        assertThat(model.getTableName()).isEqualTo("schema_aware_entities");
+        assertThat(model.getSchema()).isEqualTo("inventory");
+        assertThat(model.getCatalog()).isEqualTo("warehouse");
+    }
+
+    @Test
+    public void testBuildEntityModelDefaultsSchemaAndCatalogWhenAbsent() {
+        RuntimeEntityModelBuilder builder = new RuntimeEntityModelBuilder();
+        EntityModel<CustomTableEntity> model = builder.build(CustomTableEntity.class);
+
+        assertThat(model.getSchema()).isEmpty();
+        assertThat(model.getCatalog()).isEmpty();
+    }
+
     // --- Test entities (NOT processed by APT or Maven plugin — simulating tier-3) ---
 
     @jakarta.persistence.Entity
@@ -114,6 +133,17 @@ public class RuntimeEntityModelBuilderTest {
     @jakarta.persistence.Entity
     @jakarta.persistence.Table(name = "custom_table")
     public static class CustomTableEntity {
+
+        @jakarta.persistence.Id
+        private Long id;
+
+        public Long getId() { return id; }
+        public void setId(Long id) { this.id = id; }
+    }
+
+    @jakarta.persistence.Entity
+    @jakarta.persistence.Table(name = "schema_aware_entities", schema = "inventory", catalog = "warehouse")
+    public static class SchemaAwareEntity {
 
         @jakarta.persistence.Id
         private Long id;
