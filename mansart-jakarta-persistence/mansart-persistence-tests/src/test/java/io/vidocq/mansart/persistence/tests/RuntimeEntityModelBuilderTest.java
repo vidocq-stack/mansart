@@ -15,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Builds EntityModel from class file bytes at bootstrap for entities
  * that neither APT nor the Maven plugin reached.
  */
-public class RuntimeEntityModelBuilderTest {
+class RuntimeEntityModelBuilderTest {
 
     @Test
     public void testBuildEntityModelFromTestClass() {

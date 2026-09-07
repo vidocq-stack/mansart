@@ -82,8 +82,8 @@ public final class DialectEntityModelAdapter {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private io.vidocq.mansart.data.dialect.attribute.IdAttribute buildIdAttribute(io.vidocq.mansart.persistence.spi.Attribute<?, ?> spiIdAttr) {
         // Determine if the id is generated based on the generation strategy
-        // Only IDENTITY and AUTO should set generated=true (post-insert strategies)
-        // SEQUENCE and TABLE allocate IDs before INSERT and must be included in the INSERT
+        // IDENTITY and AUTO use database-generated keys (post-insert)
+        // SEQUENCE and TABLE allocate IDs before INSERT and include the ID in the INSERT
         boolean generated = spiIdAttr instanceof io.vidocq.mansart.persistence.spi.IdAttribute<?, ?> idAttr
             && idAttr.getGenerationStrategy() != null
             && (idAttr.getGenerationStrategy() == io.vidocq.mansart.persistence.spi.IdAttribute.GenerationStrategy.IDENTITY

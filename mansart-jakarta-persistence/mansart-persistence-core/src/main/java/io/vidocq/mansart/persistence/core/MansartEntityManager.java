@@ -3,7 +3,11 @@
  */
 package io.vidocq.mansart.persistence.core;
 
+import io.vidocq.mansart.data.dialect.Dialect;
+import io.vidocq.mansart.data.dialect.DialectFactory;
 import io.vidocq.mansart.persistence.core.context.MansartPersistenceContext;
+import io.vidocq.mansart.persistence.core.dialect.DialectEntityModelAdapter;
+import io.vidocq.mansart.persistence.core.dialect.EntityMapper;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 import jakarta.persistence.*;
 import jakarta.persistence.criteria.*;
@@ -17,6 +21,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -71,10 +76,19 @@ public class MansartEntityManager implements EntityManager {
                                TransactionManager transactionManager, DataSource dataSource) {
         this.entityManagerFactory = entityManagerFactory;
         this.properties = properties;
-        this.persistenceContext = new MansartPersistenceContext(callback);
+        this.dataSource = dataSource;
+        
+        // Resolve dialect and create EntityMapper if dataSource is available
+        Dialect dialect = null;
+        EntityMapper entityMapper = null;
+        if (dataSource != null) {
+            dialect = resolveDialect(dataSource);
+            entityMapper = new EntityMapper(dialect, callback, new DialectEntityModelAdapter());
+        }
+        
+        this.persistenceContext = new MansartPersistenceContext(callback, entityMapper, dataSource);
         this.transactionType = transactionType;
         this.transactionManager = transactionManager;
-        this.dataSource = dataSource;
         this.entityTransaction = new MansartEntityTransaction();
     }
 
@@ -216,6 +230,19 @@ public class MansartEntityManager implements EntityManager {
             return status == Status.STATUS_ACTIVE && joinedToJtaTransaction;
         } catch (Exception _) {
             return false;
+        }
+    }
+
+    private static Dialect resolveDialect(DataSource ds) {
+        try (Connection c = ds.getConnection()) {
+            var md = c.getMetaData();
+            for (DialectFactory factory : ServiceLoader.load(DialectFactory.class)) {
+                if (factory.supports(md)) return factory.create();
+            }
+            throw new IllegalStateException("No DialectFactory accepts database product '"
+                    + md.getDatabaseProductName() + "'. Add a mansart-data-dialect-* JAR to the module path.");
+        } catch (SQLException e) {
+            throw new IllegalStateException("Failed to detect dialect from DataSource", e);
         }
     }
 

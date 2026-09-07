@@ -130,7 +130,7 @@ public class MansartPersistenceMojo extends AbstractMojo {
 
     private String pathToClassName(Path baseDir, Path classFile) {
         String relativePath = baseDir.relativize(classFile).toString();
-        return relativePath.replace('/', '.').replace('\\', '.').replace(".class", "");
+        return relativePath.replace('/', '.').replace(PATH_SEPARATOR_BACKSLASH, '.').replace(".class", "");
     }
 
     private boolean isEntityClass(Path classFile) {
@@ -476,6 +476,8 @@ public class MansartPersistenceMojo extends AbstractMojo {
         
         return typeName;
     }
+
+    private static final char PATH_SEPARATOR_BACKSLASH = '\\';
 
     private record EntityClassInfo(Path path, String className) {}
 }

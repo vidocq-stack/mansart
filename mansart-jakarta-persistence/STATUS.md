@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M5-JP-32 — Table mapping — DONE
-- **Milestone**: M5 (in progress)
+- **Card**: M5-JP-33 — Integration tests with H2 — DONE
+- **Milestone**: M5 (DONE) — M6 next
 
 ## Milestone Progress Overview
 
@@ -13,7 +13,7 @@
 | M2 | 5 | 5 | 100% | DONE |
 | M3 | 4 | 4 | 100% | DONE |
 | M4 | 6 | 6 | 100% | DONE |
-| M5 | 5 | 4 | 80% | IN_PROGRESS |
+| M5 | 5 | 5 | 100% | DONE |
 | M6 | 12 | 0 | 0% | TODO |
 | M7 | 12 | 0 | 0% | TODO |
 | M8 | 4 | 0 | 0% | TODO |
@@ -29,13 +29,13 @@
 | M18 | 4 | 0 | 0% | TODO |
 | M19 | 4 | 0 | 0% | TODO |
 | M20 | 6 | 0 | 0% | TODO |
-| **TOTAL** | **112** | **32** | **28.6%** | |
+| **TOTAL** | **112** | **33** | **29.5%** | |
 
 ---
 
 ## Metrics
 - **Baseline TCK**: 2/0/2 PASS (ProviderDiscoveryTest — harness works, provider discoverable)
-- **Unit Tests**: 252/252 PASS (mansart-persistence-tests module)
+- **Unit Tests**: 262/262 PASS (mansart-persistence-tests module)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -87,7 +87,7 @@
 - M5-JP-30 — ID generation (AUTO, IDENTITY, SEQUENCE, TABLE) — DONE
 - M5-JP-31 — Column mapping — DONE
 - M5-JP-32 — Table mapping — DONE
-- M5-JP-33 — Integration tests with H2 — TODO
+- M5-JP-33 — Integration tests with H2 — DONE
 
 ### M6 — Query Execution (JPQL)
 - M6-JP-34 — JPQL parser — TODO

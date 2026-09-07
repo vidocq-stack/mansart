@@ -44,9 +44,16 @@ public final class TableIdGenerator implements IdGenerator {
             ps.setString(1, pkColumnValue);
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    throw new SQLException("Generator table row not found for: " + pkColumnValue);
+                    // Auto-create the generator row if it does not exist
+                    try (PreparedStatement is = conn.prepareStatement(
+                            "INSERT INTO \"" + tableName + "\" (\"" + pkColumnName + "\", \"" + valueColumnName + "\") VALUES (?, 0)")) {
+                        is.setString(1, pkColumnValue);
+                        is.executeUpdate();
+                    }
+                    current = 0;
+                } else {
+                    current = rs.getLong(1);
                 }
-                current = rs.getLong(1);
             }
         }
 
