@@ -11,6 +11,8 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import jakarta.persistence.PersistenceException;
 
@@ -66,6 +68,13 @@ public final class EntityMapper {
             @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
+            // Collect names of non-insertable attributes from the SPI model
+            // (the data-dialect Attribute does not carry insertable/updatable flags)
+            Set<String> nonInsertable = spiModel.getAttributes().stream()
+                    .filter(a -> !a.isInsertable())
+                    .map(io.vidocq.mansart.persistence.spi.Attribute::getName)
+                    .collect(Collectors.toSet());
+
             // Allocate pre-insert IDs for SEQUENCE/TABLE strategies
             allocatePreInsertId(conn, entity, entityClass, spiModel);
 
@@ -86,6 +95,9 @@ public final class EntityMapper {
                 for (Attribute<?, ?> attr : attrs) {
                     if (generated && attr == dialectModel.id()) {
                         continue; // Skip id when generated
+                    }
+                    if (nonInsertable.contains(attr.name())) {
+                        continue;
                     }
                     Object value = callback.getAccessor(entityClass).get(entity, attr.name());
                     dialect.bind(ps, paramIndex++, value, wrap(attr.javaType()));
@@ -186,6 +198,12 @@ public final class EntityMapper {
             @SuppressWarnings({"unchecked", "rawtypes"})
             io.vidocq.mansart.data.dialect.EntityModel dialectModel = adapter.adapt(spiModel);
 
+            // Collect names of non-updatable attributes from the SPI model
+            Set<String> nonUpdatable = spiModel.getAttributes().stream()
+                    .filter(a -> !a.isUpdatable())
+                    .map(io.vidocq.mansart.persistence.spi.Attribute::getName)
+                    .collect(Collectors.toSet());
+
             Where where = new Where.Eq(dialectModel.id());
             SqlFragment sqlFragment = dialect.update(dialectModel, where);
 
@@ -199,7 +217,7 @@ public final class EntityMapper {
                 List<Attribute<?, ?>> attrs = dialectModel.attributes();
                 for (Attribute<?, ?> attr : attrs) {
                     String fieldName = attr.name();
-                    if (!fieldName.equals(idName) && !fieldName.equals(versionName)) {
+                    if (!fieldName.equals(idName) && !fieldName.equals(versionName) && !nonUpdatable.contains(fieldName)) {
                         Object value = callback.getAccessor(entityClass).get(entity, fieldName);
                         dialect.bind(ps, paramIndex++, value, wrap(attr.javaType()));
                     }

@@ -27,10 +27,18 @@ final class RuntimeAttribute<T, V> implements Attribute<T, V> {
     private final boolean version;
     private final boolean unique;
     private final boolean column;
+    private final int length;
+    private final int precision;
+    private final int scale;
+    private final boolean insertable;
+    private final boolean updatable;
+    private final String columnDefinition;
 
     RuntimeAttribute(String name, String columnName, EntityModel<T> entityModel,
                      Class<V> javaType, boolean nullable, boolean id, boolean version,
-                     boolean unique, boolean column) {
+                     boolean unique, boolean column,
+                     int length, int precision, int scale,
+                     boolean insertable, boolean updatable, String columnDefinition) {
         this.name = name;
         this.columnName = columnName;
         this.entityModel = entityModel;
@@ -40,6 +48,12 @@ final class RuntimeAttribute<T, V> implements Attribute<T, V> {
         this.version = version;
         this.unique = unique;
         this.column = column;
+        this.length = length;
+        this.precision = precision;
+        this.scale = scale;
+        this.insertable = insertable;
+        this.updatable = updatable;
+        this.columnDefinition = columnDefinition;
     }
 
     @Override
@@ -68,6 +82,24 @@ final class RuntimeAttribute<T, V> implements Attribute<T, V> {
 
     @Override
     public boolean isColumn() { return column; }
+
+    @Override
+    public int getLength() { return length; }
+
+    @Override
+    public int getPrecision() { return precision; }
+
+    @Override
+    public int getScale() { return scale; }
+
+    @Override
+    public boolean isInsertable() { return insertable; }
+
+    @Override
+    public boolean isUpdatable() { return updatable; }
+
+    @Override
+    public String getColumnDefinition() { return columnDefinition; }
 
     @Override
     public MethodHandle getGetter() {

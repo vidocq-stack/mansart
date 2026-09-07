@@ -168,6 +168,24 @@ public final class RuntimeEntityModelBuilder {
                 .map(Boolean::parseBoolean)
                 .orElse(false);
 
+        int length = getAnnotationValue(fieldModel, JPA_COLUMN, "length")
+                .map(Integer::parseInt)
+                .orElse(-1);
+        int precision = getAnnotationValue(fieldModel, JPA_COLUMN, "precision")
+                .map(Integer::parseInt)
+                .orElse(-1);
+        int scale = getAnnotationValue(fieldModel, JPA_COLUMN, "scale")
+                .map(Integer::parseInt)
+                .orElse(-1);
+        boolean insertable = getAnnotationValue(fieldModel, JPA_COLUMN, "insertable")
+                .map(Boolean::parseBoolean)
+                .orElse(true);
+        boolean updatable = getAnnotationValue(fieldModel, JPA_COLUMN, "updatable")
+                .map(Boolean::parseBoolean)
+                .orElse(true);
+        String columnDefinition = getAnnotationValue(fieldModel, JPA_COLUMN, "columnDefinition")
+                .orElse("");
+
         if (isId) {
             Optional<String> strategyOpt = getGeneratedValueStrategy(fieldModel);
             IdAttribute.GenerationStrategy strategy = null;
@@ -207,6 +225,8 @@ public final class RuntimeEntityModelBuilder {
             return new RuntimeIdAttribute<>(
                     name, columnName, entityModel,
                     (Class) javaType, nullable, isVersion, unique, true,
+                    length, precision, scale,
+                    insertable, updatable, columnDefinition,
                     strategy, generator,
                     sequenceName,
                     tableGeneratorTable,
@@ -217,7 +237,9 @@ public final class RuntimeEntityModelBuilder {
 
         return new RuntimeAttribute<>(
                 name, columnName, entityModel,
-                (Class) javaType, nullable, isId, isVersion, unique, true);
+                (Class) javaType, nullable, isId, isVersion, unique, true,
+                length, precision, scale,
+                insertable, updatable, columnDefinition);
     }
 
     // --- Annotation helpers ---

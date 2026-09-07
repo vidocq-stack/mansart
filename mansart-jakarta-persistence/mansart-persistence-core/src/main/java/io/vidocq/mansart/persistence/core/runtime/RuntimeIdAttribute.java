@@ -25,6 +25,12 @@ record RuntimeIdAttribute<T, V>(
         boolean version,
         boolean unique,
         boolean column,
+        int length,
+        int precision,
+        int scale,
+        boolean insertable,
+        boolean updatable,
+        String columnDefinition,
         IdAttribute.GenerationStrategy generationStrategy,
         String generator,
         String sequenceName,
@@ -60,6 +66,24 @@ record RuntimeIdAttribute<T, V>(
 
     @Override
     public boolean isColumn() { return column(); }
+
+    @Override
+    public int getLength() { return length(); }
+
+    @Override
+    public int getPrecision() { return precision(); }
+
+    @Override
+    public int getScale() { return scale(); }
+
+    @Override
+    public boolean isInsertable() { return insertable(); }
+
+    @Override
+    public boolean isUpdatable() { return updatable(); }
+
+    @Override
+    public String getColumnDefinition() { return columnDefinition(); }
 
     @Override
     public IdAttribute.GenerationStrategy getGenerationStrategy() {
