@@ -15,6 +15,9 @@ public class Employee {
     @Column(length = 255)
     private String name;
 
+    @Column
+    private Double salary;
+
     @ManyToOne
     @JoinColumn(name = "department_id")
     private Department department;
@@ -26,6 +29,9 @@ public class Employee {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public Double getSalary() { return salary; }
+    public void setSalary(Double salary) { this.salary = salary; }
 
     public Department getDepartment() { return department; }
     public void setDepartment(Department department) { this.department = department; }

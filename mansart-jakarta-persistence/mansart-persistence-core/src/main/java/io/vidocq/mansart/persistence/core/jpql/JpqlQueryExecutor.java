@@ -100,8 +100,16 @@ public final class JpqlQueryExecutor {
     private record PlanContext(
         EntityModel rootModel,
         Map<String, EntityModel> aliasToModel,
-        Map<String, JoinPath> aliasToJoinPath
-    ) {}
+        Map<String, JoinPath> aliasToJoinPath,
+        List<BindParameter> bindParameters
+    ) {
+        PlanContext {
+            Objects.requireNonNull(rootModel, "rootModel must not be null");
+            aliasToModel = aliasToModel == null ? Map.of() : Map.copyOf(aliasToModel);
+            aliasToJoinPath = aliasToJoinPath == null ? Map.of() : new java.util.HashMap<>(aliasToJoinPath);
+            bindParameters = bindParameters == null ? List.of() : List.copyOf(bindParameters);
+        }
+    }
 
     public record BindParameter(Object value, String paramName, Integer paramPosition, Attribute<?, ?> target) {
         public BindParameter {
@@ -150,7 +158,7 @@ public final class JpqlQueryExecutor {
         // Translate ORDER BY clause
         OrderBy orderBy = translateOrderBy(stmt.orderBy(), context);
 
-        // Check if this is an aggregate query
+        // Check if this is an aggregate or scalar projection query
         boolean isAggregate = isAggregateQuery(stmt.select().items());
         List<ProjectionInfo> projections = isAggregate ? buildProjections(stmt.select().items(), context) : List.of();
 
@@ -203,7 +211,7 @@ public final class JpqlQueryExecutor {
         if (alias != null && !alias.isEmpty()) {
             aliasMap.put(alias, dialectModel);
         }
-        PlanContext context = new PlanContext(dialectModel, aliasMap, java.util.Map.of());
+        PlanContext context = new PlanContext(dialectModel, aliasMap, java.util.Map.of(), List.of());
 
         // Resolve SET items to attributes
         List<Attribute<?, ?>> setAttrs = new ArrayList<>();
@@ -259,7 +267,7 @@ public final class JpqlQueryExecutor {
         if (alias != null && !alias.isEmpty()) {
             aliasMap.put(alias, dialectModel);
         }
-        PlanContext context = new PlanContext(dialectModel, aliasMap, java.util.Map.of());
+        PlanContext context = new PlanContext(dialectModel, aliasMap, java.util.Map.of(), List.of());
 
         // Translate WHERE clause
         io.vidocq.mansart.data.dialect.Where where = stmt.where() == null
@@ -282,18 +290,29 @@ public final class JpqlQueryExecutor {
         Map<String, EntityModel> aliasToModel = new HashMap<>();
         Map<String, JoinPath> aliasToJoinPath = new HashMap<>();
         
-        // Add root alias
-        String rootAlias = fromClause.declarations().getFirst() instanceof JpqlAst.RangeVarDecl rangeVar 
-            ? rangeVar.alias() 
-            : null;
-        if (rootAlias != null) {
-            aliasToModel.put(rootAlias, rootModel);
-            aliasToJoinPath.put(rootAlias, null); // Root has no join path
-        }
-        
-        // Process JOIN declarations
+        // Process all declarations in FROM clause
+        // Handle RangeVarDecl (root entity) and JoinDecl (joins)
         for (JpqlAst.IdentificationVarDeclaration decl : fromClause.declarations()) {
-            if (decl instanceof JpqlAst.JoinDecl joinDecl) {
+            if (decl instanceof JpqlAst.RangeVarDecl rangeVar) {
+                // Range variable declaration (root entity or additional FROM entity)
+                String alias = rangeVar.alias();
+                if (alias != null) {
+                    // For the first RangeVarDecl, use the provided rootModel
+                    // For additional RangeVarDecls, we need to resolve the entity
+                    EntityModel model;
+                    if (aliasToModel.isEmpty()) {
+                        // First RangeVarDecl - use the rootModel parameter
+                        model = rootModel;
+                    } else {
+                        // Additional RangeVarDecl - resolve the entity class and adapt
+                        Class<?> entityClass = callback.resolveEntityName(rangeVar.entityName());
+                        io.vidocq.mansart.persistence.spi.EntityModel spiModel = callback.getEntityModel(entityClass);
+                        model = adapter.adapt(spiModel);
+                    }
+                    aliasToModel.put(alias, model);
+                    aliasToJoinPath.put(alias, null); // No join path for root entities
+                }
+            } else if (decl instanceof JpqlAst.JoinDecl joinDecl) {
                 // Check join type support
                 if (joinDecl.type() != JpqlAst.JoinType.INNER) {
                     throw new PersistenceException("not implemented: " + joinDecl.type() + " join");
@@ -351,7 +370,7 @@ public final class JpqlQueryExecutor {
             }
         }
         
-        return new PlanContext(rootModel, aliasToModel, aliasToJoinPath);
+        return new PlanContext(rootModel, aliasToModel, aliasToJoinPath, new java.util.ArrayList<>());
     }
 
     /**
@@ -439,9 +458,19 @@ public final class JpqlQueryExecutor {
             return between.negated() ? new io.vidocq.mansart.data.dialect.Where.Not(w) : w;
         }
         if (cond instanceof JpqlAst.In in) {
+            // Handle IN with subquery: when items contains a single Subquery expression
+            if (in.items().size() == 1 && in.items().getFirst() instanceof JpqlAst.Subquery subquery) {
+                return translateInSubquery(in.expression(), subquery, in.negated(), context);
+            }
             Attribute<?, ?> attr = resolveAttribute(in.expression(), context);
             var w = new io.vidocq.mansart.data.dialect.Where.In(attr, in.items().size());
             return in.negated() ? new io.vidocq.mansart.data.dialect.Where.Not(w) : w;
+        }
+        if (cond instanceof JpqlAst.Exists exists) {
+            return translateExists(exists, context);
+        }
+        if (cond instanceof JpqlAst.AllAny allAny) {
+            return translateAllAny(allAny, context);
         }
         if (cond instanceof JpqlAst.Like like) {
             Attribute<?, ?> attr = resolveAttribute(like.expression(), context);
@@ -457,9 +486,175 @@ public final class JpqlQueryExecutor {
         throw new UnsupportedOperationException("Condition type not supported: " + cond.getClass().getSimpleName());
     }
 
+    private io.vidocq.mansart.data.dialect.Where translateExists(JpqlAst.Exists exists, PlanContext context) {
+        // Translate the subquery to SQL and parameters
+        SqlAndParams subqueryResult = translateSubquery((JpqlAst.Subquery) exists.subquery(), context);
+        
+        // Create EXISTS or NOT EXISTS condition
+        String sql = exists.negated()
+            ? "NOT EXISTS " + subqueryResult.sql()
+            : "EXISTS " + subqueryResult.sql();
+        return new io.vidocq.mansart.data.dialect.Where.RawSql(sql);
+    }
+
+    private io.vidocq.mansart.data.dialect.Where translateAllAny(JpqlAst.AllAny allAny, PlanContext context) {
+        // Translate the left expression
+        String leftSql = renderScalarExpr(allAny.expression(), context);
+        String operator = allAny.operator();
+        
+        // Translate the subquery to SQL and parameters
+        SqlAndParams subqueryResult = translateSubquery((JpqlAst.Subquery) allAny.subquery(), context);
+        
+        // Create quantified comparison condition
+        String sql = leftSql + " " + operator + " " + allAny.quantifier() + " " + subqueryResult.sql();
+        return new io.vidocq.mansart.data.dialect.Where.RawSql(sql);
+    }
+
+    private io.vidocq.mansart.data.dialect.Where translateInSubquery(JpqlAst.Expression expression, JpqlAst.Subquery subquery, boolean negated, PlanContext context) {
+        // Translate the left expression (the value to check)
+        String leftSql = renderScalarExpr(expression, context);
+        
+        // Translate the subquery to SQL and parameters
+        SqlAndParams subqueryResult = translateSubquery(subquery, context);
+        
+        // Create IN or NOT IN condition
+        String sql = negated
+            ? leftSql + " NOT IN " + subqueryResult.sql()
+            : leftSql + " IN " + subqueryResult.sql();
+        return new io.vidocq.mansart.data.dialect.Where.RawSql(sql);
+    }
+
+    private PlanContext buildSubqueryContext(JpqlAst.SelectStatement subStmt, PlanContext outerContext) {
+        JpqlAst.FromClause fromClause = subStmt.from();
+        JpqlAst.RangeVarDecl rangeVar = (JpqlAst.RangeVarDecl) fromClause.declarations().getFirst();
+        Class<?> subEntityClass = callback.resolveEntityName(rangeVar.entityName());
+        io.vidocq.mansart.persistence.spi.EntityModel subSpiModel = callback.getEntityModel(subEntityClass);
+        EntityModel subRootModel = adapter.adapt(subSpiModel);
+        
+        // Build the subquery's own context (only includes its own FROM aliases)
+        PlanContext subContext = buildPlanContext(fromClause, subRootModel, subEntityClass);
+        
+        // Merge outer context's alias maps into subquery context so correlated paths (e.g., e.department.id in subquery) can be resolved.
+        // Only add outer context aliases that don't already exist in the subquery context.
+        // This is critical for EXISTS, IN, ALL/ANY subqueries that reference outer query aliases.
+        Map<String, EntityModel> mergedAliasToModel = new HashMap<>(subContext.aliasToModel());
+        outerContext.aliasToModel().forEach((alias, model) -> {
+            if (!mergedAliasToModel.containsKey(alias)) {
+                mergedAliasToModel.put(alias, model);
+            }
+        });
+        
+        Map<String, JoinPath> mergedAliasToJoinPath = new HashMap<>(subContext.aliasToJoinPath());
+        outerContext.aliasToJoinPath().forEach((alias, joinPath) -> {
+            if (!mergedAliasToJoinPath.containsKey(alias)) {
+                mergedAliasToJoinPath.put(alias, joinPath);
+            }
+        });
+        
+        // Create new bind parameters list for subquery (initially empty, since we inline all values in subquery WHERE)
+        List<BindParameter> subqueryBindParams = new ArrayList<>();
+        
+        return new PlanContext(
+            subContext.rootModel(),
+            mergedAliasToModel,
+            mergedAliasToJoinPath,
+            subqueryBindParams
+        );
+    }
+
+    private SqlAndParams translateSubquery(JpqlAst.Subquery subquery, PlanContext context) {
+        // Recursively translate the subquery statement to SQL
+        // We need to create a minimal query plan for the subquery
+        JpqlAst.SelectStatement stmt = (JpqlAst.SelectStatement) subquery.statement();
+        
+        // For EXISTS, we only need the WHERE clause translated
+        // For IN, ALL/ANY, we need the SELECT to return a single column
+        // For scalar subqueries in comparisons, we need the single value
+        
+        // Build a minimal plan context for the subquery using its own FROM clause
+        // This merges outer context aliases into the subquery context so correlated paths (e.g., e.department.id in subquery) can be resolved
+        PlanContext subqueryContext = buildSubqueryContext(stmt, context);
+        
+        // Translate WHERE clause if present - inline all values to avoid bind parameter issues
+        io.vidocq.mansart.data.dialect.Where where = stmt.where() == null 
+            ? io.vidocq.mansart.data.dialect.Where.ALWAYS_TRUE 
+            : translateSubqueryCondition(stmt.where().condition(), subqueryContext);
+        
+        // Translate ORDER BY if present (though typically not used in subqueries)
+        OrderBy orderBy = translateOrderBy(stmt.orderBy(), subqueryContext);
+        
+        // Generate SQL fragment for the subquery
+        // We use selectColumns for scalar subqueries, select for EXISTS
+        SqlFragment sqlFragment;
+        if (stmt.select().items().size() == 1) {
+            // Single column - use selectColumns
+            JpqlAst.Expression selectItem = stmt.select().items().getFirst();
+            String columnSql;
+            if (selectItem instanceof JpqlAst.Path path) {
+                Attribute<?, ?> attr = resolveAttribute(path, subqueryContext);
+                columnSql = "\"" + attr.columnName() + "\"";
+            } else {
+                // For other expressions, render as SQL
+                columnSql = renderScalarExpr(selectItem, subqueryContext);
+            }
+            sqlFragment = dialect.selectColumns(
+                subqueryContext.rootModel(),
+                List.of(new Dialect.ProjectedColumn.Expr(columnSql)),
+                where,
+                orderBy,
+                io.vidocq.mansart.data.dialect.Pagination.NONE
+            );
+        } else {
+            // Multiple columns - use select
+            sqlFragment = dialect.select(
+                subqueryContext.rootModel(),
+                where,
+                orderBy,
+                io.vidocq.mansart.data.dialect.Pagination.NONE
+            );
+        }
+        
+        // Return both SQL and parameters (empty for subqueries with inlined values)
+        return new SqlAndParams("(" + sqlFragment.sql() + ")", Collections.emptyList());
+    }
+    
+    private record SqlAndParams(String sql, List<BindParameter> bindParameters) {}
+
     private io.vidocq.mansart.data.dialect.Where translateComparison(JpqlAst.Comparison cmp, PlanContext context) {
-        Attribute<?, ?> attr = resolveAttribute(cmp.left(), context);
         String op = cmp.operator();
+        
+        // Handle subquery on left side
+        if (cmp.left() instanceof JpqlAst.Subquery leftSubquery) {
+            SqlAndParams leftResult = translateSubquery(leftSubquery, context);
+            String leftSql = leftResult.sql();
+            String rightSql = renderScalarExpr(cmp.right(), context);
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + " " + op + " " + rightSql);
+        }
+        
+        // Handle subquery on right side
+        if (cmp.right() instanceof JpqlAst.Subquery rightSubquery) {
+            String leftSql = renderScalarExpr(cmp.left(), context);
+            SqlAndParams rightResult = translateSubquery(rightSubquery, context);
+            String rightSql = rightResult.sql();
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + " " + op + " " + rightSql);
+        }
+        
+        // Handle both sides being Path expressions (correlated subquery comparison)
+        if (cmp.left() instanceof JpqlAst.Path && cmp.right() instanceof JpqlAst.Path) {
+            String leftSql = renderScalarExpr(cmp.left(), context);
+            String rightSql = renderScalarExpr(cmp.right(), context);
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + " " + op + " " + rightSql);
+        }
+        
+        // Handle non-path expressions (functions, literals, etc.) on left side
+        if (!(cmp.left() instanceof JpqlAst.Path)) {
+            String leftSql = renderScalarExpr(cmp.left(), context);
+            String rightSql = renderScalarExpr(cmp.right(), context);
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + " " + op + " " + rightSql);
+        }
+        
+        // Handle regular path expression comparison
+        Attribute<?, ?> attr = resolveAttribute(cmp.left(), context);
         if ("=".equals(op)) {
             return new io.vidocq.mansart.data.dialect.Where.Eq(attr);
         }
@@ -484,6 +679,162 @@ public final class JpqlQueryExecutor {
         throw new UnsupportedOperationException("Comparison operator not supported: " + op);
     }
 
+    /**
+     * Translates a condition for use in a subquery, inlining all literal values
+     * to avoid bind parameter issues. Returns a Where.RawSql with the complete
+     * condition rendered as SQL.
+     */
+    private io.vidocq.mansart.data.dialect.Where translateSubqueryCondition(JpqlAst.Condition cond, PlanContext context) {
+        if (cond instanceof JpqlAst.Comparison cmp) {
+            // Handle both sides being Path expressions (correlated comparison)
+            if (cmp.left() instanceof JpqlAst.Path && cmp.right() instanceof JpqlAst.Path) {
+                String leftSql = renderScalarExpr(cmp.left(), context);
+                String rightSql = renderScalarExpr(cmp.right(), context);
+                String op = cmp.operator();
+                return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + " " + op + " " + rightSql);
+            }
+            
+            String leftSql = renderScalarExpr(cmp.left(), context);
+            String rightSql;
+            
+            // Handle Path on right side (correlated comparison)
+            if (cmp.right() instanceof JpqlAst.Path) {
+                rightSql = renderScalarExpr(cmp.right(), context);
+            }
+            // Handle Literal - inline the value
+            else if (cmp.right() instanceof JpqlAst.Literal lit) {
+                switch (lit.type()) {
+                    case STRING -> rightSql = "'" + lit.value() + "'";
+                    case INTEGER -> rightSql = lit.value();
+                    case FLOAT -> rightSql = lit.value();
+                    case BOOLEAN -> rightSql = lit.value().toUpperCase();
+                    case NULL -> rightSql = "NULL";
+                    default -> throw new UnsupportedOperationException("Literal type not supported in subquery: " + lit.type());
+                }
+            }
+            // Handle NamedParam and PositionalParam - these should not occur in subqueries
+            else if (cmp.right() instanceof JpqlAst.NamedParam || cmp.right() instanceof JpqlAst.PositionalParam) {
+                throw new UnsupportedOperationException("Parameters not supported in subquery conditions");
+            }
+            // Handle Subquery - should not occur in subquery WHERE
+            else if (cmp.right() instanceof JpqlAst.Subquery) {
+                throw new UnsupportedOperationException("Subquery in subquery WHERE not supported");
+            }
+            // Handle other expressions
+            else {
+                rightSql = renderScalarExpr(cmp.right(), context);
+            }
+            
+            String op = cmp.operator();
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + " " + op + " " + rightSql);
+        }
+        
+        if (cond instanceof JpqlAst.And and) {
+            List<String> parts = new ArrayList<>();
+            for (JpqlAst.Condition c : and.conditions()) {
+                parts.add(((io.vidocq.mansart.data.dialect.Where.RawSql) translateSubqueryCondition(c, context)).sql());
+            }
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(String.join(" AND ", parts));
+        }
+        
+        if (cond instanceof JpqlAst.Or or) {
+            List<String> parts = new ArrayList<>();
+            for (JpqlAst.Condition c : or.conditions()) {
+                parts.add(((io.vidocq.mansart.data.dialect.Where.RawSql) translateSubqueryCondition(c, context)).sql());
+            }
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(String.join(" OR ", parts));
+        }
+        
+        if (cond instanceof JpqlAst.Not not) {
+            String innerSql = ((io.vidocq.mansart.data.dialect.Where.RawSql) translateSubqueryCondition(not.condition(), context)).sql();
+            return new io.vidocq.mansart.data.dialect.Where.RawSql("NOT (" + innerSql + ")");
+        }
+        
+        if (cond instanceof JpqlAst.IsNull isNull) {
+            String exprSql = renderScalarExpr(isNull.expression(), context);
+            String notSql = isNull.negated() ? "NOT " : "";
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + exprSql + " IS NULL");
+        }
+        
+        if (cond instanceof JpqlAst.Between between) {
+            String exprSql = renderScalarExpr(between.expression(), context);
+            String lowSql = renderScalarExpr(between.low(), context);
+            String highSql = renderScalarExpr(between.high(), context);
+            String notSql = between.negated() ? "NOT " : "";
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + exprSql + " BETWEEN " + lowSql + " AND " + highSql);
+        }
+        
+        if (cond instanceof JpqlAst.In in) {
+            String exprSql = renderScalarExpr(in.expression(), context);
+            String notSql = in.negated() ? "NOT " : "";
+            
+            if (in.items().size() == 1 && in.items().getFirst() instanceof JpqlAst.Subquery) {
+                // IN with subquery - should not occur in subquery WHERE
+                throw new UnsupportedOperationException("Subquery in IN clause not supported in subquery WHERE");
+            }
+            
+            // Build list of inlined values
+            List<String> valueList = new ArrayList<>();
+            for (JpqlAst.Expression item : in.items()) {
+                if (item instanceof JpqlAst.Literal lit) {
+                    switch (lit.type()) {
+                        case STRING -> valueList.add("'" + lit.value() + "'");
+                        case INTEGER -> valueList.add(lit.value());
+                        case FLOAT -> valueList.add(lit.value());
+                        case BOOLEAN -> valueList.add(lit.value().toUpperCase());
+                        case NULL -> valueList.add("NULL");
+                        default -> throw new UnsupportedOperationException("Literal type not supported in IN: " + lit.type());
+                    }
+                } else {
+                    valueList.add(renderScalarExpr(item, context));
+                }
+            }
+            
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + exprSql + " IN (" + String.join(", ", valueList) + ")");
+        }
+        
+        if (cond instanceof JpqlAst.Like like) {
+            String exprSql = renderScalarExpr(like.expression(), context);
+            String patternSql = renderScalarExpr(like.pattern(), context);
+            String notSql = like.negated() ? "NOT " : "";
+            String escapeSql = like.escape() != null ? " ESCAPE '" + like.escape() + "'" : "";
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + exprSql + " LIKE " + patternSql + escapeSql);
+        }
+        
+        if (cond instanceof JpqlAst.Exists exists) {
+            if (exists.subquery() instanceof JpqlAst.Subquery sub) {
+                SqlAndParams subResult = translateSubquery(sub, context);
+                String notSql = exists.negated() ? "NOT " : "";
+                return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + "EXISTS " + subResult.sql());
+            }
+            throw new UnsupportedOperationException("EXISTS requires a subquery");
+        }
+        
+        if (cond instanceof JpqlAst.AllAny allAny) {
+            if (allAny.subquery() instanceof JpqlAst.Subquery sub) {
+                String leftSql = renderScalarExpr(allAny.expression(), context);
+                String opSql = " " + allAny.operator() + " " + allAny.quantifier() + " ";
+                SqlAndParams subResult = translateSubquery(sub, context);
+                return new io.vidocq.mansart.data.dialect.Where.RawSql(leftSql + opSql + subResult.sql());
+            }
+            throw new UnsupportedOperationException("ALL/ANY/SOME requires a subquery");
+        }
+        
+        if (cond instanceof JpqlAst.IsEmpty isEmpty) {
+            String exprSql = renderScalarExpr(isEmpty.expression(), context);
+            String notSql = isEmpty.negated() ? "NOT " : "";
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + exprSql + " IS EMPTY");
+        }
+        
+        if (cond instanceof JpqlAst.Member member) {
+            String exprSql = renderScalarExpr(member.expression(), context);
+            String notSql = member.negated() ? "NOT " : "";
+            return new io.vidocq.mansart.data.dialect.Where.RawSql(notSql + exprSql + " MEMBER OF " + member.collection());
+        }
+        
+        throw new UnsupportedOperationException("Cannot translate subquery condition: " + cond.getClass().getSimpleName());
+    }
+
     private Attribute<?, ?> resolveAttribute(JpqlAst.Expression expr, PlanContext context) {
         if (!(expr instanceof JpqlAst.Path path)) {
             throw new UnsupportedOperationException("Only simple path expressions are supported for attribute resolution, got: " + expr.getClass().getSimpleName());
@@ -504,11 +855,29 @@ public final class JpqlQueryExecutor {
             Attribute<?, ?> attr = findAttribute(currentModel, fieldName);
             
             if (attr instanceof ReferenceAttribute<?, ?> refAttr && i < fields.size() - 1) {
-                // This is a relationship attribute, not the leaf — traverse the join
-                // Get the target entity model
+                // For correlated subqueries, if the alias is from the outer context, we should not traverse
+                // the relationship, but instead resolve the FK column on the current table.
+                // This is because in JPQL, e.department.id means "the id of e's department", which in SQL
+                // is the FK column on the employees table (department_id), not the id column on the departments table.
+                // Only traverse if the currentModel is the referenced entity (i.e., we are in the subquery's own context).
                 Class<?> targetEntityClass = refAttr.javaType();
                 io.vidocq.mansart.persistence.spi.EntityModel targetSpiModel = callback.getEntityModel(targetEntityClass);
                 EntityModel targetDialectModel = adapter.adapt(targetSpiModel);
+                
+                // If the currentModel is NOT the targetDialectModel, then we are in a correlated subquery
+                // and should not traverse the relationship. Instead, we should return the FK column attribute
+                // from the currentModel.
+                if (!currentModel.equals(targetDialectModel)) {
+                    // Return the FK column attribute from the currentModel
+                    for (Object attrObj : currentModel.attributes()) {
+                        @SuppressWarnings("unchecked")
+                        Attribute<?, ?> a = (Attribute<?, ?>) attrObj;
+                        if (a.name().equalsIgnoreCase(fieldName)) {
+                            return a;
+                        }
+                    }
+                    throw new IllegalArgumentException("Could not resolve attribute: " + fields + " in entity " + currentModel.tableName());
+                }
                 
                 // Build the JoinPath step
                 JoinPath.Step step = new JoinPath.Step(
@@ -555,108 +924,137 @@ public final class JpqlQueryExecutor {
             return Collections.emptyList();
         }
         List<BindParameter> params = new ArrayList<>();
-        extractBindParameters(cond, params, context);
+        extractBindParameters(cond, params, null, context);
         return params;
     }
 
-    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, Attribute<?, ?> leftAttr, PlanContext context) {
-        if (cond instanceof JpqlAst.Comparison cmp) {
-            // Extract value from right-hand side expression
-            Object value = extractExpressionValue(cmp.right());
-            String paramName = null;
-            Integer paramPosition = null;
-            if (cmp.right() instanceof JpqlAst.NamedParam np) {
-                paramName = np.name();
-            } else if (cmp.right() instanceof JpqlAst.PositionalParam pp) {
-                paramPosition = pp.parameter();
-            }
-            params.add(new BindParameter(value, paramName, paramPosition, leftAttr));
-            return;
-        }
-        if (cond instanceof JpqlAst.And and) {
-            and.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, context));
-            return;
-        }
-        if (cond instanceof JpqlAst.Or or) {
-            or.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, context));
-            return;
-        }
-        if (cond instanceof JpqlAst.Not not) {
-            extractBindParameters(not.condition(), params, leftAttr, context);
-            return;
-        }
-        if (cond instanceof JpqlAst.IsNull) {
-            // no bind parameters
-            return;
-        }
-        if (cond instanceof JpqlAst.Between between) {
-            // low comes before high, matching dialect rendering order
-            extractBindParameterFromExpr(between.low(), leftAttr, params);
-            extractBindParameterFromExpr(between.high(), leftAttr, params);
-            return;
-        }
-        if (cond instanceof JpqlAst.In in) {
-            for (JpqlAst.Expression item : in.items()) {
-                extractBindParameterFromExpr(item, leftAttr, params);
-            }
-            return;
-        }
-        if (cond instanceof JpqlAst.Like like) {
-            extractBindParameterFromExpr(like.pattern(), leftAttr, params);
-            return;
-        }
-        if (cond instanceof JpqlAst.IsEmpty) {
-            // no bind parameters
-            return;
-        }
-        throw new UnsupportedOperationException("Cannot extract bind parameters from condition: " + cond.getClass().getSimpleName());
+    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, Attribute<?, ?> leftAttr, PlanContext outerContext) {
+        extractBindParameters(cond, params, leftAttr, outerContext, outerContext);
     }
 
-    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, PlanContext context) {
+    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, Attribute<?, ?> leftAttr, PlanContext outerContext, PlanContext subqueryContext) {
         if (cond == null) {
             return;
         }
         if (cond instanceof JpqlAst.Comparison cmp) {
-            Attribute<?, ?> leftAttr = resolveAttribute(cmp.left(), context);
-            extractBindParameters(cmp, params, leftAttr, context);
+            // Handle non-path expressions on left side (functions, literals, etc.)
+            if (!(cmp.left() instanceof JpqlAst.Path)) {
+                // Non-path comparison (e.g., function result) - parameters handled by renderScalarExpr
+                // If right side is a Path, it's a correlated comparison, not a bind parameter
+                if (cmp.right() instanceof JpqlAst.Path) {
+                    return;
+                }
+                // If right side is a subquery, recurse into it to extract WHERE parameters
+                if (cmp.right() instanceof JpqlAst.Subquery rightSubquery) {
+                    JpqlAst.SelectStatement subStmt = (JpqlAst.SelectStatement) rightSubquery.statement();
+                    if (subStmt.where() != null) {
+                        // Use a fresh mutable list for the subquery's bind parameters
+                        List<BindParameter> subqueryParams = new ArrayList<>();
+                        PlanContext subCtx = buildSubqueryContext(subStmt, outerContext);
+                        extractBindParameters(subStmt.where().condition(), subqueryParams, null, subCtx, subCtx);
+                        // Do not add subqueryParams to the outer params list; they are already inlined in the subquery SQL
+                    }
+                } else {
+                    extractBindParameterFromExpr(cmp.right(), null, params);
+                }
+                return;
+            }
+            // For path comparisons, extract bind parameters from the right side
+            // The left side is already resolved as leftAttr
+            if (cmp.right() instanceof JpqlAst.Subquery rightSubquery) {
+                JpqlAst.SelectStatement subStmt = (JpqlAst.SelectStatement) rightSubquery.statement();
+                if (subStmt.where() != null) {
+                    // Use a fresh mutable list for the subquery's bind parameters
+                    List<BindParameter> subqueryParams = new ArrayList<>();
+                    PlanContext subCtx = buildSubqueryContext(subStmt, outerContext);
+                    extractBindParameters(subStmt.where().condition(), subqueryParams, null, subCtx, subCtx);
+                    // Do not add subqueryParams to the outer params list; they are already inlined in the subquery SQL
+                }
+            } else if (!(cmp.right() instanceof JpqlAst.Path)) {
+                // Extract bind parameter from non-path right side
+                extractBindParameterFromExpr(cmp.right(), leftAttr != null ? leftAttr : resolveAttribute(cmp.left(), outerContext), params);
+            }
             return;
         }
         if (cond instanceof JpqlAst.And and) {
-            and.conditions().forEach(c -> extractBindParameters(c, params, context));
+            and.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, outerContext, subqueryContext));
             return;
         }
         if (cond instanceof JpqlAst.Or or) {
-            or.conditions().forEach(c -> extractBindParameters(c, params, context));
+            or.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, outerContext, subqueryContext));
             return;
         }
         if (cond instanceof JpqlAst.Not not) {
-            extractBindParameters(not.condition(), params, context);
+            extractBindParameters(not.condition(), params, leftAttr, outerContext, subqueryContext);
             return;
         }
         if (cond instanceof JpqlAst.IsNull) {
             return; // no bind parameters
         }
         if (cond instanceof JpqlAst.Between between) {
-            Attribute<?, ?> attr = resolveAttribute(between.expression(), context);
+            Attribute<?, ?> attr = leftAttr != null ? leftAttr : resolveAttribute(between.expression(), outerContext);
             // low comes before high, matching dialect rendering order
             extractBindParameterFromExpr(between.low(), attr, params);
             extractBindParameterFromExpr(between.high(), attr, params);
             return;
         }
         if (cond instanceof JpqlAst.In in) {
-            Attribute<?, ?> attr = resolveAttribute(in.expression(), context);
+            // Handle IN with subquery
+            if (in.items().size() == 1 && in.items().getFirst() instanceof JpqlAst.Subquery sub) {
+                JpqlAst.SelectStatement subStmt = (JpqlAst.SelectStatement) sub.statement();
+                if (subStmt.where() != null) {
+                    // Use a fresh mutable list for the subquery's bind parameters
+                    List<BindParameter> subqueryParams = new ArrayList<>();
+                    PlanContext subCtx = buildSubqueryContext(subStmt, outerContext);
+                    extractBindParameters(subStmt.where().condition(), subqueryParams, null, subCtx, subCtx);
+                    // Do not add subqueryParams to the outer params list; they are already inlined in the subquery SQL
+                }
+                return;
+            }
+            // Handle regular IN with values
+            Attribute<?, ?> attr = leftAttr != null ? leftAttr : resolveAttribute(in.expression(), outerContext);
             for (JpqlAst.Expression item : in.items()) {
                 extractBindParameterFromExpr(item, attr, params);
             }
             return;
         }
         if (cond instanceof JpqlAst.Like like) {
-            Attribute<?, ?> attr = resolveAttribute(like.expression(), context);
+            Attribute<?, ?> attr = leftAttr != null ? leftAttr : resolveAttribute(like.expression(), outerContext);
             extractBindParameterFromExpr(like.pattern(), attr, params);
             return;
         }
+        if (cond instanceof JpqlAst.Exists exists) {
+            if (exists.subquery() instanceof JpqlAst.Subquery sub) {
+                JpqlAst.SelectStatement subStmt = (JpqlAst.SelectStatement) sub.statement();
+                if (subStmt.where() != null) {
+                    // Use a fresh mutable list for the subquery's bind parameters
+                    List<BindParameter> subqueryParams = new ArrayList<>();
+                    PlanContext subCtx = buildSubqueryContext(subStmt, outerContext);
+                    extractBindParameters(subStmt.where().condition(), subqueryParams, null, subCtx, subCtx);
+                    // Do not add subqueryParams to the outer params list; they are already inlined in the subquery SQL
+                }
+            }
+            return;
+        }
+        if (cond instanceof JpqlAst.AllAny allAny) {
+            if (allAny.subquery() instanceof JpqlAst.Subquery sub) {
+                JpqlAst.SelectStatement subStmt = (JpqlAst.SelectStatement) sub.statement();
+                if (subStmt.where() != null) {
+                    // Use a fresh mutable list for the subquery's bind parameters to avoid infinite recursion
+                    List<BindParameter> subqueryParams = new ArrayList<>();
+                    PlanContext subCtx = buildSubqueryContext(subStmt, outerContext);
+                    extractBindParameters(subStmt.where().condition(), subqueryParams, null, subCtx, subCtx);
+                    // Do not add subqueryParams to the outer params list; they are already inlined in the subquery SQL
+                }
+            }
+            return;
+        }
+        if (cond instanceof JpqlAst.Member) {
+            return;
+        }
         if (cond instanceof JpqlAst.IsEmpty) {
-            return; // no bind parameters
+            // no bind parameters
+            return;
         }
         throw new UnsupportedOperationException("Cannot extract bind parameters from condition: " + cond.getClass().getSimpleName());
     }
@@ -695,11 +1093,16 @@ public final class JpqlQueryExecutor {
     }
 
     /**
-     * Returns true if any select item is an Aggregate or Func expression.
+     * Returns true if any select item is an Aggregate, Func, or scalar expression (CASE, COALESCE, NULLIF).
      */
     private boolean isAggregateQuery(List<JpqlAst.Expression> selectItems) {
         return selectItems.stream()
-            .anyMatch(expr -> expr instanceof JpqlAst.Aggregate || expr instanceof JpqlAst.Func);
+            .anyMatch(expr -> expr instanceof JpqlAst.Aggregate
+                || expr instanceof JpqlAst.Func
+                || expr instanceof JpqlAst.CaseExpr
+                || expr instanceof JpqlAst.SearchedCase
+                || expr instanceof JpqlAst.Coalesce
+                || expr instanceof JpqlAst.Nullif);
     }
 
     /**
@@ -1033,6 +1436,9 @@ public final class JpqlQueryExecutor {
             throw new UnsupportedOperationException("not implemented: parameters in CASE expressions");
         } else if (expr instanceof JpqlAst.PositionalParam) {
             throw new UnsupportedOperationException("not implemented: parameters in CASE expressions");
+        } else if (expr instanceof JpqlAst.Subquery subquery) {
+            // Scalar subquery: translate to SQL and wrap in parentheses
+            return translateSubquery(subquery, context).sql();
         } else if (expr instanceof JpqlAst.Binary bin) {
             // Binary expression: render both sides with operator
             return renderScalarExpr(bin.left(), context) + " " + bin.operator() + " " + renderScalarExpr(bin.right(), context);

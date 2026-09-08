@@ -64,6 +64,13 @@ public sealed interface Where {
      * portable {@code CHAR_LENGTH(...)}.
      */
     record Func(String fn, Where inner) implements Where {}
+    /**
+     * Carries a pre-rendered SQL predicate fragment. Used by JPQL subquery
+     * translation (EXISTS, IN-subquery, ALL/ANY/SOME, scalar subqueries) where
+     * the predicate cannot be expressed as attribute-based comparisons.
+     * The dialect renders it verbatim; it contributes no bind sites.
+     */
+    record RawSql(String sql) implements Where {}
     record AlwaysTrue() implements Where {}
     record AlwaysFalse() implements Where {}
 

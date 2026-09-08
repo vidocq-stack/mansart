@@ -175,7 +175,7 @@ tck ────────── core, cdi, processor (out of reactor)
 - M6-JP-42: String functions — CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE, INDEX — DONE (8/8 string function tests, 621/621 total)
 - M6-JP-43: Date/time functions — CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, LOCAL_DATE, LOCAL_TIME, LOCAL_DATETIME, EXTRACT — DONE (13/13 datetime function tests, 345/345 total, TCK 1/1/0)
 - M6-JP-44: CASE expressions — DONE (6/6 CASE expression tests, 634/634 total, TCK 1/1/0)
-- M6-JP-45: Subqueries — scalar, IN, EXISTS, ALL, ANY
+- M6-JP-45: Subqueries — scalar, IN, EXISTS, ALL, ANY — DONE
 
 ## M7 — Advanced Mapping
 - M7-JP-46: `@ManyToOne`, `@OneToOne` — owning side, foreign key mapping

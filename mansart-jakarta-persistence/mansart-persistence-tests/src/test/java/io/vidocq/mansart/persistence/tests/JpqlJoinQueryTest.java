@@ -68,8 +68,8 @@ class JpqlJoinQueryTest {
              Statement stmt = conn.createStatement()) {
             stmt.execute("DROP TABLE IF EXISTS \"employees\"");
             stmt.execute("DROP TABLE IF EXISTS \"departments\"");
-            stmt.execute("CREATE TABLE \"departments\" (\"id\" BIGINT PRIMARY KEY, \"name\" VARCHAR(255))");
-            stmt.execute("CREATE TABLE \"employees\" (\"id\" BIGINT PRIMARY KEY, \"name\" VARCHAR(255), \"department_id\" BIGINT)");
+            stmt.execute("CREATE TABLE \"departments\" (\"id\" BIGINT PRIMARY KEY, \"name\" VARCHAR(255), \"active\" BOOLEAN)");
+            stmt.execute("CREATE TABLE \"employees\" (\"id\" BIGINT PRIMARY KEY, \"name\" VARCHAR(255), \"salary\" DOUBLE, \"department_id\" BIGINT)");
         }
     }
 

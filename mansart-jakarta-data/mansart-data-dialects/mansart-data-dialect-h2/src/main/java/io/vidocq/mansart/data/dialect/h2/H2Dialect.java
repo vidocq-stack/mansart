@@ -364,6 +364,7 @@ public final class H2Dialect implements Dialect {
             case Where.IgnoreCase w -> renderIgnoreCase(sb, w.inner(), plan);
             // M8-1 — unary scalar function on the column (UPPER/LOWER/LENGTH/ABS).
             case Where.Func w -> renderFunc(sb, w.fn(), w.inner(), plan);
+            case Where.RawSql w -> sb.append(w.sql());
             case Where.AlwaysTrue ignored  -> sb.append("1=1");
             case Where.AlwaysFalse ignored -> sb.append("1=0");
         }

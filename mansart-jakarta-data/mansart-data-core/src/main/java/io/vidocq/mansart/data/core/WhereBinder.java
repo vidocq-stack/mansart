@@ -69,6 +69,7 @@ final class WhereBinder {
             // character count, so the bound parameter must be Integer instead of the column's
             // declared Java type.
             case Where.Func w -> psIdx = bindFunc(dialect, ps, w, args, psIdx, argCursor);
+            case Where.RawSql ignored5 -> { /* no bind */ }
             case Where.AlwaysTrue ignored3  -> { /* no bind */ }
             case Where.AlwaysFalse ignored4 -> { /* no bind */ }
         }

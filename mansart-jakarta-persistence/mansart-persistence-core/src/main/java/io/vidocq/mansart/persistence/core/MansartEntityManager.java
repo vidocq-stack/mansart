@@ -225,8 +225,8 @@ public class MansartEntityManager implements EntityManager {
         }
         JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
         JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
-        // For aggregate queries, skip the entity class assignability check
-        if (!plan.aggregate()) {
+        // For aggregate queries or scalar projections (CASE, COALESCE, etc.), skip the entity class assignability check
+        if (!plan.aggregate() && plan.projections().isEmpty()) {
             // Ensure the result class matches the entity class from the query
             if (!plan.entityClass().isAssignableFrom(resultClass)) {
                 throw new IllegalArgumentException("Result class " + resultClass.getName() + " is not assignable from entity class " + plan.entityClass().getName());

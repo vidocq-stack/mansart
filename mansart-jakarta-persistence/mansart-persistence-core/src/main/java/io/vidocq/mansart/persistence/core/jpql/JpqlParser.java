@@ -474,6 +474,15 @@ public final class JpqlParser {
     }
     
     private Condition parseSimpleCondition(int startPos) {
+        // EXISTS is a standalone condition (no left expression)
+        if (peek().type() == TokenType.EXISTS) {
+            consume();
+            expect(TokenType.LPAREN);
+            JpqlStatement subquery = parseSelectStatement();
+            expect(TokenType.RPAREN);
+            return new Exists(new Subquery(subquery, startPos), false, startPos);
+        }
+        
         // Parse comparison_expr, between_expr, in_expr, like_expr, etc.
         Expression left = parseScalarExpression();
         
@@ -482,6 +491,13 @@ public final class JpqlParser {
             peek().type() == TokenType.GT || peek().type() == TokenType.GE) {
             
             String op = consume().text();
+            if (peek().type() == TokenType.ALL || peek().type() == TokenType.ANY || peek().type() == TokenType.SOME) {
+                String quantifier = consume().text().toUpperCase();
+                expect(TokenType.LPAREN);
+                JpqlStatement subquery = parseSelectStatement();
+                expect(TokenType.RPAREN);
+                return new AllAny(left, op, quantifier, new Subquery(subquery, startPos), startPos);
+            }
             Expression right = parseScalarExpression();
             return new Comparison(op, left, right, startPos);
             
@@ -551,17 +567,6 @@ public final class JpqlParser {
                 expect(TokenType.OF);
                 String collection = parsePathExpression();
                 return new Member(left, collection, memberNegated, startPos);
-            } else if (peek().type() == TokenType.EXISTS) {
-                consume();
-                boolean existsNegated = false;
-                if (peek().type() == TokenType.NOT) {
-                    consume();
-                    existsNegated = true;
-                }
-                expect(TokenType.LPAREN);
-                JpqlStatement subquery = parseSelectStatement();
-                expect(TokenType.RPAREN);
-                return new Exists(new Subquery(subquery, startPos), existsNegated, startPos);
             } else {
                 throw error("Expected comparison operator or conditional expression");
             }
@@ -613,6 +618,11 @@ public final class JpqlParser {
         
         if (peek().type() == TokenType.LPAREN) {
             consume();
+            if (peek().type() == TokenType.SELECT) {
+                JpqlStatement subquery = parseSelectStatement();
+                expect(TokenType.RPAREN);
+                return new Subquery(subquery, startPos);
+            }
             Expression expr = parseArithmeticExpression();
             expect(TokenType.RPAREN);
             return expr;
@@ -625,6 +635,10 @@ public final class JpqlParser {
         Token token = peek();
         
         switch (token.type()) {
+            case SELECT:
+                // Subquery without enclosing parentheses (parentheses already consumed by caller)
+                JpqlStatement subqueryStmt = parseSelectStatement();
+                return new Subquery(subqueryStmt, startPos);
             case CASE:
                 consume(); // consume CASE
                 // Check if next token is WHEN (searched CASE) or something else (simple CASE)

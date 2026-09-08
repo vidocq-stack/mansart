@@ -13,6 +13,9 @@ public class Department {
     @Column(length = 255)
     private String name;
 
+    @Column
+    private boolean active;
+
     public Department() {}
 
     public Long getId() { return id; }
@@ -20,4 +23,7 @@ public class Department {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 }
