@@ -172,7 +172,7 @@ tck ────────── core, cdi, processor (out of reactor)
 - M6-JP-39: DELETE queries — WHERE — DONE (5/5 delete tests, 594/594 total)
 - M6-JP-40: Named and positional parameters — DONE (11/11 parameter tests, 605/605 total)
 - M6-JP-41: Aggregate functions — COUNT, SUM, AVG, MIN, MAX — DONE (8/8 aggregate tests, 613/613 total)
-- M6-JP-42: String functions — CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE, INDEX
+- M6-JP-42: String functions — CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE, INDEX — DONE (8/8 string function tests, 621/621 total)
 - M6-JP-43: Date/time functions — CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, EXTRACT
 - M6-JP-44: CASE expressions
 - M6-JP-45: Subqueries — scalar, IN, EXISTS, ALL, ANY
