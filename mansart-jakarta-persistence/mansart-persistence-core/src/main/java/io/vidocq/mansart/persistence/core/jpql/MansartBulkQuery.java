@@ -273,15 +273,8 @@ public final class MansartBulkQuery implements Query {
 
     @Override
     public <U> Parameter<U> getParameter(String name, Class<U> type) {
-        Parameter<?> param = getParameter(name);
-        if (!type.isAssignableFrom(param.getParameterType())) {
-            throw new IllegalArgumentException(
-                "Parameter type mismatch: expected " + type.getName() + ", got " + param.getParameterType().getName()
-            );
-        }
-        @SuppressWarnings("unchecked")
-        Parameter<U> cast = (Parameter<U>) param;
-        return cast;
+        getParameter(name);
+        return new MansartParameter<>(name, null, type);
     }
 
     @Override
@@ -296,15 +289,8 @@ public final class MansartBulkQuery implements Query {
 
     @Override
     public <U> Parameter<U> getParameter(int position, Class<U> type) {
-        Parameter<?> param = getParameter(position);
-        if (!type.isAssignableFrom(param.getParameterType())) {
-            throw new IllegalArgumentException(
-                "Parameter type mismatch: expected " + type.getName() + ", got " + param.getParameterType().getName()
-            );
-        }
-        @SuppressWarnings("unchecked")
-        Parameter<U> cast = (Parameter<U>) param;
-        return cast;
+        getParameter(position);
+        return new MansartParameter<>(null, position, type);
     }
 
     @Override
