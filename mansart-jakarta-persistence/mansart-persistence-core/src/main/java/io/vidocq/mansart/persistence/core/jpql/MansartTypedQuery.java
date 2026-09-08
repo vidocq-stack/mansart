@@ -12,13 +12,14 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Set;
 
 import javax.sql.DataSource;
 
@@ -42,6 +43,7 @@ import io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor.BindParameter;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
+import jakarta.persistence.TemporalType;
 
 /**
  * TypedQuery implementation that executes JPQL SELECT statements.
@@ -153,17 +155,44 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
 
     @Override
     public <U> TypedQuery<T> setParameter(Parameter<U> param, U value) {
-        throw new UnsupportedOperationException("not implemented: setParameter(Parameter)");
+        if (param == null) {
+            throw new IllegalArgumentException("Parameter must not be null");
+        }
+        if (param.getName() != null) {
+            return setParameter(param.getName(), value);
+        } else if (param.getPosition() != null) {
+            return setParameter(param.getPosition(), value);
+        } else {
+            throw new IllegalArgumentException("Parameter must have a name or position");
+        }
     }
 
     @Override
     public TypedQuery<T> setParameter(Parameter<Date> param, Date value, TemporalType temporalType) {
-        throw new UnsupportedOperationException("not implemented: setParameter(Parameter, Date, TemporalType)");
+        if (param == null) {
+            throw new IllegalArgumentException("Parameter must not be null");
+        }
+        if (param.getName() != null) {
+            return setParameter(param.getName(), value, temporalType);
+        } else if (param.getPosition() != null) {
+            return setParameter(param.getPosition(), value, temporalType);
+        } else {
+            throw new IllegalArgumentException("Parameter must have a name or position");
+        }
     }
 
     @Override
     public TypedQuery<T> setParameter(Parameter<Calendar> param, Calendar value, TemporalType temporalType) {
-        throw new UnsupportedOperationException("not implemented: setParameter(Parameter, Calendar, TemporalType)");
+        if (param == null) {
+            throw new IllegalArgumentException("Parameter must not be null");
+        }
+        if (param.getName() != null) {
+            return setParameter(param.getName(), value, temporalType);
+        } else if (param.getPosition() != null) {
+            return setParameter(param.getPosition(), value, temporalType);
+        } else {
+            throw new IllegalArgumentException("Parameter must have a name or position");
+        }
     }
 
     @Override
@@ -174,12 +203,20 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
 
     @Override
     public TypedQuery<T> setParameter(String name, Date value, TemporalType temporalType) {
-        throw new UnsupportedOperationException("not implemented: setParameter(String, Date, TemporalType)");
+        if (value == null) {
+            return setParameter(name, (Object) null);
+        }
+        Object converted = convertTemporal(value, temporalType);
+        return setParameter(name, converted);
     }
 
     @Override
     public TypedQuery<T> setParameter(String name, Calendar value, TemporalType temporalType) {
-        throw new UnsupportedOperationException("not implemented: setParameter(String, Calendar, TemporalType)");
+        if (value == null) {
+            return setParameter(name, (Object) null);
+        }
+        Object converted = convertTemporal(value, temporalType);
+        return setParameter(name, converted);
     }
 
     @Override
@@ -197,57 +234,177 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
 
     @Override
     public TypedQuery<T> setParameter(int position, Date value, TemporalType temporalType) {
-        throw new UnsupportedOperationException("not implemented: setParameter(int, Date, TemporalType)");
+        if (value == null) {
+            return setParameter(position, (Object) null);
+        }
+        Object converted = convertTemporal(value, temporalType);
+        return setParameter(position, converted);
     }
 
     @Override
     public TypedQuery<T> setParameter(int position, Calendar value, TemporalType temporalType) {
-        throw new UnsupportedOperationException("not implemented: setParameter(int, Calendar, TemporalType)");
+        if (value == null) {
+            return setParameter(position, (Object) null);
+        }
+        Object converted = convertTemporal(value, temporalType);
+        return setParameter(position, converted);
     }
 
     @Override
     public Set<Parameter<?>> getParameters() {
-        throw new UnsupportedOperationException("not implemented: getParameters");
+        return declaredParameters();
     }
 
     @Override
     public Parameter<?> getParameter(String name) {
-        throw new UnsupportedOperationException("not implemented: getParameter(String)");
+        for (Parameter<?> p : declaredParameters()) {
+            if (Objects.equals(name, p.getName())) {
+                return p;
+            }
+        }
+        throw new IllegalArgumentException("Parameter with name '" + name + "' not found");
     }
 
     @Override
     public <U> Parameter<U> getParameter(String name, Class<U> type) {
-        throw new UnsupportedOperationException("not implemented: getParameter(String, Class)");
+        Parameter<?> param = getParameter(name);
+        if (!type.isAssignableFrom(param.getParameterType())) {
+            throw new IllegalArgumentException(
+                "Parameter type mismatch: expected " + type.getName() + ", got " + param.getParameterType().getName()
+            );
+        }
+        @SuppressWarnings("unchecked")
+        Parameter<U> cast = (Parameter<U>) param;
+        return cast;
     }
 
     @Override
     public Parameter<?> getParameter(int position) {
-        throw new UnsupportedOperationException("not implemented: getParameter(int)");
+        for (Parameter<?> p : declaredParameters()) {
+            if (Objects.equals(position, p.getPosition())) {
+                return p;
+            }
+        }
+        throw new IllegalArgumentException("Parameter at position " + position + " not found");
     }
 
     @Override
     public <U> Parameter<U> getParameter(int position, Class<U> type) {
-        throw new UnsupportedOperationException("not implemented: getParameter(int, Class)");
+        Parameter<?> param = getParameter(position);
+        if (!type.isAssignableFrom(param.getParameterType())) {
+            throw new IllegalArgumentException(
+                "Parameter type mismatch: expected " + type.getName() + ", got " + param.getParameterType().getName()
+            );
+        }
+        @SuppressWarnings("unchecked")
+        Parameter<U> cast = (Parameter<U>) param;
+        return cast;
     }
 
     @Override
     public boolean isBound(Parameter<?> param) {
-        throw new UnsupportedOperationException("not implemented: isBound");
+        if (param == null) {
+            throw new IllegalArgumentException("Parameter must not be null");
+        }
+        if (param.getName() != null) {
+            if (!declaredParameters().stream().anyMatch(p -> Objects.equals(p.getName(), param.getName()))) {
+                throw new IllegalArgumentException("Parameter '" + param.getName() + "' is not declared in this query");
+            }
+            return namedParams.containsKey(param.getName());
+        } else if (param.getPosition() != null) {
+            if (!declaredParameters().stream().anyMatch(p -> Objects.equals(p.getPosition(), param.getPosition()))) {
+                throw new IllegalArgumentException("Parameter at position " + param.getPosition() + " is not declared in this query");
+            }
+            int pos = param.getPosition();
+            return pos >= 1 && pos <= positionalParams.size() && positionalParams.get(pos - 1) != null;
+        } else {
+            throw new IllegalArgumentException("Parameter must have a name or position");
+        }
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <U> U getParameterValue(Parameter<U> param) {
-        throw new UnsupportedOperationException("not implemented: getParameterValue(Parameter)");
+        if (param == null) {
+            throw new IllegalArgumentException("Parameter must not be null");
+        }
+        if (param.getName() != null) {
+            return (U) getParameterValue(param.getName());
+        } else if (param.getPosition() != null) {
+            return (U) getParameterValue(param.getPosition());
+        } else {
+            throw new IllegalArgumentException("Parameter must have a name or position");
+        }
     }
 
     @Override
     public Object getParameterValue(String name) {
-        throw new UnsupportedOperationException("not implemented: getParameterValue(String)");
+        if (name == null) {
+            throw new IllegalArgumentException("Parameter name must not be null");
+        }
+        if (!declaredParameters().stream().anyMatch(p -> Objects.equals(p.getName(), name))) {
+            throw new IllegalArgumentException("Parameter '" + name + "' is not declared in this query");
+        }
+        Object val = namedParams.get(name);
+        if (val == null) {
+            throw new IllegalStateException("Parameter '" + name + "' is not bound");
+        }
+        return val;
     }
 
     @Override
     public Object getParameterValue(int position) {
-        throw new UnsupportedOperationException("not implemented: getParameterValue(int)");
+        if (position < 1) {
+            throw new IllegalArgumentException("Position must be >= 1");
+        }
+        if (!declaredParameters().stream().anyMatch(p -> Objects.equals(p.getPosition(), position))) {
+            throw new IllegalArgumentException("Parameter at position " + position + " is not declared in this query");
+        }
+        Object val = positionalParams.get(position - 1);
+        if (val == null) {
+            throw new IllegalStateException("Parameter at position " + position + " is not bound");
+        }
+        return val;
+    }
+
+    private Set<Parameter<?>> declaredParameters() {
+        Set<Parameter<?>> params = new LinkedHashSet<>();
+        for (BindParameter bp : bindParameters) {
+            if (bp.isNamed()) {
+                params.add(new MansartParameter<>(bp.paramName(), null, Object.class));
+            } else if (bp.isPositional()) {
+                params.add(new MansartParameter<>(null, bp.paramPosition(), Object.class));
+            }
+        }
+        return Collections.unmodifiableSet(params);
+    }
+
+    private Object convertTemporal(Date value, TemporalType temporalType) {
+        Objects.requireNonNull(temporalType, "temporalType must not be null");
+        switch (temporalType) {
+            case DATE:
+                return new java.sql.Date(value.getTime());
+            case TIME:
+                return new java.sql.Time(value.getTime());
+            case TIMESTAMP:
+                return new java.sql.Timestamp(value.getTime());
+            default:
+                throw new IllegalArgumentException("Unknown TemporalType: " + temporalType);
+        }
+    }
+
+    private Object convertTemporal(Calendar value, TemporalType temporalType) {
+        Objects.requireNonNull(temporalType, "temporalType must not be null");
+        switch (temporalType) {
+            case DATE:
+                return new java.sql.Date(value.getTimeInMillis());
+            case TIME:
+                return new java.sql.Time(value.getTimeInMillis());
+            case TIMESTAMP:
+                return new java.sql.Timestamp(value.getTimeInMillis());
+            default:
+                throw new IllegalArgumentException("Unknown TemporalType: " + temporalType);
+        }
     }
 
     @Override
