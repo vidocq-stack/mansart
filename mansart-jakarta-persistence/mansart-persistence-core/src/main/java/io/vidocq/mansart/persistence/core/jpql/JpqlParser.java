@@ -329,22 +329,65 @@ public final class JpqlParser {
             alias = consume().text();
         }
         
-        UpdateClause updateClause = new UpdateClause(entityName, alias, startPos);
-        
+        // Parse SET clause
         expect(TokenType.SET);
-        
-        // Parse SET items (for now just parse as expression, full SET clause parsing would go here)
-        // We'll just consume tokens until WHERE or end
-        while (peek().type() != TokenType.WHERE && peek().type() != TokenType.EOF) {
-            consume();
-        }
+        List<SetItem> setItems = parseSetClause();
         
         WhereClause whereClause = null;
         if (peek().type() == TokenType.WHERE) {
             whereClause = parseWhereClause();
         }
         
+        UpdateClause updateClause = new UpdateClause(entityName, alias, setItems, startPos);
         return new UpdateStatement(updateClause, whereClause, startPos);
+    }
+    
+    private List<SetItem> parseSetClause() {
+        List<SetItem> setItems = new ArrayList<>();
+        int position = peek().position();
+        
+        // Parse first SET item
+        setItems.add(parseSetItem());
+        
+        // Parse additional SET items separated by commas
+        while (peek().type() == TokenType.COMMA) {
+            consume(); // consume comma
+            setItems.add(parseSetItem());
+        }
+        
+        return setItems;
+    }
+    
+    private SetItem parseSetItem() {
+        int startPos = peek().position();
+        
+        // Parse field reference: [alias.]field_name
+        String fieldName;
+        String alias = null;
+        
+        if (peek().type() == TokenType.IDENTIFIER) {
+            String first = consume().text();
+            
+            if (peek().type() == TokenType.DOT) {
+                consume(); // consume dot
+                if (peek().type() != TokenType.IDENTIFIER) {
+                    throw error("Expected identifier after dot in field reference");
+                }
+                alias = first;
+                fieldName = consume().text();
+            } else {
+                fieldName = first;
+            }
+        } else {
+            throw error("Expected field name in SET clause");
+        }
+        
+        expect(TokenType.EQ);
+        
+        // Parse value expression
+        Expression valueExpr = parseExpression();
+        
+        return new SetItem(fieldName, valueExpr, startPos);
     }
     
     private DeleteStatement parseDeleteStatement() {

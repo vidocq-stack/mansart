@@ -48,7 +48,9 @@ public final class JpqlAst {
 
     public record OrderByItem(Expression expression, boolean ascending, Boolean nullsFirst) {}
 
-    public record UpdateClause(String entityName, String alias, int position) {}
+    public record SetItem(String field, Expression value, int position) {}
+
+    public record UpdateClause(String entityName, String alias, List<SetItem> setItems, int position) {}
 
     public record DeleteClause(String entityName, String alias, int position) {}
 

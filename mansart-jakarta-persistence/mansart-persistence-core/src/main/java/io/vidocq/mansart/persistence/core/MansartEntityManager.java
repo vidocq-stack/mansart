@@ -11,6 +11,7 @@ import io.vidocq.mansart.persistence.core.dialect.EntityMapper;
 import io.vidocq.mansart.persistence.core.jpql.JpqlAst;
 import io.vidocq.mansart.persistence.core.jpql.JpqlParser;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor;
+import io.vidocq.mansart.persistence.core.jpql.MansartBulkQuery;
 import io.vidocq.mansart.persistence.core.jpql.MansartTypedQuery;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 import jakarta.persistence.*;
@@ -192,12 +193,17 @@ public class MansartEntityManager implements EntityManager {
             throw new PersistenceException("EntityManager has no DataSource; cannot execute queries");
         }
         JpqlAst.JpqlStatement stmt = new JpqlParser().parse(qlString);
-        if (!(stmt instanceof JpqlAst.SelectStatement select)) {
-            throw new UnsupportedOperationException("Only SELECT queries are supported");
+        if (stmt instanceof JpqlAst.SelectStatement select) {
+            JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
+            JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
+            return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, plan.entityClass(), callback, plan.dialectModel(), plan.bindParameters());
         }
-        JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
-        JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
-        return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, plan.entityClass(), callback, plan.dialectModel(), plan.bindParameters());
+        if (stmt instanceof JpqlAst.UpdateStatement update) {
+            JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
+            JpqlQueryExecutor.UpdatePlan plan = executor.plan(update);
+            return new MansartBulkQuery(plan, dialect, dataSource, callback);
+        }
+        throw new UnsupportedOperationException("Only SELECT and UPDATE queries are supported");
     }
     @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
     @Override public <T> TypedQuery<T> createQuery(CriteriaSelect<T> criteriaSelect) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
@@ -210,7 +216,7 @@ public class MansartEntityManager implements EntityManager {
         }
         JpqlAst.JpqlStatement stmt = new JpqlParser().parse(qlString);
         if (!(stmt instanceof JpqlAst.SelectStatement select)) {
-            throw new UnsupportedOperationException("Only SELECT queries are supported");
+            throw new IllegalArgumentException("createQuery(String, Class) is only for SELECT queries; for bulk UPDATE/DELETE use createQuery(String)");
         }
         JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
         JpqlQueryExecutor.QueryPlan plan = executor.plan(select);

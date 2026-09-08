@@ -63,6 +63,20 @@ public final class JpqlQueryExecutor {
         }
     }
 
+    public record UpdatePlan(
+        String sql,
+        Class<?> entityClass,
+        EntityModel dialectModel,
+        List<BindParameter> bindParameters
+    ) {
+        public UpdatePlan {
+            Objects.requireNonNull(sql, "sql must not be null");
+            Objects.requireNonNull(entityClass, "entityClass must not be null");
+            Objects.requireNonNull(dialectModel, "dialectModel must not be null");
+            bindParameters = List.copyOf(bindParameters == null ? List.of() : bindParameters);
+        }
+    }
+
     private record PlanContext(
         EntityModel rootModel,
         Map<String, EntityModel> aliasToModel,
@@ -131,6 +145,63 @@ public final class JpqlQueryExecutor {
         );
 
         return new QueryPlan(sqlFragment, entityClass, context.rootModel(), bindParameters);
+    }
+
+    public UpdatePlan plan(JpqlAst.UpdateStatement stmt) {
+        JpqlAst.UpdateClause update = stmt.update();
+        String entityName = update.entityName();
+
+        Class<?> entityClass = callback.resolveEntityName(entityName);
+        if (entityClass == null) {
+            throw new IllegalArgumentException("Unknown entity name: " + entityName);
+        }
+
+        io.vidocq.mansart.persistence.spi.EntityModel spiModel = callback.getEntityModel(entityClass);
+        EntityModel dialectModel = adapter.adapt(spiModel);
+
+        String alias = update.alias();
+        Map<String, EntityModel> aliasMap = new HashMap<>();
+        if (alias != null && !alias.isEmpty()) {
+            aliasMap.put(alias, dialectModel);
+        }
+        PlanContext context = new PlanContext(dialectModel, aliasMap, java.util.Map.of());
+
+        // Resolve SET items to attributes
+        List<Attribute<?, ?>> setAttrs = new ArrayList<>();
+        List<BindParameter> setBindParams = new ArrayList<>();
+        for (JpqlAst.SetItem item : update.setItems()) {
+            Attribute<?, ?> attr = findAttribute(dialectModel, item.field());
+            setAttrs.add(attr);
+            Object value = extractExpressionValue(item.value());
+            String paramName = null;
+            Integer paramPosition = null;
+            if (item.value() instanceof JpqlAst.NamedParam np) {
+                paramName = np.name();
+            } else if (item.value() instanceof JpqlAst.PositionalParam pp) {
+                paramPosition = pp.parameter();
+            }
+            setBindParams.add(new BindParameter(value, paramName, paramPosition, attr));
+        }
+
+        // Translate WHERE clause
+        io.vidocq.mansart.data.dialect.Where where = stmt.where() == null
+            ? io.vidocq.mansart.data.dialect.Where.ALWAYS_TRUE
+            : translateCondition(stmt.where().condition(), context);
+
+        // Generate SQL via dialect.updateSet
+        SqlFragment sqlFragment = dialect.updateSet(dialectModel, setAttrs, where);
+
+        // Extract WHERE bind parameters
+        List<BindParameter> whereBindParams = extractBindParameters(
+            stmt.where() == null ? null : stmt.where().condition(),
+            context
+        );
+
+        // SET bind params come first (matching SQL column order), then WHERE params
+        List<BindParameter> allParams = new ArrayList<>(setBindParams);
+        allParams.addAll(whereBindParams);
+
+        return new UpdatePlan(sqlFragment.sql(), entityClass, dialectModel, allParams);
     }
 
     private PlanContext buildPlanContext(JpqlAst.FromClause fromClause, EntityModel rootModel, Class<?> rootEntityClass) {
