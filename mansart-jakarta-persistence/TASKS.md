@@ -166,7 +166,7 @@ tck ────────── core, cdi, processor (out of reactor)
 ## M6 — Query Execution (JPQL)
 - M6-JP-34: JPQL parser — recursive descent, hand-written (no ANTLR)
 - M6-JP-35: SELECT queries — projection, DISTINCT, WHERE, GROUP BY, HAVING, ORDER BY
-- M6-JP-36: FROM clause — entity names, joins (INNER, LEFT, RIGHT, CROSS), fetch joins
+- M6-JP-36: FROM clause — entity names, joins (INNER, LEFT, RIGHT, CROSS), fetch joins — DONE (5/5 join tests, 568/568 total)
 - M6-JP-37: WHERE expressions — comparisons, logical operators, IN, BETWEEN, LIKE, IS NULL, IS EMPTY, functions
 - M6-JP-38: UPDATE queries — SET clause, WHERE
 - M6-JP-39: DELETE queries — WHERE

@@ -278,7 +278,22 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         String columnDefinition = getColumnDefinition(field);
         String generationStrategy = determineGenerationStrategy(field, isId);
         String versionStrategy = determineVersionStrategy(field, type);
-        return new FieldMetadata(name, type, column, isId, isVersion, isGenerated, nullable, unique, attrType, length, precision, scale, insertable, updatable, columnDefinition, generationStrategy, versionStrategy);
+        String relationshipType = null;
+        String referencedEntityType = null;
+        String fetchType = null;
+        boolean owningSide = false;
+        if (isManyToOne) {
+            relationshipType = "MANY_TO_ONE";
+            referencedEntityType = type;
+            fetchType = "EAGER";
+            owningSide = true;
+        } else if (isOneToOne) {
+            relationshipType = "ONE_TO_ONE";
+            referencedEntityType = type;
+            fetchType = "EAGER";
+            owningSide = true;
+        }
+        return new FieldMetadata(name, type, column, isId, isVersion, isGenerated, nullable, unique, attrType, length, precision, scale, insertable, updatable, columnDefinition, generationStrategy, versionStrategy, relationshipType, referencedEntityType, fetchType, owningSide);
     }
 
     private String getColumnName(VariableElement field) {
@@ -529,6 +544,11 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             w.write("            " + f.insertable() + ", " + f.updatable() + ", \"" + f.columnDefinition() + "\",\n");
             w.write("            \"" + (f.generationStrategy() != null ? f.generationStrategy() : "") + "\",\n");
             w.write("            \"" + (f.versionStrategy() != null ? f.versionStrategy() : "") + "\"\n");
+            if (f.attributeType() == AttributeType.REFERENCE) {
+                w.write(",\n            \"" + f.relationshipType() + "\", \"" + f.referencedEntityType() + "\", \"" + f.fetchType() + "\", " + f.owningSide() + "\n");
+            } else {
+                w.write(",\n            null, null, null, false\n");
+            }
             w.write("        ));\n");
         }
 
@@ -649,13 +669,18 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write(TWELVE_SPACES + "private final String generationStrategy;\n");
         w.write(TWELVE_SPACES + "private final String versionStrategy;\n");
         w.write(TWELVE_SPACES + "private final java.lang.invoke.MethodHandle getter, setter;\n\n");
+        if (f.attributeType() == AttributeType.REFERENCE) {
+            w.write(TWELVE_SPACES + "private final String relationshipType, referencedEntityType, fetchType;\n");
+            w.write(TWELVE_SPACES + "private final boolean owningSide;\n");
+            w.write(TWELVE_SPACES + "private final EntityModel<V> referencedEntityModel;\n");
+        }
 
         w.write("        @SuppressWarnings(\"unchecked\")\n");
         w.write("        public " + name + "(String name, String columnName, EntityModel<T> entityModel,\n");
         w.write("                boolean nullable, boolean unique, boolean isId, boolean isVersion,\n");
         w.write("                int length, int precision, int scale,\n");
         w.write("                boolean insertable, boolean updatable, String columnDefinition,\n");
-        w.write("                String generationStrategy, String versionStrategy) {\n");
+        w.write("                String generationStrategy, String versionStrategy,\n                String relationshipType, String referencedEntityType, String fetchType, boolean owningSide) {\n");
         w.write("            this.name = name; this.columnName = columnName;\n");
         w.write("            this.entityModel = entityModel;\n");
         w.write("            this.nullable = nullable; this.unique = unique;\n");
@@ -665,6 +690,13 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("            this.columnDefinition = columnDefinition;\n");
         w.write("            this.generationStrategy = generationStrategy;\n");
         w.write("            this.versionStrategy = versionStrategy;\n");
+            if (f.attributeType() == AttributeType.REFERENCE) {
+                w.write("            this.relationshipType = relationshipType;\n");
+                w.write("            this.referencedEntityType = referencedEntityType;\n");
+                w.write("            this.fetchType = fetchType;\n");
+                w.write("            this.owningSide = owningSide;\n");
+                w.write("            this.referencedEntityModel = resolveReferencedEntityModel();\n");
+            }
         w.write("            this.getter = resolveGetter();\n");
         w.write("            this.setter = resolveSetter();\n");
         w.write("        }\n\n");;
@@ -684,6 +716,14 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("        @Override public boolean isInsertable() { return insertable; }\n");
         w.write("        @Override public boolean isUpdatable() { return updatable; }\n");
         w.write("        @Override public String getColumnDefinition() { return columnDefinition; }\n");
+        if (f.attributeType() == AttributeType.REFERENCE) {
+            w.write("        @Override @SuppressWarnings(\"unchecked\") public EntityModel<V> getReferencedEntityModel() { return referencedEntityModel; }\n");
+            w.write("        @Override public String[] getForeignKeyColumns() { return new String[] { columnName }; }\n");
+            w.write("        @Override public ReferenceAttribute.FetchType getFetchType() { return ReferenceAttribute.FetchType.valueOf(fetchType); }\n");
+            w.write("        @Override public boolean isOwningSide() { return owningSide; }\n");
+            w.write("        @Override public boolean isInverseSide() { return !owningSide; }\n");
+            w.write("        @Override public ReferenceAttribute.RelationshipType getRelationshipType() { return ReferenceAttribute.RelationshipType.valueOf(relationshipType); }\n");
+        }
         
         // Generate getGenerationStrategy() for IdAttribute
         if (f.isId()) {
@@ -741,6 +781,20 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         w.write("            }\n");
         w.write("        }\n\n");
 
+        if (f.attributeType() == AttributeType.REFERENCE) {
+            w.write("        @SuppressWarnings(\"unchecked\")\n");
+            w.write("        private EntityModel<V> resolveReferencedEntityModel() {\n");
+            w.write("            try {\n");
+            w.write("                String pkg = entityModel.getEntityClass().getPackageName();\n");
+            w.write("                String simpleName = referencedEntityType.substring(referencedEntityType.lastIndexOf('.') + 1);\n");
+            w.write("                Class<?> modelClass = Class.forName(pkg + \"._\" + simpleName);\n");
+            w.write("                return (EntityModel<V>) modelClass.getDeclaredConstructor().newInstance();\n");
+            w.write("            } catch (Exception e) {\n");
+            w.write("                throw new RuntimeException(\"Failed to resolve referenced entity model for \" + name, e);\n");
+            w.write("            }\n");
+            w.write("        }\n");
+            w.write("\n");
+        }
         w.write("    }\n\n");
     }
 
@@ -778,7 +832,8 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         boolean nullable, boolean unique, AttributeType attributeType,
         int length, int precision, int scale,
         boolean insertable, boolean updatable, String columnDefinition,
-        String generationStrategy, String versionStrategy
+        String generationStrategy, String versionStrategy,
+        String relationshipType, String referencedEntityType, String fetchType, boolean owningSide
     ) {}
 
     private enum AttributeType {

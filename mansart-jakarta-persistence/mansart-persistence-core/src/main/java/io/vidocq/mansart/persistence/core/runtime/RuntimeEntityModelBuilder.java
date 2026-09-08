@@ -6,6 +6,7 @@ package io.vidocq.mansart.persistence.core.runtime;
 import io.vidocq.mansart.persistence.spi.Attribute;
 import io.vidocq.mansart.persistence.spi.EntityModel;
 import io.vidocq.mansart.persistence.spi.IdAttribute;
+import io.vidocq.mansart.persistence.spi.ReferenceAttribute;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -38,6 +39,9 @@ public final class RuntimeEntityModelBuilder {
     private static final String JPA_GENERATED_VALUE = "Ljakarta/persistence/GeneratedValue;";
     private static final String JPA_SEQUENCE_GENERATOR = "Ljakarta/persistence/SequenceGenerator;";
     private static final String JPA_TABLE_GENERATOR = "Ljakarta/persistence/TableGenerator;";
+    private static final String JPA_MANY_TO_ONE = "Ljakarta/persistence/ManyToOne;";
+    private static final String JPA_ONE_TO_ONE = "Ljakarta/persistence/OneToOne;";
+    private static final String JPA_JOIN_COLUMN = "Ljakarta/persistence/JoinColumn;";
 
     private static final String SEQUENCE_NAME = "SEQUENCE_NAME";
     private static final String SEQUENCE_NEXT_VAL = "SEQUENCE_NEXT_VAL";
@@ -84,7 +88,17 @@ public final class RuntimeEntityModelBuilder {
             return hasAnnotation(fieldModel, JPA_VERSION);
         }
 
+        boolean isReference() {
+            return hasAnnotation(fieldModel, JPA_MANY_TO_ONE) || hasAnnotation(fieldModel, JPA_ONE_TO_ONE);
+        }
+
         String getColumnName() {
+            // Check @JoinColumn first for relationship fields
+            Optional<String> joinColumnName = getAnnotationValue(fieldModel, JPA_JOIN_COLUMN, "name");
+            if (joinColumnName.isPresent() && !joinColumnName.get().isEmpty()) {
+                return joinColumnName.get();
+            }
+            // Fall back to @Column
             return getAnnotationValue(fieldModel, JPA_COLUMN, "name")
                     .filter(n -> !n.isEmpty())
                     .orElseGet(() -> toSnakeCase(getName()));
@@ -253,6 +267,11 @@ public final class RuntimeEntityModelBuilder {
                     length, precision, scale, insertable, updatable, columnDefinition);
         }
 
+        if (ctx.isReference()) {
+            return parseReferenceAttribute(ctx, name, columnName, javaType, nullable, isId, isVersion, unique,
+                    length, precision, scale, insertable, updatable, columnDefinition);
+        }
+
         return new RuntimeAttribute<>(
                 name, columnName, ctx.entityModel,
                 (Class) javaType, nullable, isId, isVersion, unique, true,
@@ -313,6 +332,62 @@ public final class RuntimeEntityModelBuilder {
                 tablePkColumnName,
                 tableValueColumnName,
                 tablePkColumnValue);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private <T, V> RuntimeReferenceAttribute<T, V> parseReferenceAttribute(FieldParsingContext ctx, String name, String columnName,
+                                                                         Class<V> javaType, boolean nullable, boolean isId, boolean isVersion,
+                                                                         boolean unique, int length, int precision, int scale,
+                                                                         boolean insertable, boolean updatable, String columnDefinition) {
+        // Determine relationship type
+        ReferenceAttribute.RelationshipType relationshipType;
+        if (hasAnnotation(ctx.fieldModel, JPA_MANY_TO_ONE)) {
+            relationshipType = ReferenceAttribute.RelationshipType.MANY_TO_ONE;
+        } else if (hasAnnotation(ctx.fieldModel, JPA_ONE_TO_ONE)) {
+            relationshipType = ReferenceAttribute.RelationshipType.ONE_TO_ONE;
+        } else {
+            throw new IllegalStateException("Field " + name + " is marked as reference but has no @ManyToOne or @OneToOne annotation");
+        }
+
+        // Determine fetch type (default to EAGER)
+        ReferenceAttribute.FetchType fetchType = ReferenceAttribute.FetchType.EAGER;
+        Optional<String> fetchTypeOpt = getAnnotationValue(ctx.fieldModel, "Ljakarta/persistence/FetchType;", "value");
+        if (fetchTypeOpt.isPresent()) {
+            try {
+                fetchType = ReferenceAttribute.FetchType.valueOf(fetchTypeOpt.get());
+            } catch (IllegalArgumentException e) {
+                // Default to EAGER if invalid
+                fetchType = ReferenceAttribute.FetchType.EAGER;
+            }
+        }
+
+        // Determine owning side (ManyToOne is always owning)
+        boolean owningSide = relationshipType == ReferenceAttribute.RelationshipType.MANY_TO_ONE;
+
+        // Get referenced entity type from the field's type
+        Class<?> referencedClass = ctx.getJavaType();
+        EntityModel<V> referencedEntityModel;
+        try {
+            // Build the referenced entity model using this builder
+            referencedEntityModel = (EntityModel<V>) new RuntimeEntityModelBuilder(warningCollector)
+                    .build((Class<V>) referencedClass);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to build entity model for referenced class " + referencedClass.getName(), e);
+        }
+
+        // Parse JoinColumn annotations
+        ReferenceAttribute.JoinColumn[] joinColumns = parseJoinColumns(ctx.fieldModel);
+
+        return new RuntimeReferenceAttribute<>(
+                name, columnName, ctx.entityModel,
+                (Class) javaType, nullable, unique, isId, isVersion, true,
+                length, precision, scale,
+                insertable, updatable, columnDefinition,
+                relationshipType,
+                fetchType,
+                owningSide,
+                referencedEntityModel,
+                joinColumns);
     }
 
     // --- Annotation helpers ---
@@ -529,5 +604,56 @@ public final class RuntimeEntityModelBuilder {
             }
         }
         return result;
+    }
+
+    private static ReferenceAttribute.JoinColumn[] parseJoinColumns(FieldModel fieldModel) {
+        Optional<Annotation> joinColumnAnnotation = getAnnotations(fieldModel).stream()
+                .filter(ann -> ann.className().toString().equals(JPA_JOIN_COLUMN))
+                .findFirst();
+
+        if (joinColumnAnnotation.isEmpty()) {
+            // No @JoinColumn annotation, return empty array
+            return new ReferenceAttribute.JoinColumn[0];
+        }
+
+        Annotation ann = joinColumnAnnotation.get();
+        String name = "";
+        String referencedColumnName = "";
+        boolean nullable = true;
+        boolean unique = false;
+        boolean insertable = true;
+        boolean updatable = true;
+
+        for (AnnotationElement element : ann.elements()) {
+            String elName = element.name().toString();
+            AnnotationValue val = element.value();
+            if (val instanceof AnnotationValue.OfString sv) {
+                String strVal = sv.stringValue();
+                switch (elName) {
+                    case "name" -> name = strVal;
+                    case "referencedColumnName" -> referencedColumnName = strVal;
+                    case "columnDefinition" -> { /* ignore, not in JoinColumn */ }
+                }
+            } else if (val instanceof AnnotationValue.OfBoolean bv) {
+                boolean boolVal = bv.booleanValue();
+                switch (elName) {
+                    case "nullable" -> nullable = boolVal;
+                    case "unique" -> unique = boolVal;
+                    case "insertable" -> insertable = boolVal;
+                    case "updatable" -> updatable = boolVal;
+                }
+            }
+        }
+
+        ReferenceAttribute.JoinColumn joinColumn = new ReferenceAttribute.JoinColumn(
+                name,
+                referencedColumnName,
+                nullable,
+                unique,
+                insertable,
+                updatable
+        );
+
+        return new ReferenceAttribute.JoinColumn[] { joinColumn };
     }
 }

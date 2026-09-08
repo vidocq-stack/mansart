@@ -38,6 +38,7 @@ import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.data.dialect.SqlFragment;
+import io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor.BindParameter;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
@@ -336,6 +337,9 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
         T entity = callback.instantiate(entityClass);
         List<Attribute<?, ?>> attrs = dialectModel.attributes();
         for (Attribute<?, ?> attr : attrs) {
+            if (attr instanceof ReferenceAttribute<?, ?>) {
+                continue;
+            }
             Object value = dialect.extract(rs, rs.findColumn(attr.columnName()), wrap(attr.javaType()));
             callback.getAccessor(entityClass).set(entity, attr.name(), value);
         }

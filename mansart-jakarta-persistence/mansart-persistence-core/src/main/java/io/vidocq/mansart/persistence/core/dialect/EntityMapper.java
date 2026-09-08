@@ -81,7 +81,7 @@ public final class EntityMapper {
             }
 
             try (ps) {
-                bindInsertParameters(ps, entityClass, entity, dialectModel, generated);
+                bindInsertParameters(ps, entityClass, entity, dialectModel, generated, spiModel);
 
                 int affected = ps.executeUpdate();
                 if (affected != 1) {
@@ -107,15 +107,16 @@ public final class EntityMapper {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private <T> void bindInsertParameters(PreparedStatement ps, Class<T> entityClass, T entity,
-            io.vidocq.mansart.data.dialect.EntityModel dialectModel, boolean generated) throws SQLException {
+            io.vidocq.mansart.data.dialect.EntityModel dialectModel, boolean generated,
+            io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel) throws SQLException {
         int paramIndex = 1;
         List<Attribute<?, ?>> attrs = dialectModel.attributes();
         for (Attribute<?, ?> attr : attrs) {
             if (attr == dialectModel.id() && generated) {
                 continue;
             }
-            Object value = callback.getAccessor(entityClass).get(entity, attr.name());
-            dialect.bind(ps, paramIndex++, value, wrap(attr.javaType()));
+            ResolvedBind resolved = resolveBind(entityClass, entity, spiModel, attr.name(), attr.javaType());
+            dialect.bind(ps, paramIndex++, resolved.value(), resolved.bindType());
         }
     }
 
@@ -205,7 +206,7 @@ public final class EntityMapper {
 
             PreparedStatement ps = conn.prepareStatement(sqlFragment.sql());
             try (ps) {
-                bindUpdateParameters(ps, entityClass, entity, dialectModel, ctx);
+                bindUpdateParameters(ps, entityClass, entity, dialectModel, ctx, spiModel);
 
                 int affected = ps.executeUpdate();
                 if (affected != 1) {
@@ -271,7 +272,8 @@ public final class EntityMapper {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private <T> void bindUpdateParameters(PreparedStatement ps, Class<T> entityClass, T entity,
-            io.vidocq.mansart.data.dialect.EntityModel dialectModel, UpdateContext ctx) throws SQLException {
+            io.vidocq.mansart.data.dialect.EntityModel dialectModel, UpdateContext ctx,
+            io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel) throws SQLException {
         String idName = dialectModel.id().name();
 
         int paramIndex = 1;
@@ -280,8 +282,8 @@ public final class EntityMapper {
             if (attr == dialectModel.id()) {
                 continue;
             }
-            Object value = callback.getAccessor(entityClass).get(entity, attr.name());
-            dialect.bind(ps, paramIndex++, value, wrap(attr.javaType()));
+            ResolvedBind resolved = resolveBind(entityClass, entity, spiModel, attr.name(), attr.javaType());
+            dialect.bind(ps, paramIndex++, resolved.value(), resolved.bindType());
         }
 
         // Bind WHERE clause parameters: id, then old version if versioned
@@ -291,6 +293,42 @@ public final class EntityMapper {
             // For optimistic locking, bind the OLD version in the WHERE clause
             dialect.bind(ps, paramIndex, ctx.oldVersion, wrap(ctx.versionOpt.get().javaType()));
         }
+    }
+
+    private record ResolvedBind(Object value, Class<?> bindType) {}
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private <T> ResolvedBind resolveBind(Class<T> entityClass, T entity,
+            io.vidocq.mansart.persistence.spi.EntityModel<T> spiModel,
+            String attrName, Class<?> dialectAttrType) {
+        Object value = callback.getAccessor(entityClass).get(entity, attrName);
+        Class<?> bindType = wrap(dialectAttrType);
+
+        for (var spiAttr : spiModel.getAttributes()) {
+            if (spiAttr.getName().equals(attrName)
+                    && spiAttr instanceof io.vidocq.mansart.persistence.spi.ReferenceAttribute<?, ?> refAttr) {
+                if (value != null) {
+                    var refModel = refAttr.getReferencedEntityModel();
+                    var refIdAttrs = refModel.getIdAttributes();
+                    if (refIdAttrs != null && !refIdAttrs.isEmpty()) {
+                        String idName = refIdAttrs.get(0).getName();
+                        Class<?> refClass = value.getClass();
+                        value = callback.getAccessor((Class<Object>) refClass).get(value, idName);
+                        bindType = wrap(refIdAttrs.get(0).getJavaType());
+                    }
+                } else {
+                    // value is null, use the referenced entity's ID type for binding
+                    var refModel = refAttr.getReferencedEntityModel();
+                    var refIdAttrs = refModel.getIdAttributes();
+                    if (refIdAttrs != null && !refIdAttrs.isEmpty()) {
+                        bindType = wrap(refIdAttrs.get(0).getJavaType());
+                    }
+                }
+                break;
+            }
+        }
+
+        return new ResolvedBind(value, bindType);
     }
 
     private static final class UpdateContext {

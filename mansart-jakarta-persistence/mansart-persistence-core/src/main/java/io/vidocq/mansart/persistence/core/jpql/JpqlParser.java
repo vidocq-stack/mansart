@@ -204,6 +204,11 @@ public final class JpqlParser {
             }
         }
         
+        // In JPQL, bare JOIN is equivalent to INNER JOIN
+        if (type == null) {
+            type = JoinType.INNER;
+        }
+        
         expect(TokenType.JOIN);
         
         // Parse optional FETCH

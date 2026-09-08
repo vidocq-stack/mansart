@@ -92,7 +92,7 @@
 ### M6 — Query Execution (JPQL)
 - M6-JP-34 — JPQL parser — DONE
 - M6-JP-35 — SELECT queries — DONE
-- M6-JP-36 — FROM clause — TODO
+- M6-JP-36 — FROM clause — DONE
 - M6-JP-37 — WHERE expressions — TODO
 - M6-JP-38 — UPDATE queries — TODO
 - M6-JP-39 — DELETE queries — TODO
@@ -220,3 +220,4 @@
 - M5-JP-29: EntityMapper CRUD via dialect SPI, 239/239 module, Sonar clean on changed files
 - M6-JP-34: JPQL parser (lexer + recursive descent parser + AST), 12/12 tests in core module
 - M6-JP-35: SELECT queries (JPQL execution via JpqlQueryExecutor + MansartTypedQuery), 12/12 integration tests, 563/563 total pass
+- M6-JP-36: FROM clause (INNER JOIN + implicit path navigation, LEFT/RIGHT/CROSS throw PersistenceException), 5/5 join tests, 568/568 total pass

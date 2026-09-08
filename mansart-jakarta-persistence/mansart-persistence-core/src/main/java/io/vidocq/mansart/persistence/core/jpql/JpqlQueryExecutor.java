@@ -7,7 +7,9 @@ package io.vidocq.mansart.persistence.core.jpql;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import io.vidocq.mansart.data.dialect.Attribute;
@@ -15,6 +17,9 @@ import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.data.dialect.OrderBy;
 import io.vidocq.mansart.data.dialect.SqlFragment;
+import io.vidocq.mansart.data.dialect.attribute.JoinPath;
+import io.vidocq.mansart.data.dialect.attribute.JoinedAttribute;
+import io.vidocq.mansart.data.dialect.attribute.ReferenceAttribute;
 import io.vidocq.mansart.persistence.core.dialect.DialectEntityModelAdapter;
 import io.vidocq.mansart.persistence.core.jpql.JpqlAst;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
@@ -58,6 +63,12 @@ public final class JpqlQueryExecutor {
         }
     }
 
+    private record PlanContext(
+        EntityModel rootModel,
+        Map<String, EntityModel> aliasToModel,
+        Map<String, JoinPath> aliasToJoinPath
+    ) {}
+
     public record BindParameter(Object value, String paramName, Integer paramPosition, Attribute<?, ?> target) {
         public BindParameter {
             if (paramName == null && paramPosition == null && value == null) {
@@ -88,32 +99,164 @@ public final class JpqlQueryExecutor {
         io.vidocq.mansart.persistence.spi.EntityModel spiModel = callback.getEntityModel(entityClass);
         EntityModel dialectModel = adapter.adapt(spiModel);
 
+        // Build alias-to-model and alias-to-joinPath maps
+        PlanContext context = buildPlanContext(stmt.from(), dialectModel, entityClass);
+
         // Translate WHERE clause
-        io.vidocq.mansart.data.dialect.Where where = stmt.where() == null ? io.vidocq.mansart.data.dialect.Where.ALWAYS_TRUE : translateCondition(stmt.where().condition(), dialectModel);
+        io.vidocq.mansart.data.dialect.Where where = stmt.where() == null 
+            ? io.vidocq.mansart.data.dialect.Where.ALWAYS_TRUE 
+            : translateCondition(stmt.where().condition(), context);
+
+        // If there are explicit joins but no WHERE clause, inject a tautology that references the joins
+        // so the dialect includes them in the SQL.
+        if (stmt.where() == null && hasExplicitJoins(context)) {
+            where = injectJoinTautology(where, context);
+        }
 
         // Translate ORDER BY clause
-        OrderBy orderBy = translateOrderBy(stmt.orderBy(), dialectModel);
+        OrderBy orderBy = translateOrderBy(stmt.orderBy(), context);
 
         // Generate SQL fragment
-        SqlFragment sqlFragment = dialect.select(dialectModel, where, orderBy, io.vidocq.mansart.data.dialect.Pagination.NONE);
+        SqlFragment sqlFragment = dialect.select(
+            context.rootModel(),
+            where,
+            orderBy,
+            io.vidocq.mansart.data.dialect.Pagination.NONE
+        );
 
         // Extract bind parameters from WHERE condition
         List<BindParameter> bindParameters = extractBindParameters(
             stmt.where() == null ? null : stmt.where().condition(),
-            dialectModel
+            context
         );
 
-        return new QueryPlan(sqlFragment, entityClass, dialectModel, bindParameters);
+        return new QueryPlan(sqlFragment, entityClass, context.rootModel(), bindParameters);
     }
 
-    private OrderBy translateOrderBy(JpqlAst.OrderByClause orderByClause, EntityModel dialectModel) {
+    private PlanContext buildPlanContext(JpqlAst.FromClause fromClause, EntityModel rootModel, Class<?> rootEntityClass) {
+        Map<String, EntityModel> aliasToModel = new HashMap<>();
+        Map<String, JoinPath> aliasToJoinPath = new HashMap<>();
+        
+        // Add root alias
+        String rootAlias = fromClause.declarations().getFirst() instanceof JpqlAst.RangeVarDecl rangeVar 
+            ? rangeVar.alias() 
+            : null;
+        if (rootAlias != null) {
+            aliasToModel.put(rootAlias, rootModel);
+            aliasToJoinPath.put(rootAlias, null); // Root has no join path
+        }
+        
+        // Process JOIN declarations
+        for (JpqlAst.IdentificationVarDeclaration decl : fromClause.declarations()) {
+            if (decl instanceof JpqlAst.JoinDecl joinDecl) {
+                // Check join type support
+                if (joinDecl.type() != JpqlAst.JoinType.INNER) {
+                    throw new PersistenceException("not implemented: " + joinDecl.type() + " join");
+                }
+                
+                // Parse join path: e.g., "e.department" -> root alias "e", attribute "department"
+                String[] pathParts = joinDecl.path().split("\\.");
+                if (pathParts.length != 2) {
+                    throw new IllegalArgumentException("Invalid join path: " + joinDecl.path() + ". Expected format: <alias>.<attribute>");
+                }
+                
+                String sourceAlias = pathParts[0];
+                String relationName = pathParts[1];
+                
+                // Look up source model
+                EntityModel sourceModel = aliasToModel.get(sourceAlias);
+                if (sourceModel == null) {
+                    throw new IllegalArgumentException("Unknown alias in join: " + sourceAlias);
+                }
+                
+                // Find the relationship attribute
+                Attribute<?, ?> attr = findAttribute(sourceModel, relationName);
+                if (!(attr instanceof ReferenceAttribute<?, ?> refAttr)) {
+                    throw new IllegalArgumentException("Attribute is not a relationship: " + relationName);
+                }
+                
+                // Build JoinPath step
+                Class<?> targetEntityClass = refAttr.javaType();
+                io.vidocq.mansart.persistence.spi.EntityModel targetSpiModel = callback.getEntityModel(targetEntityClass);
+                EntityModel targetModel = adapter.adapt(targetSpiModel);
+                
+                // Get join column info
+                String foreignKeyColumn = refAttr.columnName();
+                String referencedColumn = refAttr.referencedColumn();
+                
+                JoinPath.Step step = new JoinPath.Step(
+                    refAttr.name(),
+                    foreignKeyColumn,
+                    referencedColumn,
+                    targetModel.tableName(),
+                    targetModel.schema(),
+                    targetEntityClass
+                );
+                
+                JoinPath joinPath = aliasToJoinPath.get(sourceAlias);
+                if (joinPath == null) {
+                    joinPath = JoinPath.of(step);
+                } else {
+                    joinPath = joinPath.append(step);
+                }
+                
+                // Store in maps
+                aliasToModel.put(joinDecl.alias(), targetModel);
+                aliasToJoinPath.put(joinDecl.alias(), joinPath);
+            }
+        }
+        
+        return new PlanContext(rootModel, aliasToModel, aliasToJoinPath);
+    }
+
+    /**
+     * Returns true if there are explicit joins (non-root aliases with a non-null JoinPath).
+     */
+    private boolean hasExplicitJoins(PlanContext context) {
+        for (Map.Entry<String, JoinPath> e : context.aliasToJoinPath().entrySet()) {
+            if (e.getValue() != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Injects a tautology that references all explicit join paths, forcing the dialect to include them.
+     */
+    private io.vidocq.mansart.data.dialect.Where injectJoinTautology(
+            io.vidocq.mansart.data.dialect.Where where,
+            PlanContext context) {
+        List<io.vidocq.mansart.data.dialect.Where> children = new ArrayList<>();
+        children.add(where);
+        
+        // Get the first attribute from the root model to use for the tautology
+        Attribute<?, ?> rootAttr = null;
+        for (Object attrObj : context.rootModel().attributes()) {
+            if (attrObj instanceof Attribute<?, ?> attr && !"class".equals(attr.name())) {
+                rootAttr = attr;
+                break;
+            }
+        }
+        
+        for (Map.Entry<String, JoinPath> e : context.aliasToJoinPath().entrySet()) {
+            if (e.getValue() != null && rootAttr != null) {
+                JoinedAttribute<?, ?> joinedAttr = new JoinedAttribute<>(rootAttr, e.getValue(), context.rootModel().entityClass());
+                children.add(new io.vidocq.mansart.data.dialect.Where.IsNotNull(joinedAttr));
+            }
+        }
+        
+        return new io.vidocq.mansart.data.dialect.Where.And(children);
+    }
+
+    private OrderBy translateOrderBy(JpqlAst.OrderByClause orderByClause, PlanContext context) {
         if (orderByClause == null || orderByClause.items().isEmpty()) {
             return OrderBy.NONE;
         }
 
         List<io.vidocq.mansart.data.dialect.OrderBy.Order> orders = new ArrayList<>();
         for (JpqlAst.OrderByItem item : orderByClause.items()) {
-            Attribute<?, ?> attr = resolveAttribute(item.expression(), dialectModel);
+            Attribute<?, ?> attr = resolveAttribute(item.expression(), context);
             if (item.ascending()) {
                 orders.add(io.vidocq.mansart.data.dialect.OrderBy.Order.asc(attr));
             } else {
@@ -123,33 +266,33 @@ public final class JpqlQueryExecutor {
         return new OrderBy(orders);
     }
 
-    private io.vidocq.mansart.data.dialect.Where translateCondition(JpqlAst.Condition cond, EntityModel dialectModel) {
+    private io.vidocq.mansart.data.dialect.Where translateCondition(JpqlAst.Condition cond, PlanContext context) {
         if (cond == null) {
             return io.vidocq.mansart.data.dialect.Where.ALWAYS_TRUE;
         }
         if (cond instanceof JpqlAst.Comparison cmp) {
-            return translateComparison(cmp, dialectModel);
+            return translateComparison(cmp, context);
         }
         if (cond instanceof JpqlAst.And and) {
-            List<io.vidocq.mansart.data.dialect.Where> children = and.conditions().stream().map(c -> translateCondition(c, dialectModel)).toList();
+            List<io.vidocq.mansart.data.dialect.Where> children = and.conditions().stream().map(c -> translateCondition(c, context)).toList();
             return new io.vidocq.mansart.data.dialect.Where.And(children);
         }
         if (cond instanceof JpqlAst.Or or) {
-            List<io.vidocq.mansart.data.dialect.Where> children = or.conditions().stream().map(c -> translateCondition(c, dialectModel)).toList();
+            List<io.vidocq.mansart.data.dialect.Where> children = or.conditions().stream().map(c -> translateCondition(c, context)).toList();
             return new io.vidocq.mansart.data.dialect.Where.Or(children);
         }
         if (cond instanceof JpqlAst.Not not) {
-            return new io.vidocq.mansart.data.dialect.Where.Not(translateCondition(not.condition(), dialectModel));
+            return new io.vidocq.mansart.data.dialect.Where.Not(translateCondition(not.condition(), context));
         }
         if (cond instanceof JpqlAst.IsNull isNull) {
-            Attribute<?, ?> attr = resolveAttribute(isNull.expression(), dialectModel);
+            Attribute<?, ?> attr = resolveAttribute(isNull.expression(), context);
             return isNull.negated() ? new io.vidocq.mansart.data.dialect.Where.IsNotNull(attr) : new io.vidocq.mansart.data.dialect.Where.IsNull(attr);
         }
         throw new UnsupportedOperationException("Condition type not supported: " + cond.getClass().getSimpleName());
     }
 
-    private io.vidocq.mansart.data.dialect.Where translateComparison(JpqlAst.Comparison cmp, EntityModel dialectModel) {
-        Attribute<?, ?> attr = resolveAttribute(cmp.left(), dialectModel);
+    private io.vidocq.mansart.data.dialect.Where translateComparison(JpqlAst.Comparison cmp, PlanContext context) {
+        Attribute<?, ?> attr = resolveAttribute(cmp.left(), context);
         String op = cmp.operator();
         if ("=".equals(op)) {
             return new io.vidocq.mansart.data.dialect.Where.Eq(attr);
@@ -175,42 +318,82 @@ public final class JpqlQueryExecutor {
         throw new UnsupportedOperationException("Comparison operator not supported: " + op);
     }
 
-    private Attribute<?, ?> resolveAttribute(JpqlAst.Expression expr, EntityModel dialectModel) {
+    private Attribute<?, ?> resolveAttribute(JpqlAst.Expression expr, PlanContext context) {
         if (!(expr instanceof JpqlAst.Path path)) {
             throw new UnsupportedOperationException("Only simple path expressions are supported for attribute resolution, got: " + expr.getClass().getSimpleName());
         }
 
-        // For now, ignore the idVar (alias) and resolve fields directly on the dialectModel
-        // path.idVar() is the identification variable (alias) from the FROM clause
-        // path.fields() contains the attribute path segments
         List<String> fields = path.fields();
         if (fields.isEmpty()) {
             throw new IllegalArgumentException("Path expression has no fields");
         }
 
-        // Look up attribute by name (case-insensitive) in dialectModel
-        String attrName = fields.getFirst();
-        for (Object attrObj : dialectModel.attributes()) {
+        String alias = path.idVar();
+        EntityModel currentModel = context.aliasToModel().getOrDefault(alias, context.rootModel());
+        JoinPath currentJoinPath = context.aliasToJoinPath().get(alias); // may be null for root
+
+        // Walk the field segments
+        for (int i = 0; i < fields.size(); i++) {
+            String fieldName = fields.get(i);
+            Attribute<?, ?> attr = findAttribute(currentModel, fieldName);
+            
+            if (attr instanceof ReferenceAttribute<?, ?> refAttr && i < fields.size() - 1) {
+                // This is a relationship attribute, not the leaf — traverse the join
+                // Get the target entity model
+                Class<?> targetEntityClass = refAttr.javaType();
+                io.vidocq.mansart.persistence.spi.EntityModel targetSpiModel = callback.getEntityModel(targetEntityClass);
+                EntityModel targetDialectModel = adapter.adapt(targetSpiModel);
+                
+                // Build the JoinPath step
+                JoinPath.Step step = new JoinPath.Step(
+                    refAttr.name(),
+                    refAttr.columnName(),
+                    refAttr.referencedColumn(),
+                    targetDialectModel.tableName(),
+                    targetDialectModel.schema(),
+                    targetEntityClass
+                );
+                
+                // Append step to current join path
+                currentJoinPath = currentJoinPath == null ? JoinPath.of(step) : currentJoinPath.append(step);
+                currentModel = targetDialectModel;
+            } else if (i == fields.size() - 1) {
+                // Leaf attribute — wrap in JoinedAttribute if we have a join path
+                if (currentJoinPath != null) {
+                    return new JoinedAttribute<>(attr, currentJoinPath, context.rootModel().entityClass());
+                }
+                return attr;
+            } else {
+                // Non-reference intermediate field — shouldn't happen for valid JPQL
+                throw new UnsupportedOperationException("Cannot traverse non-reference attribute: " + fieldName);
+            }
+        }
+
+        // Should not reach here
+        throw new IllegalArgumentException("Could not resolve attribute: " + fields);
+    }
+
+    private Attribute<?, ?> findAttribute(EntityModel model, String attrName) {
+        for (Object attrObj : model.attributes()) {
             @SuppressWarnings("unchecked")
-            io.vidocq.mansart.data.dialect.Attribute<?, ?> attr = (io.vidocq.mansart.data.dialect.Attribute<?, ?>) attrObj;
+            Attribute<?, ?> attr = (Attribute<?, ?>) attrObj;
             if (attr.name().equalsIgnoreCase(attrName)) {
                 return attr;
             }
         }
-
-        throw new IllegalArgumentException("Attribute not found: " + attrName);
+        throw new IllegalArgumentException("Attribute not found: " + attrName + " in entity " + model.tableName());
     }
 
-    private List<JpqlQueryExecutor.BindParameter> extractBindParameters(JpqlAst.Condition cond, EntityModel dialectModel) {
+    private List<JpqlQueryExecutor.BindParameter> extractBindParameters(JpqlAst.Condition cond, PlanContext context) {
         if (cond == null) {
             return Collections.emptyList();
         }
         List<BindParameter> params = new ArrayList<>();
-        extractBindParameters(cond, params, dialectModel);
+        extractBindParameters(cond, params, context);
         return params;
     }
 
-    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, Attribute<?, ?> leftAttr, EntityModel dialectModel) {
+    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, Attribute<?, ?> leftAttr, PlanContext context) {
         if (cond instanceof JpqlAst.Comparison cmp) {
             // Extract value from right-hand side expression
             Object value = extractExpressionValue(cmp.right());
@@ -225,15 +408,15 @@ public final class JpqlQueryExecutor {
             return;
         }
         if (cond instanceof JpqlAst.And and) {
-            and.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, dialectModel));
+            and.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, context));
             return;
         }
         if (cond instanceof JpqlAst.Or or) {
-            or.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, dialectModel));
+            or.conditions().forEach(c -> extractBindParameters(c, params, leftAttr, context));
             return;
         }
         if (cond instanceof JpqlAst.Not not) {
-            extractBindParameters(not.condition(), params, leftAttr, dialectModel);
+            extractBindParameters(not.condition(), params, leftAttr, context);
             return;
         }
         if (cond instanceof JpqlAst.IsNull) {
@@ -243,25 +426,25 @@ public final class JpqlQueryExecutor {
         throw new UnsupportedOperationException("Cannot extract bind parameters from condition: " + cond.getClass().getSimpleName());
     }
 
-    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, EntityModel dialectModel) {
+    private void extractBindParameters(JpqlAst.Condition cond, List<BindParameter> params, PlanContext context) {
         if (cond == null) {
             return;
         }
         if (cond instanceof JpqlAst.Comparison cmp) {
-            Attribute<?, ?> leftAttr = resolveAttribute(cmp.left(), dialectModel);
-            extractBindParameters(cmp, params, leftAttr, dialectModel);
+            Attribute<?, ?> leftAttr = resolveAttribute(cmp.left(), context);
+            extractBindParameters(cmp, params, leftAttr, context);
             return;
         }
         if (cond instanceof JpqlAst.And and) {
-            and.conditions().forEach(c -> extractBindParameters(c, params, dialectModel));
+            and.conditions().forEach(c -> extractBindParameters(c, params, context));
             return;
         }
         if (cond instanceof JpqlAst.Or or) {
-            or.conditions().forEach(c -> extractBindParameters(c, params, dialectModel));
+            or.conditions().forEach(c -> extractBindParameters(c, params, context));
             return;
         }
         if (cond instanceof JpqlAst.Not not) {
-            extractBindParameters(not.condition(), params, dialectModel);
+            extractBindParameters(not.condition(), params, context);
             return;
         }
         if (cond instanceof JpqlAst.IsNull) {

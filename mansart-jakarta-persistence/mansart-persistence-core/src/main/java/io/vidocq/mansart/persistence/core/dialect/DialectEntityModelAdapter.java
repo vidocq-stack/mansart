@@ -171,6 +171,26 @@ public final class DialectEntityModelAdapter {
             @SuppressWarnings("unchecked")
             Class<Object> javaType = (Class<Object>) (Class<?>) refAttr.getJavaType();
             Class<?> entityClass = refAttr.getEntityModel().getEntityClass();
+            
+            // Resolve the referenced column name (PK column on the target entity's table)
+            String referencedColumn = "id"; // default
+            var joinColumns = refAttr.getJoinColumns();
+            if (joinColumns != null && joinColumns.length > 0 && joinColumns[0].referencedColumnName() != null && !joinColumns[0].referencedColumnName().isEmpty()) {
+                referencedColumn = joinColumns[0].referencedColumnName();
+            } else {
+                // Fall back to the referenced entity model's ID attribute column name
+                var refEntityModel = refAttr.getReferencedEntityModel();
+                if (refEntityModel != null) {
+                    var idAttrs = refEntityModel.getIdAttributes();
+                    if (idAttrs != null && !idAttrs.isEmpty()) {
+                        String idCol = idAttrs.get(0).getColumnName();
+                        if (idCol != null && !idCol.isEmpty()) {
+                            referencedColumn = idCol;
+                        }
+                    }
+                }
+            }
+            
             return new ReferenceAttribute(
                     refAttr.getName(),
                     refAttr.getColumnName(),
@@ -179,7 +199,7 @@ public final class DialectEntityModelAdapter {
                     refAttr.isNullable(),
                     refAttr.isUnique(),
                     false, // lazy (simplified)
-                    null, // referencedColumnName (not available in SPI)
+                    referencedColumn,
                     null, // getter
                     null  // setter
             );
