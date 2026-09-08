@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M6-JP-43 — Date/time functions — DONE
-- **Milestone**: M6 (IN PROGRESS) — 9/12 done
+- **Card**: M6-JP-44 — CASE expressions — DONE
+- **Milestone**: M6 (IN PROGRESS) — 10/12 done
 
 ## Milestone Progress Overview
 
@@ -14,7 +14,7 @@
 | M3 | 4 | 4 | 100% | DONE |
 | M4 | 6 | 6 | 100% | DONE |
 | M5 | 5 | 5 | 100% | DONE |
-| M6 | 12 | 9 | 75.0% | IN PROGRESS |
+| M6 | 12 | 10 | 83.3% | IN PROGRESS |
 | M7 | 12 | 0 | 0% | TODO |
 | M8 | 4 | 0 | 0% | TODO |
 | M9 | 3 | 0 | 0% | TODO |
@@ -29,13 +29,13 @@
 | M18 | 4 | 0 | 0% | TODO |
 | M19 | 4 | 0 | 0% | TODO |
 | M20 | 6 | 0 | 0% | TODO |
-| **TOTAL** | **112** | **39** | **34.8%** | |
+| **TOTAL** | **112** | **40** | **35.7%** | |
 
 ---
 
 ## Metrics
 - **Baseline TCK**: 1/1/0 (1 passed, 1 failed, 0 errored — harness works, partial provider test)
-- **Unit Tests**: 345/345 PASS (persistence modules)
+- **Unit Tests**: 634/634 PASS (full reactor, +8 vs previous)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -100,7 +100,7 @@
 - M6-JP-41 — Aggregate functions — DONE
 - M6-JP-42 — String functions — DONE
 - M6-JP-43 — Date/time functions — DONE
-- M6-JP-44 — CASE expressions — TODO
+- M6-JP-44 — CASE expressions — DONE
 - M6-JP-45 — Subqueries — TODO
 
 ### M7 — Advanced Mapping

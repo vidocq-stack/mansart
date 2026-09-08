@@ -5,6 +5,9 @@ import java.util.List;
 
 import static io.vidocq.mansart.persistence.core.jpql.JpqlAst.*;
 
+import io.vidocq.mansart.persistence.core.jpql.JpqlAst.CaseExpr.WhenThen;
+import io.vidocq.mansart.persistence.core.jpql.JpqlAst.SearchedCase.SearchedWhenThen;
+
 /**
  * Recursive-descent JPQL parser.
  * <p>
@@ -622,6 +625,74 @@ public final class JpqlParser {
         Token token = peek();
         
         switch (token.type()) {
+            case CASE:
+                consume(); // consume CASE
+                // Check if next token is WHEN (searched CASE) or something else (simple CASE)
+                if (peek().type() == TokenType.WHEN) {
+                    // Searched CASE: CASE WHEN condition THEN expr ... END
+                    List<SearchedWhenThen> whens = new ArrayList<>();
+                    while (peek().type() == TokenType.WHEN) {
+                        consume(); // consume WHEN
+                        Condition condition = parseConditionalExpression();
+                        expect(TokenType.THEN);
+                        Expression thenExpr = parseScalarExpression();
+                        whens.add(new SearchedWhenThen(condition, thenExpr));
+                    }
+                    // Parse optional ELSE
+                    Expression elseExpr = null;
+                    if (peek().type() == TokenType.ELSE) {
+                        consume(); // consume ELSE
+                        elseExpr = parseScalarExpression();
+                    } else {
+                        // Default to NULL literal if ELSE is omitted
+                        elseExpr = new Literal("NULL", LiteralType.NULL, peek().position());
+                    }
+                    expect(TokenType.END);
+                    return new SearchedCase(whens, elseExpr, startPos);
+                } else {
+                    // Simple CASE: CASE operand WHEN scalar THEN expr ... END
+                    Expression operand = parseScalarExpression();
+                    List<WhenThen> whens = new ArrayList<>();
+                    while (peek().type() == TokenType.WHEN) {
+                        consume(); // consume WHEN
+                        Expression whenExpr = parseScalarExpression();
+                        expect(TokenType.THEN);
+                        Expression thenExpr = parseScalarExpression();
+                        whens.add(new WhenThen(whenExpr, thenExpr));
+                    }
+                    // Parse optional ELSE
+                    Expression elseExpr = null;
+                    if (peek().type() == TokenType.ELSE) {
+                        consume(); // consume ELSE
+                        elseExpr = parseScalarExpression();
+                    } else {
+                        // Default to NULL literal if ELSE is omitted
+                        elseExpr = new Literal("NULL", LiteralType.NULL, peek().position());
+                    }
+                    expect(TokenType.END);
+                    return new CaseExpr(operand, whens, elseExpr, startPos);
+                }
+            case COALESCE:
+                consume(); // consume COALESCE
+                expect(TokenType.LPAREN);
+                List<Expression> coalesceArgs = new ArrayList<>();
+                if (peek().type() != TokenType.RPAREN) {
+                    coalesceArgs.add(parseScalarExpression());
+                    while (peek().type() == TokenType.COMMA) {
+                        consume(); // consume COMMA
+                        coalesceArgs.add(parseScalarExpression());
+                    }
+                }
+                expect(TokenType.RPAREN);
+                return new Coalesce(coalesceArgs, startPos);
+            case NULLIF:
+                consume(); // consume NULLIF
+                expect(TokenType.LPAREN);
+                Expression arg1 = parseScalarExpression();
+                expect(TokenType.COMMA);
+                Expression arg2 = parseScalarExpression();
+                expect(TokenType.RPAREN);
+                return new Nullif(arg1, arg2, startPos);
             case COUNT:
             case SUM:
             case AVG:

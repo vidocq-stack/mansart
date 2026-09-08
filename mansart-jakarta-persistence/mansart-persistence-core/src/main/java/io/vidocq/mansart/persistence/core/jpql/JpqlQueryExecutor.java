@@ -703,7 +703,7 @@ public final class JpqlQueryExecutor {
     }
 
     /**
-     * Builds ProjectionInfo for each aggregate or function expression in the SELECT clause.
+     * Builds ProjectionInfo for each aggregate, function, or CASE expression in the SELECT clause.
      * Returns a list of projection info objects that describe how to materialize
      * the result set row.
      */
@@ -718,8 +718,16 @@ public final class JpqlQueryExecutor {
                 } else {
                     projections.add(buildStringFunctionProjection(func, context));
                 }
+            } else if (expr instanceof JpqlAst.CaseExpr caseExpr) {
+                projections.add(buildCaseProjection(caseExpr, context));
+            } else if (expr instanceof JpqlAst.SearchedCase searchedCase) {
+                projections.add(buildCaseProjection(searchedCase, context));
+            } else if (expr instanceof JpqlAst.Coalesce coalesce) {
+                projections.add(buildCaseProjection(coalesce, context));
+            } else if (expr instanceof JpqlAst.Nullif nullif) {
+                projections.add(buildCaseProjection(nullif, context));
             } else {
-                throw new UnsupportedOperationException("Only aggregate and function expressions are supported in scalar queries, got: " + expr.getClass().getSimpleName());
+                throw new UnsupportedOperationException("Only aggregate, function, and CASE expressions are supported in scalar queries, got: " + expr.getClass().getSimpleName());
             }
         }
         return projections;
@@ -914,6 +922,148 @@ public final class JpqlQueryExecutor {
         }
 
         return new ProjectionInfo(function, false, columnSql, resultType);
+    }
+
+    /**
+     * Builds a single ProjectionInfo for a CASE expression.
+     */
+    private ProjectionInfo buildCaseProjection(JpqlAst.CaseExpr caseExpr, PlanContext context) {
+        String columnSql = renderCaseSql(caseExpr, context);
+        return new ProjectionInfo("CASE", false, columnSql, Object.class);
+    }
+
+    /**
+     * Builds a single ProjectionInfo for a searched CASE expression.
+     */
+    private ProjectionInfo buildCaseProjection(JpqlAst.SearchedCase searchedCase, PlanContext context) {
+        String columnSql = renderCaseSql(searchedCase, context);
+        return new ProjectionInfo("CASE", false, columnSql, Object.class);
+    }
+
+    /**
+     * Builds a single ProjectionInfo for a COALESCE expression.
+     */
+    private ProjectionInfo buildCaseProjection(JpqlAst.Coalesce coalesce, PlanContext context) {
+        String columnSql = renderCaseSql(coalesce, context);
+        return new ProjectionInfo("COALESCE", false, columnSql, Object.class);
+    }
+
+    /**
+     * Builds a single ProjectionInfo for a NULLIF expression.
+     */
+    private ProjectionInfo buildCaseProjection(JpqlAst.Nullif nullif, PlanContext context) {
+        String columnSql = renderCaseSql(nullif, context);
+        return new ProjectionInfo("NULLIF", false, columnSql, Object.class);
+    }
+
+    /**
+     * Renders a CASE-like expression to its SQL string representation.
+     */
+    private String renderCaseSql(JpqlAst.Expression expr, PlanContext context) {
+        if (expr instanceof JpqlAst.CaseExpr caseExpr) {
+            // Simple CASE: CASE operand WHEN scalar THEN expr ... ELSE expr END
+            StringBuilder sql = new StringBuilder("CASE ");
+            sql.append(renderScalarExpr(caseExpr.operand(), context)).append(" ");
+            for (JpqlAst.CaseExpr.WhenThen whenThen : caseExpr.whens()) {
+                sql.append("WHEN ").append(renderScalarExpr(whenThen.when(), context))
+                   .append(" THEN ").append(renderScalarExpr(whenThen.then(), context))
+                   .append(" ");
+            }
+            sql.append("ELSE ").append(renderScalarExpr(caseExpr.elseExpr(), context)).append(" END");
+            return sql.toString();
+        } else if (expr instanceof JpqlAst.SearchedCase searchedCase) {
+            // Searched CASE: CASE WHEN condition THEN expr ... ELSE expr END
+            StringBuilder sql = new StringBuilder("CASE ");
+            for (JpqlAst.SearchedCase.SearchedWhenThen whenThen : searchedCase.whens()) {
+                sql.append("WHEN ").append(translateCondition(whenThen.when(), context))
+                   .append(" THEN ").append(renderScalarExpr(whenThen.then(), context))
+                   .append(" ");
+            }
+            sql.append("ELSE ").append(renderScalarExpr(searchedCase.elseExpr(), context)).append(" END");
+            return sql.toString();
+        } else if (expr instanceof JpqlAst.Coalesce coalesce) {
+            // COALESCE(arg1, arg2, ...)
+            StringBuilder sql = new StringBuilder("COALESCE(");
+            for (int i = 0; i < coalesce.args().size(); i++) {
+                if (i > 0) sql.append(", ");
+                sql.append(renderScalarExpr(coalesce.args().get(i), context));
+            }
+            sql.append(")");
+            return sql.toString();
+        } else if (expr instanceof JpqlAst.Nullif nullif) {
+            // NULLIF(first, second)
+            return "NULLIF(" + renderScalarExpr(nullif.first(), context) + ", " + renderScalarExpr(nullif.second(), context) + ")";
+        } else {
+            throw new UnsupportedOperationException("Unsupported CASE-like expression type: " + expr.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Renders a scalar expression to its SQL string representation.
+     */
+    private String renderScalarExpr(JpqlAst.Expression expr, PlanContext context) {
+        if (expr instanceof JpqlAst.Path path) {
+            // Path expression: resolve to column name
+            Attribute<?, ?> attr = resolveAttribute(path, context);
+            String columnName = attr.columnName();
+            return "\"" + columnName + "\"";
+        } else if (expr instanceof JpqlAst.Literal lit) {
+            // Literal value
+            switch (lit.type()) {
+                case STRING -> {
+                    // Escape single quotes by doubling them
+                    String escaped = lit.value().replace("'", "''");
+                    return "'" + escaped + "'";
+                }
+                case INTEGER -> {
+                    return lit.value();
+                }
+                case FLOAT -> {
+                    return lit.value();
+                }
+                case BOOLEAN -> {
+                    return Boolean.parseBoolean(lit.value()) ? "TRUE" : "FALSE";
+                }
+                case NULL -> {
+                    return "NULL";
+                }
+                default -> throw new UnsupportedOperationException("Literal type not supported: " + lit.type());
+            }
+        } else if (expr instanceof JpqlAst.NamedParam) {
+            throw new UnsupportedOperationException("not implemented: parameters in CASE expressions");
+        } else if (expr instanceof JpqlAst.PositionalParam) {
+            throw new UnsupportedOperationException("not implemented: parameters in CASE expressions");
+        } else if (expr instanceof JpqlAst.Binary bin) {
+            // Binary expression: render both sides with operator
+            return renderScalarExpr(bin.left(), context) + " " + bin.operator() + " " + renderScalarExpr(bin.right(), context);
+        } else if (expr instanceof JpqlAst.Unary unary) {
+            // Unary expression: render operator and operand
+            return unary.operator() + " " + renderScalarExpr(unary.operand(), context);
+        } else if (expr instanceof JpqlAst.Func func) {
+            // Function call: render as FUNC(args)
+            StringBuilder sql = new StringBuilder(func.name().toUpperCase()).append("(");
+            for (int i = 0; i < func.args().size(); i++) {
+                if (i > 0) sql.append(", ");
+                sql.append(renderScalarExpr(func.args().get(i), context));
+            }
+            sql.append(")");
+            return sql.toString();
+        } else if (expr instanceof JpqlAst.Aggregate agg) {
+            // Aggregate: render as FUNC(DISTINCT arg) or FUNC(arg)
+            StringBuilder sql = new StringBuilder(agg.function().toUpperCase()).append("(");
+            if (agg.distinct()) {
+                sql.append("DISTINCT ");
+            }
+            sql.append(renderScalarExpr(agg.argument(), context));
+            sql.append(")");
+            return sql.toString();
+        } else if (expr instanceof JpqlAst.CaseExpr || expr instanceof JpqlAst.SearchedCase || 
+                   expr instanceof JpqlAst.Coalesce || expr instanceof JpqlAst.Nullif) {
+            // CASE expressions: delegate to renderCaseSql
+            return renderCaseSql(expr, context);
+        } else {
+            throw new UnsupportedOperationException("Unsupported scalar expression type in CASE: " + expr.getClass().getSimpleName());
+        }
     }
 
     /**
