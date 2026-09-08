@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import io.vidocq.mansart.data.dialect.Attribute;
 import io.vidocq.mansart.data.dialect.Dialect;
@@ -712,7 +713,11 @@ public final class JpqlQueryExecutor {
             if (expr instanceof JpqlAst.Aggregate agg) {
                 projections.add(buildProjectionInfo(agg, context));
             } else if (expr instanceof JpqlAst.Func func) {
-                projections.add(buildStringFunctionProjection(func, context));
+                if (Set.of("CURRENT_DATE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "LOCAL_DATE", "LOCAL_TIME", "LOCAL_DATETIME", "EXTRACT").contains(func.name().toUpperCase())) {
+                    projections.add(buildFunctionProjection(func, context));
+                } else {
+                    projections.add(buildStringFunctionProjection(func, context));
+                }
             } else {
                 throw new UnsupportedOperationException("Only aggregate and function expressions are supported in scalar queries, got: " + expr.getClass().getSimpleName());
             }
@@ -842,6 +847,69 @@ public final class JpqlQueryExecutor {
             }
             default -> {
                 throw new UnsupportedOperationException("not implemented: string function " + function);
+            }
+        }
+
+        return new ProjectionInfo(function, false, columnSql, resultType);
+    }
+
+    /**
+     * Builds a single ProjectionInfo for a function expression (datetime functions).
+     */
+    private ProjectionInfo buildFunctionProjection(JpqlAst.Func func, PlanContext context) {
+        String function = func.name().toUpperCase();
+        List<JpqlAst.Expression> args = func.args();
+
+        // Render each argument to SQL
+        List<String> renderedArgs = new ArrayList<>();
+        for (JpqlAst.Expression arg : args) {
+            renderedArgs.add(renderFuncArg(arg, context));
+        }
+
+        // Determine the SQL expression and result type
+        String columnSql;
+        Class<?> resultType;
+
+        switch (function) {
+            case "CURRENT_DATE" -> {
+                columnSql = "CURRENT_DATE";
+                resultType = java.sql.Date.class;
+            }
+            case "CURRENT_TIME" -> {
+                columnSql = "CURRENT_TIME";
+                resultType = java.sql.Time.class;
+            }
+            case "CURRENT_TIMESTAMP" -> {
+                columnSql = "CURRENT_TIMESTAMP";
+                resultType = java.sql.Timestamp.class;
+            }
+            case "LOCAL_DATE" -> {
+                columnSql = "CURRENT_DATE";
+                resultType = java.time.LocalDate.class;
+            }
+            case "LOCAL_TIME" -> {
+                columnSql = "CURRENT_TIME";
+                resultType = java.time.LocalTime.class;
+            }
+            case "LOCAL_DATETIME" -> {
+                columnSql = "CURRENT_TIMESTAMP";
+                resultType = java.time.LocalDateTime.class;
+            }
+            case "EXTRACT" -> {
+                if (args.size() != 2) {
+                    throw new UnsupportedOperationException("EXTRACT requires exactly 2 arguments (field and source), got: " + args.size());
+                }
+                String field = ((JpqlAst.Literal) args.get(0)).value().toUpperCase();
+                // Validate field against known set
+                if (!Set.of("YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND").contains(field)) {
+                    throw new UnsupportedOperationException("not implemented: EXTRACT field " + field);
+                }
+                String sourceSql = renderedArgs.get(1);
+                columnSql = "EXTRACT(" + field + " FROM " + sourceSql + ")";
+                resultType = Integer.class;
+            }
+            default -> {
+                throw new UnsupportedOperationException("not implemented: function " + function);
             }
         }
 

@@ -637,6 +637,32 @@ public final class JpqlParser {
                 Expression aggArg = parseExpression();
                 expect(TokenType.RPAREN);
                 return new Aggregate(aggFuncName, aggDistinct, aggArg, startPos);
+            case CURRENT_DATE:
+            case CURRENT_TIME:
+            case CURRENT_TIMESTAMP:
+            case LOCAL_DATE:
+            case LOCAL_TIME:
+            case LOCAL_DATETIME:
+                String funcName = consume().text().toUpperCase();
+                // Allow both CURRENT_DATE and CURRENT_DATE()
+                if (peek().type() == TokenType.LPAREN) {
+                    expect(TokenType.LPAREN);
+                    expect(TokenType.RPAREN);
+                }
+                return new Func(funcName, List.of(), startPos);
+            case EXTRACT:
+                consume(); // consume EXTRACT
+                expect(TokenType.LPAREN);
+                // Parse field (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND)
+                Token fieldToken = peek();
+                if (fieldToken.type() != TokenType.IDENTIFIER && fieldToken.type() != TokenType.KEYWORD) {
+                    throw error("Expected field identifier (YEAR, MONTH, DAY, HOUR, MINUTE, SECOND) after EXTRACT");
+                }
+                String fieldName = consume().text().toUpperCase();
+                expect(TokenType.FROM);
+                Expression source = parseExpression();
+                expect(TokenType.RPAREN);
+                return new Func("EXTRACT", List.of(new Literal(fieldName, LiteralType.STRING, startPos), source), startPos);
             case IDENTIFIER:
                 // Could be path expression, function call, or identification variable
                 String first = consume().text();

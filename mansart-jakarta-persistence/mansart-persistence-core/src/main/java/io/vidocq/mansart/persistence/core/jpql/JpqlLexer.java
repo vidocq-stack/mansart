@@ -330,6 +330,13 @@ final class JpqlLexer {
         map.put("MIN", TokenType.MIN);
         map.put("MAX", TokenType.MAX);
         map.put("ESCAPE", TokenType.ESCAPE);
+        map.put("CURRENT_DATE", TokenType.CURRENT_DATE);
+        map.put("CURRENT_TIME", TokenType.CURRENT_TIME);
+        map.put("CURRENT_TIMESTAMP", TokenType.CURRENT_TIMESTAMP);
+        map.put("LOCAL_DATE", TokenType.LOCAL_DATE);
+        map.put("LOCAL_TIME", TokenType.LOCAL_TIME);
+        map.put("LOCAL_DATETIME", TokenType.LOCAL_DATETIME);
+        map.put("EXTRACT", TokenType.EXTRACT);
         
         return map;
     }

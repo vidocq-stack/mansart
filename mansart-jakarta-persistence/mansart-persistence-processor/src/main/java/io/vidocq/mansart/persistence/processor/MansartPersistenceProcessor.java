@@ -230,6 +230,16 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
                type.equals("java.sql.Time") || type.equals("java.sql.Timestamp");
     }
 
+    private static String determineTemporalType(String type) {
+        if (type.equals("java.time.LocalDate") || type.equals("java.sql.Date")) {
+            return "DATE";
+        }
+        if (type.equals("java.time.LocalTime") || type.equals("java.sql.Time")) {
+            return "TIME";
+        }
+        return "TIMESTAMP";
+    }
+
     private static final String NUMERIC_TYPE_DOUBLE = "java.lang.Double";
     private static final String NUMERIC_TYPE_FLOAT = "java.lang.Float";
 
@@ -282,6 +292,10 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         String referencedEntityType = null;
         String fetchType = null;
         boolean owningSide = false;
+        String temporalType = null;
+        if (attrType == AttributeType.TEMPORAL) {
+            temporalType = determineTemporalType(type);
+        }
         if (isManyToOne) {
             relationshipType = "MANY_TO_ONE";
             referencedEntityType = type;
@@ -293,7 +307,7 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             fetchType = "EAGER";
             owningSide = true;
         }
-        return new FieldMetadata(name, type, column, isId, isVersion, isGenerated, nullable, unique, attrType, length, precision, scale, insertable, updatable, columnDefinition, generationStrategy, versionStrategy, relationshipType, referencedEntityType, fetchType, owningSide);
+        return new FieldMetadata(name, type, column, isId, isVersion, isGenerated, nullable, unique, attrType, length, precision, scale, insertable, updatable, columnDefinition, generationStrategy, versionStrategy, relationshipType, referencedEntityType, fetchType, owningSide, temporalType);
     }
 
     private String getColumnName(VariableElement field) {
@@ -741,6 +755,11 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
             }
         }
         
+        // Generate getTemporalType() for TemporalAttribute
+        if (f.attributeType() == AttributeType.TEMPORAL) {
+            w.write("        @Override public TemporalAttribute.TemporalType getTemporalType() { return TemporalAttribute.TemporalType." + f.temporalType() + "; }\n");
+        }
+        
         w.write("        @Override public java.lang.invoke.MethodHandle getGetter() { return getter; }\n");
         w.write("        @Override public java.lang.invoke.MethodHandle getSetter() { return setter; }\n");
         w.write("        @Override @SuppressWarnings(\"unchecked\") public V get(T instance) {\n");
@@ -833,7 +852,8 @@ public class MansartPersistenceProcessor extends AbstractProcessor {
         int length, int precision, int scale,
         boolean insertable, boolean updatable, String columnDefinition,
         String generationStrategy, String versionStrategy,
-        String relationshipType, String referencedEntityType, String fetchType, boolean owningSide
+        String relationshipType, String referencedEntityType, String fetchType, boolean owningSide,
+        String temporalType
     ) {}
 
     private enum AttributeType {

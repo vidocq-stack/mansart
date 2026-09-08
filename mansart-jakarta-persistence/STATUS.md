@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M6-JP-42 — String functions — DONE
-- **Milestone**: M6 (IN PROGRESS) — 8/12 done
+- **Card**: M6-JP-43 — Date/time functions — DONE
+- **Milestone**: M6 (IN PROGRESS) — 9/12 done
 
 ## Milestone Progress Overview
 
@@ -14,7 +14,7 @@
 | M3 | 4 | 4 | 100% | DONE |
 | M4 | 6 | 6 | 100% | DONE |
 | M5 | 5 | 5 | 100% | DONE |
-| M6 | 12 | 8 | 66.7% | IN PROGRESS |
+| M6 | 12 | 9 | 75.0% | IN PROGRESS |
 | M7 | 12 | 0 | 0% | TODO |
 | M8 | 4 | 0 | 0% | TODO |
 | M9 | 3 | 0 | 0% | TODO |
@@ -34,8 +34,8 @@
 ---
 
 ## Metrics
-- **Baseline TCK**: 2/0/2 PASS (ProviderDiscoveryTest — harness works, provider discoverable)
-- **Unit Tests**: 621/621 PASS (all tests across modules)
+- **Baseline TCK**: 1/1/0 (1 passed, 1 failed, 0 errored — harness works, partial provider test)
+- **Unit Tests**: 345/345 PASS (persistence modules)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -99,7 +99,7 @@
 - M6-JP-40 — Named and positional parameters — DONE
 - M6-JP-41 — Aggregate functions — DONE
 - M6-JP-42 — String functions — DONE
-- M6-JP-43 — Date/time functions — TODO
+- M6-JP-43 — Date/time functions — DONE
 - M6-JP-44 — CASE expressions — TODO
 - M6-JP-45 — Subqueries — TODO
 
@@ -225,3 +225,6 @@
 - M6-JP-38: UPDATE queries (SET clause, WHERE, literal/named/positional params), 5/5 update tests, 300/300 total pass
 - M6-JP-39: DELETE queries (DELETE FROM, WHERE, literal/named/positional params), 5/5 delete tests, 594/594 total pass
 - M6-JP-40: Named and positional parameters (:param, ?1), temporal overloads, Parameter metadata API, 11/11 parameter tests, 605/605 total pass
+- M6-JP-41: Aggregate functions (COUNT, SUM, AVG, MIN, MAX), 8/8 aggregate tests, 613/613 total pass
+- M6-JP-42: String functions (CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE, INDEX), 8/8 string function tests, 621/621 total pass
+- M6-JP-43: Date/time functions (CURRENT_DATE/TIME/TIMESTAMP, LOCAL_DATE/TIME/DATETIME, EXTRACT), 13/13 datetime function tests, 345/345 total pass, TCK 1/1/0

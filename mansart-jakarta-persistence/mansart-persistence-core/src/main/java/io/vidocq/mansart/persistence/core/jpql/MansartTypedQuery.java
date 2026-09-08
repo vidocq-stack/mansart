@@ -521,41 +521,96 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
         
         JpqlQueryExecutor.ProjectionInfo proj = projections.getFirst();
         Object result;
+        String function = proj.function();
         
-        if (proj.function().equalsIgnoreCase("COUNT")) {
-            result = rs.getLong(1);
-        } else if (proj.function().equalsIgnoreCase("SUM")) {
-            Class<?> resultType = proj.resultType();
-            if (resultType == Long.class || resultType == long.class) {
-                result = rs.getLong(1);
-            } else if (resultType == Integer.class || resultType == int.class) {
+        // Handle function projections (datetime functions, etc.)
+        if (function != null && !function.isEmpty()) {
+            function = function.toUpperCase();
+            
+            // Handle datetime functions - CURRENT_* return SQL types, LOCAL_* return Java Time types
+            if (function.equals("CURRENT_DATE")) {
+                result = rs.getObject(1, java.sql.Date.class);
+            } else if (function.equals("LOCAL_DATE")) {
+                Object sqlDate = rs.getObject(1);
+                if (sqlDate instanceof java.sql.Date) {
+                    result = ((java.sql.Date) sqlDate).toLocalDate();
+                } else if (sqlDate instanceof java.time.LocalDate) {
+                    result = sqlDate; // Already the correct type
+                } else if (sqlDate instanceof java.util.Date) {
+                    result = new java.sql.Date(((java.util.Date) sqlDate).getTime()).toLocalDate();
+                } else {
+                    result = sqlDate;
+                }
+            } else if (function.equals("CURRENT_TIME")) {
+                result = rs.getObject(1, java.sql.Time.class);
+            } else if (function.equals("LOCAL_TIME")) {
+                Object sqlTime = rs.getObject(1);
+                if (sqlTime instanceof java.sql.Time) {
+                    result = ((java.sql.Time) sqlTime).toLocalTime();
+                } else if (sqlTime instanceof java.time.LocalTime) {
+                    result = sqlTime; // Already the correct type
+                } else if (sqlTime instanceof java.time.OffsetTime) {
+                    result = ((java.time.OffsetTime) sqlTime).toLocalTime();
+                } else if (sqlTime instanceof java.util.Date) {
+                    result = new java.sql.Time(((java.util.Date) sqlTime).getTime()).toLocalTime();
+                } else {
+                    result = sqlTime;
+                }
+            } else if (function.equals("CURRENT_TIMESTAMP")) {
+                result = rs.getObject(1, java.sql.Timestamp.class);
+            } else if (function.equals("LOCAL_DATETIME")) {
+                Object sqlTimestamp = rs.getObject(1);
+                if (sqlTimestamp instanceof java.sql.Timestamp) {
+                    result = ((java.sql.Timestamp) sqlTimestamp).toLocalDateTime();
+                } else if (sqlTimestamp instanceof java.time.LocalDateTime) {
+                    result = sqlTimestamp; // Already the correct type
+                } else if (sqlTimestamp instanceof java.time.OffsetDateTime) {
+                    result = ((java.time.OffsetDateTime) sqlTimestamp).toLocalDateTime();
+                } else if (sqlTimestamp instanceof java.util.Date) {
+                    result = new java.sql.Timestamp(((java.util.Date) sqlTimestamp).getTime()).toLocalDateTime();
+                } else {
+                    result = sqlTimestamp;
+                }
+            } else if (function.equals("EXTRACT")) {
                 result = rs.getInt(1);
-            } else if (resultType == Double.class || resultType == double.class) {
-                result = rs.getDouble(1);
-            } else if (resultType == Float.class || resultType == float.class) {
-                result = rs.getFloat(1);
-            } else {
+            } else if (function.equals("COUNT")) {
                 result = rs.getLong(1);
-            }
-        } else if (proj.function().equalsIgnoreCase("AVG")) {
-            result = rs.getDouble(1);
-        } else if (proj.function().equalsIgnoreCase("MIN") || proj.function().equalsIgnoreCase("MAX")) {
-            Class<?> resultType = proj.resultType();
-            if (resultType == Integer.class || resultType == int.class) {
+            } else if (function.equals("SUM")) {
+                Class<?> resultType = proj.resultType();
+                if (resultType == Long.class || resultType == long.class) {
+                    result = rs.getLong(1);
+                } else if (resultType == Integer.class || resultType == int.class) {
+                    result = rs.getInt(1);
+                } else if (resultType == Double.class || resultType == double.class) {
+                    result = rs.getDouble(1);
+                } else if (resultType == Float.class || resultType == float.class) {
+                    result = rs.getFloat(1);
+                } else {
+                    result = rs.getLong(1);
+                }
+            } else if (function.equals("AVG")) {
+                result = rs.getDouble(1);
+            } else if (function.equals("MIN") || function.equals("MAX")) {
+                Class<?> resultType = proj.resultType();
+                if (resultType == Integer.class || resultType == int.class) {
+                    result = rs.getInt(1);
+                } else if (resultType == Long.class || resultType == long.class) {
+                    result = rs.getLong(1);
+                } else if (resultType == Double.class || resultType == double.class) {
+                    result = rs.getDouble(1);
+                } else if (resultType == Float.class || resultType == float.class) {
+                    result = rs.getFloat(1);
+                } else {
+                    result = rs.getObject(1);
+                }
+            } else if (function.equals("LENGTH") || function.equals("LOCATE")) {
+                // H2 returns LENGTH/LOCATE as BIGINT/Long, but we declared resultType as Integer
                 result = rs.getInt(1);
-            } else if (resultType == Long.class || resultType == long.class) {
-                result = rs.getLong(1);
-            } else if (resultType == Double.class || resultType == double.class) {
-                result = rs.getDouble(1);
-            } else if (resultType == Float.class || resultType == float.class) {
-                result = rs.getFloat(1);
             } else {
                 result = rs.getObject(1);
             }
-        } else if (proj.function().equalsIgnoreCase("LENGTH") || proj.function().equalsIgnoreCase("LOCATE")) {
-            // H2 returns LENGTH/LOCATE as BIGINT/Long, but we declared resultType as Integer
-            result = rs.getInt(1);
         } else {
+            // This should not happen for aggregate queries, but handle it defensively
             result = rs.getObject(1);
         }
         
