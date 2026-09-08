@@ -53,15 +53,20 @@ public final class JpqlQueryExecutor {
         SqlFragment sqlFragment,
         Class<?> entityClass,
         io.vidocq.mansart.data.dialect.EntityModel dialectModel,
-        List<BindParameter> bindParameters
+        List<BindParameter> bindParameters,
+        boolean aggregate,
+        List<ProjectionInfo> projections
     ) {
         public QueryPlan {
             Objects.requireNonNull(sqlFragment, "sqlFragment must not be null");
             Objects.requireNonNull(entityClass, "entityClass must not be null");
             Objects.requireNonNull(dialectModel, "dialectModel must not be null");
             bindParameters = List.copyOf(bindParameters == null ? List.of() : bindParameters);
+            projections = List.copyOf(projections == null ? List.of() : projections);
         }
     }
+
+    public record ProjectionInfo(String function, boolean distinct, String columnSql, Class<?> resultType) {}
 
     public record UpdatePlan(
         String sql,
@@ -144,13 +149,32 @@ public final class JpqlQueryExecutor {
         // Translate ORDER BY clause
         OrderBy orderBy = translateOrderBy(stmt.orderBy(), context);
 
+        // Check if this is an aggregate query
+        boolean isAggregate = isAggregateQuery(stmt.select().items());
+        List<ProjectionInfo> projections = isAggregate ? buildProjections(stmt.select().items(), context) : List.of();
+
         // Generate SQL fragment
-        SqlFragment sqlFragment = dialect.select(
-            context.rootModel(),
-            where,
-            orderBy,
-            io.vidocq.mansart.data.dialect.Pagination.NONE
-        );
+        SqlFragment sqlFragment;
+        if (isAggregate) {
+            // For aggregate queries, use selectColumns with projected columns
+            List<Dialect.ProjectedColumn> projectedColumns = projections.stream()
+                .map(proj -> (Dialect.ProjectedColumn) new Dialect.ProjectedColumn.Expr(proj.columnSql()))
+                .toList();
+            sqlFragment = dialect.selectColumns(
+                context.rootModel(),
+                projectedColumns,
+                where,
+                orderBy,
+                io.vidocq.mansart.data.dialect.Pagination.NONE
+            );
+        } else {
+            sqlFragment = dialect.select(
+                context.rootModel(),
+                where,
+                orderBy,
+                io.vidocq.mansart.data.dialect.Pagination.NONE
+            );
+        }
 
         // Extract bind parameters from WHERE condition
         List<BindParameter> bindParameters = extractBindParameters(
@@ -158,7 +182,7 @@ public final class JpqlQueryExecutor {
             context
         );
 
-        return new QueryPlan(sqlFragment, entityClass, context.rootModel(), bindParameters);
+        return new QueryPlan(sqlFragment, entityClass, context.rootModel(), bindParameters, isAggregate, projections);
     }
 
     public UpdatePlan plan(JpqlAst.UpdateStatement stmt) {
@@ -667,6 +691,87 @@ public final class JpqlQueryExecutor {
             return null;
         }
         throw new UnsupportedOperationException("Cannot extract value from expression: " + expr.getClass().getSimpleName());
+    }
+
+    /**
+     * Returns true if any select item is an Aggregate expression.
+     */
+    private boolean isAggregateQuery(List<JpqlAst.Expression> selectItems) {
+        return selectItems.stream()
+            .anyMatch(expr -> expr instanceof JpqlAst.Aggregate);
+    }
+
+    /**
+     * Builds ProjectionInfo for each aggregate expression in the SELECT clause.
+     * Returns a list of projection info objects that describe how to materialize
+     * the result set row.
+     */
+    private List<ProjectionInfo> buildProjections(List<JpqlAst.Expression> selectItems, PlanContext context) {
+        List<ProjectionInfo> projections = new ArrayList<>();
+        for (JpqlAst.Expression expr : selectItems) {
+            if (expr instanceof JpqlAst.Aggregate agg) {
+                projections.add(buildProjectionInfo(agg, context));
+            } else {
+                throw new UnsupportedOperationException("Only aggregate expressions are supported in aggregate queries, got: " + expr.getClass().getSimpleName());
+            }
+        }
+        return projections;
+    }
+
+    /**
+     * Builds a single ProjectionInfo for an aggregate expression.
+     */
+    private ProjectionInfo buildProjectionInfo(JpqlAst.Aggregate aggregate, PlanContext context) {
+        String function = aggregate.function().toUpperCase();
+        boolean distinct = aggregate.distinct();
+        JpqlAst.Expression arg = aggregate.argument();
+
+        // Determine the SQL expression for this aggregate
+        String columnSql;
+        Class<?> resultType;
+
+        if (arg instanceof JpqlAst.Path path) {
+            // Path expression: e.field or e (for COUNT(*))
+            if (path.fields().isEmpty()) {
+                // COUNT(e) where e is just the alias
+                if ("COUNT".equals(function)) {
+                    columnSql = "COUNT(*)";
+                    resultType = Long.class;
+                } else {
+                    throw new UnsupportedOperationException("Aggregate function " + function + " with entity reference (*) is only supported for COUNT");
+                }
+            } else {
+                // e.field - resolve to column name
+                Attribute<?, ?> attr = resolveAttribute(arg, context);
+                String columnName = attr.columnName();
+
+                // Build SQL: FUNCTION(DISTINCT "column")
+                String distinctSql = distinct ? "DISTINCT " : "";
+                if ("COUNT".equals(function)) {
+                    columnSql = "COUNT(" + distinctSql + "\"" + columnName + "\")";
+                    resultType = Long.class;
+                } else if ("SUM".equals(function)) {
+                    columnSql = function + "(" + distinctSql + "\"" + columnName + "\")";
+                    // SUM returns Long for integer columns
+                    resultType = Long.class;
+                } else if ("AVG".equals(function)) {
+                    columnSql = function + "(" + distinctSql + "\"" + columnName + "\")";
+                    resultType = Double.class;
+                } else if ("MIN".equals(function)) {
+                    columnSql = function + "(" + "\"" + columnName + "\")";
+                    resultType = attr.javaType();
+                } else if ("MAX".equals(function)) {
+                    columnSql = function + "(" + "\"" + columnName + "\")";
+                    resultType = attr.javaType();
+                } else {
+                    throw new UnsupportedOperationException("Aggregate function not supported: " + function);
+                }
+            }
+        } else {
+            throw new UnsupportedOperationException("Only path expressions are supported as aggregate arguments, got: " + arg.getClass().getSimpleName());
+        }
+
+        return new ProjectionInfo(function, distinct, columnSql, resultType);
     }
 
 }

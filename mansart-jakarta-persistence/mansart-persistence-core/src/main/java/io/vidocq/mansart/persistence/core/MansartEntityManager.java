@@ -196,7 +196,7 @@ public class MansartEntityManager implements EntityManager {
         if (stmt instanceof JpqlAst.SelectStatement select) {
             JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
             JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
-            return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, plan.entityClass(), callback, plan.dialectModel(), plan.bindParameters());
+            return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, plan.entityClass(), callback, plan.dialectModel(), plan.bindParameters(), plan.aggregate(), plan.projections());
         }
         if (stmt instanceof JpqlAst.UpdateStatement update) {
             JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
@@ -225,11 +225,14 @@ public class MansartEntityManager implements EntityManager {
         }
         JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
         JpqlQueryExecutor.QueryPlan plan = executor.plan(select);
-        // Ensure the result class matches the entity class from the query
-        if (!plan.entityClass().isAssignableFrom(resultClass)) {
-            throw new IllegalArgumentException("Result class " + resultClass.getName() + " is not assignable from entity class " + plan.entityClass().getName());
+        // For aggregate queries, skip the entity class assignability check
+        if (!plan.aggregate()) {
+            // Ensure the result class matches the entity class from the query
+            if (!plan.entityClass().isAssignableFrom(resultClass)) {
+                throw new IllegalArgumentException("Result class " + resultClass.getName() + " is not assignable from entity class " + plan.entityClass().getName());
+            }
         }
-        return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, resultClass, callback, plan.dialectModel(), plan.bindParameters());
+        return new MansartTypedQuery<>(plan.sqlFragment(), dialect, dataSource, resultClass, callback, plan.dialectModel(), plan.bindParameters(), plan.aggregate(), plan.projections());
     }
     @Override public Query createNamedQuery(String name) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedQuery"); }
     @Override public <T> TypedQuery<T> createNamedQuery(String name, Class<T> resultClass) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createNamedQuery"); }

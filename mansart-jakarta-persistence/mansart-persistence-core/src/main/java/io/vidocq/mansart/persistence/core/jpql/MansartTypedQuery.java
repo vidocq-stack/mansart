@@ -59,6 +59,8 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
     private final List<JpqlQueryExecutor.BindParameter> bindParameters;
     private final Map<String, Object> namedParams = new HashMap<>();
     private final List<Object> positionalParams = new ArrayList<>();
+    private final boolean aggregate;
+    private final List<JpqlQueryExecutor.ProjectionInfo> projections;
     private Integer timeoutSeconds = null;
 
     public MansartTypedQuery(
@@ -70,6 +72,20 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
         EntityModel dialectModel,
         List<BindParameter> bindParameters
     ) {
+        this(sqlFragment, dialect, dataSource, entityClass, callback, dialectModel, bindParameters, false, List.of());
+    }
+
+    public MansartTypedQuery(
+        SqlFragment sqlFragment,
+        Dialect dialect,
+        DataSource dataSource,
+        Class<T> entityClass,
+        MansartCallback callback,
+        EntityModel dialectModel,
+        List<BindParameter> bindParameters,
+        boolean aggregate,
+        List<JpqlQueryExecutor.ProjectionInfo> projections
+    ) {
         this.sqlFragment = Objects.requireNonNull(sqlFragment, "sqlFragment must not be null");
         this.dialect = Objects.requireNonNull(dialect, "dialect must not be null");
         this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
@@ -79,6 +95,8 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
         this.bindParameters = Collections.unmodifiableList(
             Objects.requireNonNull(bindParameters, "bindParameters must not be null")
         );
+        this.aggregate = aggregate;
+        this.projections = projections == null ? List.of() : List.copyOf(projections);
     }
 
     @Override
@@ -477,6 +495,9 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
     }
 
     private T materializeRow(ResultSet rs) throws SQLException {
+        if (aggregate) {
+            return materializeAggregateRow(rs);
+        }
         T entity = callback.instantiate(entityClass);
         List<Attribute<?, ?>> attrs = dialectModel.attributes();
         for (Attribute<?, ?> attr : attrs) {
@@ -487,6 +508,55 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
             callback.getAccessor(entityClass).set(entity, attr.name(), value);
         }
         return entity;
+    }
+
+    @SuppressWarnings("unchecked")
+    private T materializeAggregateRow(ResultSet rs) throws SQLException {
+        if (projections.isEmpty()) {
+            throw new PersistenceException("Aggregate query has no projections");
+        }
+        if (projections.size() > 1) {
+            throw new UnsupportedOperationException("Multiple projections in aggregate queries are not supported");
+        }
+        
+        JpqlQueryExecutor.ProjectionInfo proj = projections.getFirst();
+        Object result;
+        
+        if (proj.function().equalsIgnoreCase("COUNT")) {
+            result = rs.getLong(1);
+        } else if (proj.function().equalsIgnoreCase("SUM")) {
+            Class<?> resultType = proj.resultType();
+            if (resultType == Long.class || resultType == long.class) {
+                result = rs.getLong(1);
+            } else if (resultType == Integer.class || resultType == int.class) {
+                result = rs.getInt(1);
+            } else if (resultType == Double.class || resultType == double.class) {
+                result = rs.getDouble(1);
+            } else if (resultType == Float.class || resultType == float.class) {
+                result = rs.getFloat(1);
+            } else {
+                result = rs.getLong(1);
+            }
+        } else if (proj.function().equalsIgnoreCase("AVG")) {
+            result = rs.getDouble(1);
+        } else if (proj.function().equalsIgnoreCase("MIN") || proj.function().equalsIgnoreCase("MAX")) {
+            Class<?> resultType = proj.resultType();
+            if (resultType == Integer.class || resultType == int.class) {
+                result = rs.getInt(1);
+            } else if (resultType == Long.class || resultType == long.class) {
+                result = rs.getLong(1);
+            } else if (resultType == Double.class || resultType == double.class) {
+                result = rs.getDouble(1);
+            } else if (resultType == Float.class || resultType == float.class) {
+                result = rs.getFloat(1);
+            } else {
+                result = rs.getObject(1);
+            }
+        } else {
+            result = rs.getObject(1);
+        }
+        
+        return (T) result;
     }
 
     private Class<?> wrap(Class<?> type) {
