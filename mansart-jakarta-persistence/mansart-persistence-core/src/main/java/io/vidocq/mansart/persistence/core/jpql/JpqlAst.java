@@ -113,7 +113,7 @@ public final class JpqlAst {
 
     public record In(Expression expression, List<Expression> items, boolean negated, int position) implements Condition {}
 
-    public record Like(Expression expression, String pattern, Character escape, boolean negated, int position) implements Condition {}
+    public record Like(Expression expression, Expression pattern, Character escape, boolean negated, int position) implements Condition {}
 
     public record IsNull(Expression expression, boolean negated, int position) implements Condition {}
 

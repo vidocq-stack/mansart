@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M6-JP-35 — SELECT queries — DONE
-- **Milestone**: M6 (IN PROGRESS) — 2/12 done
+- **Card**: M6-JP-37 — WHERE expressions — DONE
+- **Milestone**: M6 (IN PROGRESS) — 3/12 done
 
 ## Milestone Progress Overview
 
@@ -14,7 +14,7 @@
 | M3 | 4 | 4 | 100% | DONE |
 | M4 | 6 | 6 | 100% | DONE |
 | M5 | 5 | 5 | 100% | DONE |
-| M6 | 12 | 2 | 16.7% | IN PROGRESS |
+| M6 | 12 | 3 | 25.0% | IN PROGRESS |
 | M7 | 12 | 0 | 0% | TODO |
 | M8 | 4 | 0 | 0% | TODO |
 | M9 | 3 | 0 | 0% | TODO |
@@ -29,13 +29,13 @@
 | M18 | 4 | 0 | 0% | TODO |
 | M19 | 4 | 0 | 0% | TODO |
 | M20 | 6 | 0 | 0% | TODO |
-| **TOTAL** | **112** | **34** | **30.4%** | |
+| **TOTAL** | **112** | **35** | **31.3%** | |
 
 ---
 
 ## Metrics
 - **Baseline TCK**: 2/0/2 PASS (ProviderDiscoveryTest — harness works, provider discoverable)
-- **Unit Tests**: 274/274 PASS (mansart-persistence-tests module) + 12/12 PASS (JpqlParserTest in core)
+- **Unit Tests**: 290/290 PASS (mansart-persistence-tests module) + 12/12 PASS (JpqlParserTest in core)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -93,7 +93,7 @@
 - M6-JP-34 — JPQL parser — DONE
 - M6-JP-35 — SELECT queries — DONE
 - M6-JP-36 — FROM clause — DONE
-- M6-JP-37 — WHERE expressions — TODO
+- M6-JP-37 — WHERE expressions — DONE
 - M6-JP-38 — UPDATE queries — TODO
 - M6-JP-39 — DELETE queries — TODO
 - M6-JP-40 — Named and positional parameters — TODO
@@ -221,3 +221,4 @@
 - M6-JP-34: JPQL parser (lexer + recursive descent parser + AST), 12/12 tests in core module
 - M6-JP-35: SELECT queries (JPQL execution via JpqlQueryExecutor + MansartTypedQuery), 12/12 integration tests, 563/563 total pass
 - M6-JP-36: FROM clause (INNER JOIN + implicit path navigation, LEFT/RIGHT/CROSS throw PersistenceException), 5/5 join tests, 568/568 total pass
+- M6-JP-37: WHERE expressions (BETWEEN, IN, LIKE, IS EMPTY, IS NULL, comparisons, negations), 16/16 WHERE tests, 584/584 total pass

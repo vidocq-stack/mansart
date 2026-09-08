@@ -288,6 +288,27 @@ public final class JpqlQueryExecutor {
             Attribute<?, ?> attr = resolveAttribute(isNull.expression(), context);
             return isNull.negated() ? new io.vidocq.mansart.data.dialect.Where.IsNotNull(attr) : new io.vidocq.mansart.data.dialect.Where.IsNull(attr);
         }
+        if (cond instanceof JpqlAst.Between between) {
+            Attribute<?, ?> attr = resolveAttribute(between.expression(), context);
+            var w = new io.vidocq.mansart.data.dialect.Where.Between(attr);
+            return between.negated() ? new io.vidocq.mansart.data.dialect.Where.Not(w) : w;
+        }
+        if (cond instanceof JpqlAst.In in) {
+            Attribute<?, ?> attr = resolveAttribute(in.expression(), context);
+            var w = new io.vidocq.mansart.data.dialect.Where.In(attr, in.items().size());
+            return in.negated() ? new io.vidocq.mansart.data.dialect.Where.Not(w) : w;
+        }
+        if (cond instanceof JpqlAst.Like like) {
+            Attribute<?, ?> attr = resolveAttribute(like.expression(), context);
+            var w = new io.vidocq.mansart.data.dialect.Where.Like(attr);
+            return like.negated() ? new io.vidocq.mansart.data.dialect.Where.Not(w) : w;
+        }
+        if (cond instanceof JpqlAst.IsEmpty isEmpty) {
+            Attribute<?, ?> attr = resolveAttribute(isEmpty.expression(), context);
+            return isEmpty.negated()
+                ? new io.vidocq.mansart.data.dialect.Where.IsNotNull(attr)
+                : new io.vidocq.mansart.data.dialect.Where.IsNull(attr);
+        }
         throw new UnsupportedOperationException("Condition type not supported: " + cond.getClass().getSimpleName());
     }
 
@@ -423,6 +444,26 @@ public final class JpqlQueryExecutor {
             // no bind parameters
             return;
         }
+        if (cond instanceof JpqlAst.Between between) {
+            // low comes before high, matching dialect rendering order
+            extractBindParameterFromExpr(between.low(), leftAttr, params);
+            extractBindParameterFromExpr(between.high(), leftAttr, params);
+            return;
+        }
+        if (cond instanceof JpqlAst.In in) {
+            for (JpqlAst.Expression item : in.items()) {
+                extractBindParameterFromExpr(item, leftAttr, params);
+            }
+            return;
+        }
+        if (cond instanceof JpqlAst.Like like) {
+            extractBindParameterFromExpr(like.pattern(), leftAttr, params);
+            return;
+        }
+        if (cond instanceof JpqlAst.IsEmpty) {
+            // no bind parameters
+            return;
+        }
         throw new UnsupportedOperationException("Cannot extract bind parameters from condition: " + cond.getClass().getSimpleName());
     }
 
@@ -450,7 +491,42 @@ public final class JpqlQueryExecutor {
         if (cond instanceof JpqlAst.IsNull) {
             return; // no bind parameters
         }
+        if (cond instanceof JpqlAst.Between between) {
+            Attribute<?, ?> attr = resolveAttribute(between.expression(), context);
+            // low comes before high, matching dialect rendering order
+            extractBindParameterFromExpr(between.low(), attr, params);
+            extractBindParameterFromExpr(between.high(), attr, params);
+            return;
+        }
+        if (cond instanceof JpqlAst.In in) {
+            Attribute<?, ?> attr = resolveAttribute(in.expression(), context);
+            for (JpqlAst.Expression item : in.items()) {
+                extractBindParameterFromExpr(item, attr, params);
+            }
+            return;
+        }
+        if (cond instanceof JpqlAst.Like like) {
+            Attribute<?, ?> attr = resolveAttribute(like.expression(), context);
+            extractBindParameterFromExpr(like.pattern(), attr, params);
+            return;
+        }
+        if (cond instanceof JpqlAst.IsEmpty) {
+            return; // no bind parameters
+        }
         throw new UnsupportedOperationException("Cannot extract bind parameters from condition: " + cond.getClass().getSimpleName());
+    }
+
+    private void extractBindParameterFromExpr(JpqlAst.Expression expr, Attribute<?, ?> attr,
+            List<BindParameter> params) {
+        Object value = extractExpressionValue(expr);
+        String paramName = null;
+        Integer paramPosition = null;
+        if (expr instanceof JpqlAst.NamedParam np) {
+            paramName = np.name();
+        } else if (expr instanceof JpqlAst.PositionalParam pp) {
+            paramPosition = pp.parameter();
+        }
+        params.add(new BindParameter(value, paramName, paramPosition, attr));
     }
 
     private Object extractExpressionValue(JpqlAst.Expression expr) {
@@ -472,4 +548,5 @@ public final class JpqlQueryExecutor {
         }
         throw new UnsupportedOperationException("Cannot extract value from expression: " + expr.getClass().getSimpleName());
     }
+
 }

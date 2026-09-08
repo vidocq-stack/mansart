@@ -439,99 +439,87 @@ public final class JpqlParser {
             Expression right = parseScalarExpression();
             return new Comparison(op, left, right, startPos);
             
-        } else if (peek().type() == TokenType.BETWEEN) {
-            consume();
+        } else {
             boolean negated = false;
             if (peek().type() == TokenType.NOT) {
                 consume();
                 negated = true;
             }
-            Expression low = parseScalarExpression();
-            expect(TokenType.AND);
-            Expression high = parseScalarExpression();
-            return new Between(left, low, high, negated, startPos);
-            
-        } else if (peek().type() == TokenType.IN) {
-            consume();
-            boolean negated = false;
-            if (peek().type() == TokenType.NOT) {
+            if (peek().type() == TokenType.BETWEEN) {
                 consume();
-                negated = true;
-            }
-            expect(TokenType.LPAREN);
-            List<Expression> items = new ArrayList<>();
-            items.add(parseExpression());
-            while (peek().type() == TokenType.COMMA) {
+                Expression low = parseScalarExpression();
+                expect(TokenType.AND);
+                Expression high = parseScalarExpression();
+                return new Between(left, low, high, negated, startPos);
+            } else if (peek().type() == TokenType.IN) {
                 consume();
+                expect(TokenType.LPAREN);
+                List<Expression> items = new ArrayList<>();
                 items.add(parseExpression());
-            }
-            expect(TokenType.RPAREN);
-            return new In(left, items, negated, startPos);
-            
-        } else if (peek().type() == TokenType.LIKE) {
-            consume();
-            boolean negated = false;
-            if (peek().type() == TokenType.NOT) {
-                consume();
-                negated = true;
-            }
-            Expression pattern = parseScalarExpression();
-            Character escape = null;
-            if (peek().type() == TokenType.ESCAPE) {
-                consume();
-                // Parse escape character
-                if (peek().type() == TokenType.STRING_LITERAL && peek().text().length() == 1) {
-                    escape = peek().text().charAt(0);
+                while (peek().type() == TokenType.COMMA) {
                     consume();
-                } else {
-                    throw error("Expected string literal for ESCAPE character");
+                    items.add(parseExpression());
                 }
-            }
-            return new Like(left, pattern.toString(), escape, negated, startPos);
-            
-        } else if (peek().type() == TokenType.IS) {
-            consume();
-            boolean negated = false;
-            if (peek().type() == TokenType.NOT) {
+                expect(TokenType.RPAREN);
+                return new In(left, items, negated, startPos);
+            } else if (peek().type() == TokenType.LIKE) {
                 consume();
-                negated = true;
-            }
-            if (peek().type() == TokenType.NULL) {
+                Expression patternExpr = parseScalarExpression();
+                Character escape = null;
+                if (peek().type() == TokenType.ESCAPE) {
+                    consume();
+                    // Parse escape character
+                    if (peek().type() == TokenType.STRING_LITERAL && peek().text().length() == 1) {
+                        escape = peek().text().charAt(0);
+                        consume();
+                    } else {
+                        throw error("Expected string literal for ESCAPE character");
+                    }
+                }
+                return new Like(left, patternExpr, escape, negated, startPos);
+            } else if (negated) {
+                throw error("Expected BETWEEN, IN, or LIKE after NOT");
+            } else if (peek().type() == TokenType.IS) {
                 consume();
-                return new IsNull(left, negated, startPos);
-            } else if (peek().type() == TokenType.EMPTY) {
+                boolean isNegated = false;
+                if (peek().type() == TokenType.NOT) {
+                    consume();
+                    isNegated = true;
+                }
+                if (peek().type() == TokenType.NULL) {
+                    consume();
+                    return new IsNull(left, isNegated, startPos);
+                } else if (peek().type() == TokenType.EMPTY) {
+                    consume();
+                    return new IsEmpty(left, isNegated, startPos);
+                } else {
+                    throw error("Expected NULL or EMPTY after IS");
+                }
+            } else if (peek().type() == TokenType.MEMBER) {
                 consume();
-                return new IsEmpty(left, negated, startPos);
+                boolean memberNegated = false;
+                if (peek().type() == TokenType.NOT) {
+                    consume();
+                    memberNegated = true;
+                }
+                expect(TokenType.OF);
+                String collection = parsePathExpression();
+                return new Member(left, collection, memberNegated, startPos);
+            } else if (peek().type() == TokenType.EXISTS) {
+                consume();
+                boolean existsNegated = false;
+                if (peek().type() == TokenType.NOT) {
+                    consume();
+                    existsNegated = true;
+                }
+                expect(TokenType.LPAREN);
+                JpqlStatement subquery = parseSelectStatement();
+                expect(TokenType.RPAREN);
+                return new Exists(new Subquery(subquery, startPos), existsNegated, startPos);
             } else {
-                throw error("Expected NULL or EMPTY after IS");
+                throw error("Expected comparison operator or conditional expression");
             }
-            
-        } else if (peek().type() == TokenType.MEMBER) {
-            consume();
-            boolean negated = false;
-            if (peek().type() == TokenType.NOT) {
-                consume();
-                negated = true;
-            }
-            expect(TokenType.OF);
-            String collection = parsePathExpression();
-            return new Member(left, collection, negated, startPos);
-            
-        } else if (peek().type() == TokenType.EXISTS) {
-            consume();
-            boolean negated = false;
-            if (peek().type() == TokenType.NOT) {
-                consume();
-                negated = true;
-            }
-            expect(TokenType.LPAREN);
-            // Parse subquery
-            JpqlStatement subquery = parseSelectStatement();
-            expect(TokenType.RPAREN);
-            return new Exists(new Subquery(subquery, startPos), negated, startPos);
         }
-        
-        throw error("Expected comparison operator or conditional expression");
     }
     
     private Expression parseScalarExpression() {
