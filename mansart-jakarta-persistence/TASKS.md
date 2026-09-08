@@ -169,7 +169,7 @@ tck ────────── core, cdi, processor (out of reactor)
 - M6-JP-36: FROM clause — entity names, joins (INNER, LEFT, RIGHT, CROSS), fetch joins — DONE (5/5 join tests, 568/568 total)
 - M6-JP-37: WHERE expressions — comparisons, logical operators, IN, BETWEEN, LIKE, IS NULL, IS EMPTY, functions — DONE (16/16 WHERE tests, 584/584 total)
 - M6-JP-38: UPDATE queries — SET clause, WHERE — DONE (5/5 update tests, 300/300 total)
-- M6-JP-39: DELETE queries — WHERE
+- M6-JP-39: DELETE queries — WHERE — DONE (5/5 delete tests, 594/594 total)
 - M6-JP-40: Named parameters (`:param`) and positional parameters (`?1`)
 - M6-JP-41: Aggregate functions — COUNT, SUM, AVG, MIN, MAX
 - M6-JP-42: String functions — CONCAT, SUBSTRING, TRIM, LOWER, UPPER, LENGTH, LOCATE, INDEX

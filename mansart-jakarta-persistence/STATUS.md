@@ -1,8 +1,8 @@
 # mansart-jakarta-persistence — Status
 
 ## Current Focus
-- **Card**: M6-JP-38 — UPDATE queries — DONE
-- **Milestone**: M6 (IN PROGRESS) — 4/12 done
+- **Card**: M6-JP-39 — DELETE queries — DONE
+- **Milestone**: M6 (IN PROGRESS) — 5/12 done
 
 ## Milestone Progress Overview
 
@@ -14,7 +14,7 @@
 | M3 | 4 | 4 | 100% | DONE |
 | M4 | 6 | 6 | 100% | DONE |
 | M5 | 5 | 5 | 100% | DONE |
-| M6 | 12 | 4 | 33.3% | IN PROGRESS |
+| M6 | 12 | 5 | 41.7% | IN PROGRESS |
 | M7 | 12 | 0 | 0% | TODO |
 | M8 | 4 | 0 | 0% | TODO |
 | M9 | 3 | 0 | 0% | TODO |
@@ -29,13 +29,13 @@
 | M18 | 4 | 0 | 0% | TODO |
 | M19 | 4 | 0 | 0% | TODO |
 | M20 | 6 | 0 | 0% | TODO |
-| **TOTAL** | **112** | **36** | **32.1%** | |
+| **TOTAL** | **112** | **37** | **33.0%** | |
 
 ---
 
 ## Metrics
 - **Baseline TCK**: 2/0/2 PASS (ProviderDiscoveryTest — harness works, provider discoverable)
-- **Unit Tests**: 295/295 PASS (mansart-persistence-tests module) + 12/12 PASS (JpqlParserTest in core)
+- **Unit Tests**: 594/594 PASS (all tests across modules)
 - **Integration Tests**: 11/11 PASS (ExternalEntityIT)
 - **Modules Building**: 9/9 (all modules compile)
 - **Modules with module-info.java**: 5/9 (spi, processor, core, cdi, external-lib)
@@ -95,7 +95,7 @@
 - M6-JP-36 — FROM clause — DONE
 - M6-JP-37 — WHERE expressions — DONE
 - M6-JP-38 — UPDATE queries — DONE
-- M6-JP-39 — DELETE queries — TODO
+- M6-JP-39 — DELETE queries — DONE
 - M6-JP-40 — Named and positional parameters — TODO
 - M6-JP-41 — Aggregate functions — TODO
 - M6-JP-42 — String functions — TODO
@@ -223,3 +223,4 @@
 - M6-JP-36: FROM clause (INNER JOIN + implicit path navigation, LEFT/RIGHT/CROSS throw PersistenceException), 5/5 join tests, 568/568 total pass
 - M6-JP-37: WHERE expressions (BETWEEN, IN, LIKE, IS EMPTY, IS NULL, comparisons, negations), 16/16 WHERE tests, 584/584 total pass
 - M6-JP-38: UPDATE queries (SET clause, WHERE, literal/named/positional params), 5/5 update tests, 300/300 total pass
+- M6-JP-39: DELETE queries (DELETE FROM, WHERE, literal/named/positional params), 5/5 delete tests, 594/594 total pass

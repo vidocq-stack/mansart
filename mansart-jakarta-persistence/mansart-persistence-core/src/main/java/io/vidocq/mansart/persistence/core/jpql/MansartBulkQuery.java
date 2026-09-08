@@ -33,10 +33,11 @@ import io.vidocq.mansart.data.dialect.Dialect;
 import io.vidocq.mansart.data.dialect.EntityModel;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor.BindParameter;
 import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor.UpdatePlan;
+import io.vidocq.mansart.persistence.core.jpql.JpqlQueryExecutor.DeletePlan;
 import io.vidocq.mansart.persistence.core.runtime.MansartCallback;
 
 /**
- * Query implementation that executes JPQL bulk UPDATE statements.
+ * Query implementation that executes JPQL bulk UPDATE and DELETE statements.
  */
 public final class MansartBulkQuery implements Query {
 
@@ -55,6 +56,23 @@ public final class MansartBulkQuery implements Query {
 
     public MansartBulkQuery(
         UpdatePlan plan,
+        Dialect dialect,
+        DataSource dataSource,
+        MansartCallback callback
+    ) {
+        this.sql = Objects.requireNonNull(plan.sql(), "sql must not be null");
+        this.dialect = Objects.requireNonNull(dialect, "dialect must not be null");
+        this.dataSource = Objects.requireNonNull(dataSource, "dataSource must not be null");
+        this.entityClass = Objects.requireNonNull(plan.entityClass(), "entityClass must not be null");
+        this.callback = Objects.requireNonNull(callback, "callback must not be null");
+        this.dialectModel = Objects.requireNonNull(plan.dialectModel(), "dialectModel must not be null");
+        this.bindParameters = Collections.unmodifiableList(
+            Objects.requireNonNull(plan.bindParameters(), "bindParameters must not be null")
+        );
+    }
+
+    public MansartBulkQuery(
+        DeletePlan plan,
         Dialect dialect,
         DataSource dataSource,
         MansartCallback callback

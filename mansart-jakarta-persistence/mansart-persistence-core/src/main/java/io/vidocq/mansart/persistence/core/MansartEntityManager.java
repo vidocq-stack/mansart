@@ -203,7 +203,12 @@ public class MansartEntityManager implements EntityManager {
             JpqlQueryExecutor.UpdatePlan plan = executor.plan(update);
             return new MansartBulkQuery(plan, dialect, dataSource, callback);
         }
-        throw new UnsupportedOperationException("Only SELECT and UPDATE queries are supported");
+        if (stmt instanceof JpqlAst.DeleteStatement delete) {
+            JpqlQueryExecutor executor = new JpqlQueryExecutor(dialect, callback, adapter);
+            JpqlQueryExecutor.DeletePlan plan = executor.plan(delete);
+            return new MansartBulkQuery(plan, dialect, dataSource, callback);
+        }
+        throw new UnsupportedOperationException("Only SELECT, UPDATE, and DELETE queries are supported");
     }
     @Override public <T> TypedQuery<T> createQuery(CriteriaQuery<T> criteriaQuery) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }
     @Override public <T> TypedQuery<T> createQuery(CriteriaSelect<T> criteriaSelect) { ensureOpen(); throw new UnsupportedOperationException("not implemented: createQuery"); }

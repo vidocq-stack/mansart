@@ -77,6 +77,20 @@ public final class JpqlQueryExecutor {
         }
     }
 
+    public record DeletePlan(
+        String sql,
+        Class<?> entityClass,
+        EntityModel dialectModel,
+        List<BindParameter> bindParameters
+    ) {
+        public DeletePlan {
+            Objects.requireNonNull(sql, "sql must not be null");
+            Objects.requireNonNull(entityClass, "entityClass must not be null");
+            Objects.requireNonNull(dialectModel, "dialectModel must not be null");
+            bindParameters = List.copyOf(bindParameters == null ? List.of() : bindParameters);
+        }
+    }
+
     private record PlanContext(
         EntityModel rootModel,
         Map<String, EntityModel> aliasToModel,
@@ -202,6 +216,41 @@ public final class JpqlQueryExecutor {
         allParams.addAll(whereBindParams);
 
         return new UpdatePlan(sqlFragment.sql(), entityClass, dialectModel, allParams);
+    }
+
+    public DeletePlan plan(JpqlAst.DeleteStatement stmt) {
+        String entityName = stmt.delete().entityName();
+
+        Class<?> entityClass = callback.resolveEntityName(entityName);
+        if (entityClass == null) {
+            throw new IllegalArgumentException("Unknown entity name: " + entityName);
+        }
+
+        io.vidocq.mansart.persistence.spi.EntityModel spiModel = callback.getEntityModel(entityClass);
+        EntityModel dialectModel = adapter.adapt(spiModel);
+
+        String alias = stmt.delete().alias();
+        Map<String, EntityModel> aliasMap = new HashMap<>();
+        if (alias != null && !alias.isEmpty()) {
+            aliasMap.put(alias, dialectModel);
+        }
+        PlanContext context = new PlanContext(dialectModel, aliasMap, java.util.Map.of());
+
+        // Translate WHERE clause
+        io.vidocq.mansart.data.dialect.Where where = stmt.where() == null
+            ? io.vidocq.mansart.data.dialect.Where.ALWAYS_TRUE
+            : translateCondition(stmt.where().condition(), context);
+
+        // Generate SQL via dialect.delete
+        SqlFragment sqlFragment = dialect.delete(dialectModel, where);
+
+        // Extract WHERE bind parameters
+        List<BindParameter> bindParameters = extractBindParameters(
+            stmt.where() == null ? null : stmt.where().condition(),
+            context
+        );
+
+        return new DeletePlan(sqlFragment.sql(), entityClass, dialectModel, bindParameters);
     }
 
     private PlanContext buildPlanContext(JpqlAst.FromClause fromClause, EntityModel rootModel, Class<?> rootEntityClass) {
