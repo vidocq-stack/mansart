@@ -552,6 +552,9 @@ public final class MansartTypedQuery<T> implements TypedQuery<T> {
             } else {
                 result = rs.getObject(1);
             }
+        } else if (proj.function().equalsIgnoreCase("LENGTH") || proj.function().equalsIgnoreCase("LOCATE")) {
+            // H2 returns LENGTH/LOCATE as BIGINT/Long, but we declared resultType as Integer
+            result = rs.getInt(1);
         } else {
             result = rs.getObject(1);
         }

@@ -694,15 +694,15 @@ public final class JpqlQueryExecutor {
     }
 
     /**
-     * Returns true if any select item is an Aggregate expression.
+     * Returns true if any select item is an Aggregate or Func expression.
      */
     private boolean isAggregateQuery(List<JpqlAst.Expression> selectItems) {
         return selectItems.stream()
-            .anyMatch(expr -> expr instanceof JpqlAst.Aggregate);
+            .anyMatch(expr -> expr instanceof JpqlAst.Aggregate || expr instanceof JpqlAst.Func);
     }
 
     /**
-     * Builds ProjectionInfo for each aggregate expression in the SELECT clause.
+     * Builds ProjectionInfo for each aggregate or function expression in the SELECT clause.
      * Returns a list of projection info objects that describe how to materialize
      * the result set row.
      */
@@ -711,8 +711,10 @@ public final class JpqlQueryExecutor {
         for (JpqlAst.Expression expr : selectItems) {
             if (expr instanceof JpqlAst.Aggregate agg) {
                 projections.add(buildProjectionInfo(agg, context));
+            } else if (expr instanceof JpqlAst.Func func) {
+                projections.add(buildStringFunctionProjection(func, context));
             } else {
-                throw new UnsupportedOperationException("Only aggregate expressions are supported in aggregate queries, got: " + expr.getClass().getSimpleName());
+                throw new UnsupportedOperationException("Only aggregate and function expressions are supported in scalar queries, got: " + expr.getClass().getSimpleName());
             }
         }
         return projections;
@@ -772,6 +774,118 @@ public final class JpqlQueryExecutor {
         }
 
         return new ProjectionInfo(function, distinct, columnSql, resultType);
+    }
+
+    /**
+     * Builds a single ProjectionInfo for a string function expression.
+     */
+    private ProjectionInfo buildStringFunctionProjection(JpqlAst.Func func, PlanContext context) {
+        String function = func.name().toUpperCase();
+        List<JpqlAst.Expression> args = func.args();
+
+        // Render each argument to SQL
+        List<String> renderedArgs = new ArrayList<>();
+        for (JpqlAst.Expression arg : args) {
+            renderedArgs.add(renderFuncArg(arg, context));
+        }
+
+        // Determine the SQL expression and result type
+        String columnSql;
+        Class<?> resultType;
+
+        switch (function) {
+            case "CONCAT" -> {
+                columnSql = "CONCAT(" + String.join(", ", renderedArgs) + ")";
+                resultType = String.class;
+            }
+            case "SUBSTRING" -> {
+                if (args.size() == 2) {
+                    columnSql = "SUBSTRING(" + renderedArgs.get(0) + ", " + renderedArgs.get(1) + ")";
+                } else if (args.size() == 3) {
+                    columnSql = "SUBSTRING(" + renderedArgs.get(0) + ", " + renderedArgs.get(1) + ", " + renderedArgs.get(2) + ")";
+                } else {
+                    throw new UnsupportedOperationException("SUBSTRING requires 2 or 3 arguments, got: " + args.size());
+                }
+                resultType = String.class;
+            }
+            case "TRIM" -> {
+                if (args.size() != 1) {
+                    throw new UnsupportedOperationException("TRIM with spec/char FROM form not implemented");
+                }
+                columnSql = "TRIM(" + renderedArgs.get(0) + ")";
+                resultType = String.class;
+            }
+            case "LOWER" -> {
+                columnSql = "LOWER(" + renderedArgs.get(0) + ")";
+                resultType = String.class;
+            }
+            case "UPPER" -> {
+                columnSql = "UPPER(" + renderedArgs.get(0) + ")";
+                resultType = String.class;
+            }
+            case "LENGTH" -> {
+                columnSql = "LENGTH(" + renderedArgs.get(0) + ")";
+                resultType = Integer.class;
+            }
+            case "LOCATE" -> {
+                if (args.size() == 2) {
+                    columnSql = "LOCATE(" + renderedArgs.get(0) + ", " + renderedArgs.get(1) + ")";
+                } else if (args.size() == 3) {
+                    columnSql = "LOCATE(" + renderedArgs.get(0) + ", " + renderedArgs.get(1) + ", " + renderedArgs.get(2) + ")";
+                } else {
+                    throw new UnsupportedOperationException("LOCATE requires 2 or 3 arguments, got: " + args.size());
+                }
+                resultType = Integer.class;
+            }
+            case "INDEX" -> {
+                throw new UnsupportedOperationException("not implemented: INDEX");
+            }
+            default -> {
+                throw new UnsupportedOperationException("not implemented: string function " + function);
+            }
+        }
+
+        return new ProjectionInfo(function, false, columnSql, resultType);
+    }
+
+    /**
+     * Renders a function argument to its SQL string representation.
+     */
+    private String renderFuncArg(JpqlAst.Expression arg, PlanContext context) {
+        if (arg instanceof JpqlAst.Path path) {
+            // Path expression: resolve to column name
+            Attribute<?, ?> attr = resolveAttribute(path, context);
+            String columnName = attr.columnName();
+            return "\"" + columnName + "\"";
+        } else if (arg instanceof JpqlAst.Literal lit) {
+            // Literal value
+            switch (lit.type()) {
+                case STRING -> {
+                    // Escape single quotes by doubling them
+                    String escaped = lit.value().replace("'", "''");
+                    return "'" + escaped + "'";
+                }
+                case INTEGER -> {
+                    return lit.value();
+                }
+                case FLOAT -> {
+                    return lit.value();
+                }
+                case BOOLEAN -> {
+                    return Boolean.parseBoolean(lit.value()) ? "TRUE" : "FALSE";
+                }
+                case NULL -> {
+                    return "NULL";
+                }
+                default -> throw new UnsupportedOperationException("Literal type not supported in function arguments: " + lit.type());
+            }
+        } else if (arg instanceof JpqlAst.NamedParam) {
+            throw new UnsupportedOperationException("not implemented: parameters as function arguments");
+        } else if (arg instanceof JpqlAst.PositionalParam) {
+            throw new UnsupportedOperationException("not implemented: parameters as function arguments");
+        } else {
+            throw new UnsupportedOperationException("Unsupported expression type in function arguments: " + arg.getClass().getSimpleName());
+        }
     }
 
 }
