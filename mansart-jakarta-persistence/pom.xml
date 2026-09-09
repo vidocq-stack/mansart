@@ -1,38 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    POM racine agrégateur ET parent des trois sous-réactors.
-    Les trois sous-projets (mansart-pool, mansart-jakarta-data, mansart-transactions) parentent
-    ce POM (qui lui-même parente vidocq-parent), formant ainsi un réacteur Maven UNIFIÉ.
-    Cela permet à `mvn versions:set` de versionner les 21 modules en une seule passe,
-    condition nécessaire au bon fonctionnement du CI de release.
-
-    Ce POM est déployé sur Maven Central (maven.deploy.skip=false) : packaging=pom, donc
-    seul le .pom est publié (pas de jar). C'est OBLIGATOIRE car il est le parent de
-    mansart-pool / mansart-jakarta-data / mansart-transactions — un consommateur externe
-    (CI vidocq résolvant mansart depuis central-snapshots, hors reactor local) a besoin de
-    toute la chaîne de parents pour lire le descripteur d'un artefact enfant. L'exclure
-    cassait la résolution (mansart-root:pom absent → mansart-pool-api irrésoluble).
-
-    Pattern : Maven 4 <modules> + packaging=pom, sans dependencyManagement ni
-    pluginManagement propres (chaque sous-réacteur a le sien, calibré à ses besoins).
+    Parent POM for the Jakarta Persistence API implementation modules.
+    This module aggregates implementation modules (M1+) but does NOT include the TCK module.
+    SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.vidocq</groupId>
-        <artifactId>vidocq-parent</artifactId>
+        <groupId>io.vidocq.mansart</groupId>
+        <artifactId>mansart-root</artifactId>
         <version>0.3.0-SNAPSHOT</version>
         <relativePath />
     </parent>
 
     <groupId>io.vidocq.mansart</groupId>
-    <artifactId>mansart-root</artifactId>
+    <artifactId>mansart-jakarta-persistence</artifactId>
     <version>0.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Mansart :: Workspace</name>
-    <description>Aggregator for the three independent Mansart reactors — pool, jakarta-data, transactions.</description>
+    <name>Mansart :: Jakarta Persistence</name>
+    <description>Parent module for Jakarta Persistence API implementation modules.</description>
     <url>https://codefloe.com/Vidocq/mansart</url>
 
     <scm>
@@ -77,16 +65,11 @@
         </license>
     </licenses>
 
-    <properties>
-        <!-- Parent pom (packaging=pom): deploy the .pom so external consumers can resolve
-             the parent chain of mansart-pool/-jakarta-data/-transactions from central-snapshots. -->
-        <maven.deploy.skip>false</maven.deploy.skip>
-    </properties>
-
     <modules>
-        <module>mansart-pool</module>
-        <module>mansart-jakarta-data</module>
-        <module>mansart-transactions</module>
-        <module>mansart-jakarta-persistence</module>
+        <!-- Will be added here once M1+ implementation modules are created -->
     </modules>
+
+    <properties>
+        <!-- No pluginManagement or dependencyManagement here - each submodule manages its own -->
+    </properties>
 </project>
