@@ -15,7 +15,7 @@ result: PASS=? FAIL=? ERROR=? SKIP=?   (never run)
 | Milestone | Cards | Done |
 |---|---|---|
 | M0 — the TCK | 7 | 7 |
-| M1 — entities | 28 | 0 |
+| M1 — entities | 28 | 1 |
 | M2 — metadata | 54 | 0 |
 | M3 — entity managers | 16 | 0 |
 | M4 — entity operations | 45 | 0 |
@@ -26,7 +26,7 @@ result: PASS=? FAIL=? ERROR=? SKIP=?   (never run)
 | M9 — container contracts | 13 | 0 |
 | M10 — xml mapping | 8 | 0 |
 
-**Total: 250 cards, 7 done.**
+**Total: 250 cards, 8 done.**
 
 ## Done cards
 
@@ -42,11 +42,12 @@ in the Log, not here.
 
 | Card | Date | Evidence |
 |---|---|---|
-| M0-T001 | 2026-09-11 16:40 | verify-m0.sh: parent module registered in the root reactor |
-| M0-T002 | 2026-09-11 16:40 | verify-m0.sh: runner compiles in its own directory |
-| M0-T003 | 2026-09-11 16:40 | verify-m0.sh: TCK jar declared and resolving (jakarta.tck:persistence-tck-spec-tests:3.2.1) |
-| M0-T004 | 2026-09-11 16:40 | verify-m0.sh: run script + Arquillian config present |
-| M0-T005 | 2026-09-11 16:40 | verify-m0.sh: the TCK produced a counter, any counter |
-| M0-T006 | 2026-09-11 16:40 | verify-m0.sh: the counter measures the implementation, not the harness |
-| M0-T007 | 2026-09-11 16:40 | verify-m0.sh: implementation module exists and compiles something |
+| M0-T001 | 2026-09-11 16:58 | verify-m0.sh: parent module registered in the root reactor |
+| M0-T002 | 2026-09-11 16:58 | verify-m0.sh: runner compiles in its own directory |
+| M0-T003 | 2026-09-11 16:58 | verify-m0.sh: TCK jar declared and resolving (jakarta.tck:persistence-tck-spec-tests:3.2.1) |
+| M0-T004 | 2026-09-11 16:58 | verify-m0.sh: run script + Arquillian config present |
+| M0-T005 | 2026-09-11 16:58 | verify-m0.sh: the TCK produced a counter, any counter |
+| M0-T006 | 2026-09-11 16:58 | verify-m0.sh: the counter measures the implementation, not the harness |
+| M0-T007 | 2026-09-11 16:58 | verify-m0.sh: implementation module exists and compiles something |
+| M1-T001 | 2026-09-11 16:58 | card-done.sh: tests run=4 failures=0 errors=0 in mansart-jakarta-persistence/mansart-jakarta-persistence-core; base f7d697e |
 
