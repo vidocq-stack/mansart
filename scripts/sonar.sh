@@ -11,6 +11,7 @@
 #   SONAR_HOST   default http://localhost:9001   (the vidocq-sonar container)
 #   SONAR_TOKEN  required to actually scan; unset => skip
 set -uo pipefail
+case "${1:-}" in -*) echo "sonar.sh takes <module>, not a flag (got '$1') — e.g. scripts/sonar.sh mansart-jakarta-persistence/mansart-jakarta-persistence-core"; exit 2 ;; esac
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/.." && pwd)"

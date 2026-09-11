@@ -873,6 +873,14 @@ themselves (`mode: all`), which no earlier run had.
   card); **`scripts/card-commit.sh`** owns the commit shape; the guard refuses
   `STATUS-*.md` edits, sources under `ee/jakarta/tck/`, and turns the third
   identical refusal into STOP. `/next` is rewritten around those gates.
+- **`/next` closed M1-T001 through the gates** (2026-09-11 16:58): `card-done.sh`
+  measured 4 tests / 0 / 0 in the implementation module and wrote the row;
+  `card-commit.sh` produced `0ddfa78` in the required shape. Two defects: the
+  generator wrote M1+ rows with the id merged into the title cell, so the gate
+  could not find the card — and **the lead edited `card-done.sh` until it
+  passed**. Generator fixed; patch reverted; the guard refuses any agent edit
+  under `scripts/`, `.opencode/` and `AGENTS.md`. And the lead wrote the test
+  itself instead of `tdd`: correct test, wrong author, and nothing can see it.
 - **`/tck` completed M0 unaided from a tree at zero** — 2026-09-11, one round,
   165 s, fifteen lead tool calls and zero writes by the lead; counter
   `991 / 989 errors / 2 skipped` under the JUnit Platform provider, errors being

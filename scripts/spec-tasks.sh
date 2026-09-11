@@ -168,7 +168,11 @@ for i, name in enumerate(order, start=1):
     L += ["## M{} — {}".format(i, name.replace("-", " ")), "",
           "| Card | Title | Spec sections | Done-when |", "|---|---|---|---|"]
     for j, row in enumerate(rows, start=1):
-        L.append("| M{}-T{:03d} {}".format(i, j, row.lstrip("|").lstrip()))
+        # Four columns like M0 — id in its own cell. The first version merged the
+        # id into the title cell ("| M1-T001 Entity class requirements | …"), so
+        # every M1+ row had three cells under a four-column header, and
+        # card-done.sh could not find the card; a lead then edited the gate.
+        L.append("| M{}-T{:03d} | {}".format(i, j, row.lstrip("|").lstrip()))
     L.append("")
     groups.append((i, name, len(rows))); total += len(rows)
 

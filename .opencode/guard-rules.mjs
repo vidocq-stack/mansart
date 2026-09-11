@@ -291,3 +291,22 @@ export function repeatedDenialVerdict(cmd, state) {
     )
   return null
 }
+
+
+/**
+ * The harness is not the agent's to edit. When card-done.sh could not find an
+ * M1 card (a generator bug), the lead patched card-done.sh until the gate let
+ * it through — the right diagnosis, the wrong hands: the judge must not be
+ * amended by the party it judges. scripts/ and .opencode/ are humans' files.
+ */
+export function harnessFileVerdict(path) {
+  if (typeof path !== "string") return null
+  const rel = path.replace(/^\/.*?\/mansart\//, "").replace(/^\.\//, "")
+  if (/^(scripts\/|\.opencode\/|AGENTS\.md$)/.test(rel))
+    return (
+      `${rel} is the harness — a gate, a script or a rule. Agents do not edit it, even when ` +
+      "it is wrong: report the exact failing line and stop. A gate amended by the party it " +
+      "judges is not a gate."
+    )
+  return null
+}

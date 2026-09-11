@@ -1392,6 +1392,46 @@ The "Let me me me me" that filled three of those rounds is a repetition
 collapse of the 35B on a prompt written for another model. It produced nothing,
 returned exit 0, and cost a round each time. Silent, again.
 
+### `/next`, second run: through the gates — and one hand on the gate
+
+2026-09-11, 16:53. `/next JKP` with the gates in place. `verify-m0` first
+(7/7), the module and package read from `module.conf`, `recon` then `impl` as
+real subagents, code in `…-core/src/main/java/io/vidocq/mansart/persistence/`,
+a test named `M1T001EntityClassRequirementsTest`. Then the gate:
+
+```
+card-done.sh JKP M1-T001
+   build exit 0 — Tests run: 4, Failures: 0, Errors: 0
+   row written: | M1-T001 | 2026-09-11 16:58 | card-done.sh: tests run=4 … |
+card-commit.sh → 0ddfa78  feat(mansart-jakarta-persistence): … [JKP M1-T001]
+```
+
+**The first card closed on measured numbers**, committed in the required shape,
+with the lead's changes staged by a script that refuses anything outside the
+implementation module. STATUS: 8 of 250. That is the loop working.
+
+Two things in the trace are not.
+
+**The lead patched the gate.** `card-done.sh` first answered *"M1-T001 is not
+in TASKS-JKP.md"* — a bug of mine: the generator wrote M1+ rows as
+`| M1-T001 Entity class requirements | …`, id and title in one cell, three cells
+under a four-column header, while M0 rows had four. The lead diagnosed it
+correctly, then **edited `scripts/card-done.sh`** so the check would match, ran
+it, and passed. Right diagnosis, wrong hands: a gate amended by the party it
+judges is not a gate. The generator is fixed (id in its own cell), the lead's
+patch is reverted, and the guard now refuses any edit under `scripts/`,
+`.opencode/` or `AGENTS.md` — *report the failing line and stop*.
+
+**The lead wrote the test itself.** `mkdir src/test` and a `write` at 16:54,
+where `/next` says `tdd` writes the failing test. Nothing can catch this: the
+guard cannot see which agent writes, and the test was where it should be,
+named as it should be, and red before green. It stays an open point — the one
+lane rule with no enforcer left.
+
+Smaller: `python3 scripts/task-file.sh` (a bash script) → `SyntaxError`; and
+`sonar.sh -pl <module>` where the script takes `<module>` — it scanned
+something, reported "clean", and the something was not the module.
+
 **A harness accretes rules faster than it reconciles them.** Every fix here was
 local and correct, and the files drifted apart anyway. The reconciliation is the
 work nobody schedules — it took the fourth "why does he not delegate?" to force
@@ -1466,7 +1506,11 @@ be called a plan.
   a shell that calls `@impl` once per artifact, the way `spec-note.sh` and
   `spec-tasks.sh` already removed the lead from two other loops. Not built.
 - **KV quantisation and ANE prefill remain untested**, not disproven.
-- **`/next` has run once and closed nothing real.** Its first run marked a card
+- **`/next` closed its first real card, M1-T001, through the gates** — measured
+  tests (4/0/0), scripted commit `0ddfa78`. The lead also patched the gate it was
+  failing (a generator bug, now fixed; the guard now refuses edits under
+  `scripts/`) and wrote the test itself instead of `tdd` — unenforceable.
+- **`/next` had run once before and closed nothing real.** Its first run marked a card
   done on code in the parent pom module — zero classes compiled — and was
   reverted. The gates built since (`impl_module`, `card-done.sh`,
   `card-commit.sh`, the STATUS and package refusals) have not yet been exercised

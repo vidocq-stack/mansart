@@ -16,6 +16,7 @@
 
 import {
   normalise,
+  harnessFileVerdict,
   tckPackageVerdict,
   repeatedDenialVerdict,
   runnerClientVerdict,
@@ -115,7 +116,7 @@ export const MansartGuard = async ({ directory }) => {
 
         if (input.tool === "write" || input.tool === "edit" || input.tool === "patch") {
           const path = output.args?.filePath ?? output.args?.path
-          const why = generatedFileVerdict(path) ?? runnerClientVerdict(path) ?? tckPackageVerdict(path) ?? frozenModuleVerdict(path, frozen)
+          const why = harnessFileVerdict(path) ?? generatedFileVerdict(path) ?? runnerClientVerdict(path) ?? tckPackageVerdict(path) ?? frozenModuleVerdict(path, frozen)
           if (why) throw new Deny(why)
         }
 
