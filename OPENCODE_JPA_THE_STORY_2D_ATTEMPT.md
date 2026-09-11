@@ -1235,6 +1235,45 @@ once; `STEP071` waits in bounded calls; `verify-m0.sh` refuses to run while the
 wiring lock is held. The tool that supervises must not be the thing the tool
 timeout kills.
 
+### 165 seconds
+
+2026-09-11, 15:02:51. The user typed `/tck JKP` in a fresh OpenCode session on
+a tree at zero. The lead ran `STEP030` (installed, JUnit 5), `STEP040` (nothing
+to do), `STEP070` (returned at once), then `STEP071` twice — `RUNNING`, then
+`M0 COMPLETE` — and reported. Fifteen tool calls, **zero writes by the lead**.
+`STEP070`'s log:
+
+```
+  [15:02:58] 1-parent-and-root-registration   returned
+  [15:03:24] 2-runner-pom                     returned
+  [15:03:58] 3-resources                      returned
+  [15:04:20] 4-run-script                     returned
+== verify round 1/6
+     M0-T001..T006  PASS
+   M0: 6 pass, 0 fail
+== M0 complete for JKP
+```
+
+One round, no fix needed, 165 seconds from start to a calibrated counter:
+
+```
+Tests run: 991, Failures: 0, Errors: 989, Skipped: 2
+Using auto detected provider …junitplatform.JUnitPlatformProvider
+```
+
+Checked without trusting any of it: the provider is JUnit Platform; the errors
+are `NullPointerException` from a missing provider, not a phantom container;
+the pom has `junit-jupiter`, the exact include, `dependenciesToScan`, standalone
+mode and `JPATCK`; there is no Java under the runner; `STATUS` carries six rows
+with timestamps, written by the checker; `git status` shows the module, the
+root pom's one line, and `STATUS` — nothing else. The session ended on its own.
+
+Three days, five reverts of the same module, and a harness that now does in
+165 seconds what four attempts and two reviewers could not get an agent to do
+reliably: build the instrument, run it, and tell the truth about the number.
+The number is 989 errors out of 991. That is the starting line, calibrated,
+and for the first time it is a number that an implementation will move.
+
 **A harness accretes rules faster than it reconciles them.** Every fix here was
 local and correct, and the files drifted apart anyway. The reconciliation is the
 work nobody schedules — it took the fourth "why does he not delegate?" to force
@@ -1300,11 +1339,10 @@ be called a plan.
 - **KV quantisation and ANE prefill remain untested**, not disproven.
 - **`/next` has never run.** M0 built the instrument; no implementation card has
   been attempted, so the 989 errors have never had a chance to move.
-- **No single `/tck` run has yet completed M0 unaided.** The six cards were
-  reached across several runs, each ending in a fix to the harness rather than to
-  the module — which is the point of the exercise, but means the claim "the
-  command works from zero" is still unproven. That is the next thing to test, and
-  the tree is reset for it.
+- **`/tck JKP` completed M0 unaided, from zero, in one round: 165 seconds,
+  zero writes by the lead** (2026-09-11 15:02–15:05). The claim "the command
+  works from zero" is now a measurement, on one spec. The next spec is the next
+  test.
 
 The measure of this harness is not that it exists. It is whether the TCK counter
 moves — and the counter now exists, calibrated, at **989 errors out of 991**.

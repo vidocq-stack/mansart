@@ -813,9 +813,11 @@ things learned running it:
   `spec-meta.json`; `verify-m0.sh` requires `org.junit.jupiter:junit-jupiter`
   (or `org.testng:testng`) accordingly and quotes the `Using auto detected
   provider` line when it is wrong; `STEP070` states it in the wiring prompt.
-- **No single `/tck` run has completed M0 unaided.** The six cards were reached
-  across several runs, each ending in a harness fix rather than a module fix. The
-  tree is reset so the claim can actually be tested.
+- **`/tck` completed M0 unaided from a tree at zero** — 2026-09-11, one round,
+  165 s, fifteen lead tool calls and zero writes by the lead; counter
+  `991 / 989 errors / 2 skipped` under the JUnit Platform provider, errors being
+  `NullPointerException` from a missing provider. Verified independently of the
+  checker. One spec; the next spec is the next test.
 - **Thermal drift**: this machine loses up to 61% throughput after ~1 h of
   sustained load and recovers in ~3 min idle. It does not change the design, but
   it explains slow sessions — and it invalidates any benchmark run back-to-back.
