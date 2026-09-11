@@ -1411,8 +1411,13 @@ Verified, not assumed:
 - `scripts/tck-install.py` — spec page → sha256 → coordinates read from each jar
 - `scripts/tck-module.py`, `scripts/task-file.sh` — paths read from the repo,
   never composed by an agent
-- `scripts/verify-m0.sh` — six mechanical checks, each against the card's own
-  artifact; refreshes STATUS as part of verifying
+- `scripts/verify-m0.sh` — seven mechanical checks, each against the card's own
+  artifact (the seventh: the implementation module compiles at least one class);
+  runs the suite itself; refreshes STATUS as part of verifying
+- `scripts/steps/STEP070_wire_tck.sh` + `STEP071` — detached wiring through
+  `impl`, five artifacts, fix rounds; the agent fallback is fatal
+- `scripts/card-done.sh`, `scripts/card-commit.sh` — the only way an M1+ card
+  closes (tests measured by the script) and the only way it is committed
 - `scripts/steps/STEP010..060` — the pipeline order, executable
 - nine agents loaded, seven commands (`/refresh` added), `/status`, `/spec-add`,
   `/tck` and `/refresh` all run for real
@@ -1424,9 +1429,15 @@ Verified, not assumed:
 **And the number this whole project exists for:**
 
 ```
-M0: 6 pass, 0 fail
+M0: 7 pass, 0 fail          (STATUS: 250 cards, 7 done)
 Tests run: 991, Failures: 0, Errors: 989, Skipped: 2
 ```
+
+Both M0 completions were run by the user from his own OpenCode, unaided: 6/6 at
+15:05 on 2026-09-11, then the implementation module at 16:40 after the first
+`/next` had shown it was missing. Since the `mode: all` fix, the `impl`, `noter`
+and `planner` that scripts invoke are, for the first time, the agents and the
+model the roster says.
 
 `TASKS-JKP.md`'s worth is uneven — **M0 is exact** (coordinates copied by script,
 six cards, every done-when a script's verdict), the 243 cards below it are a
@@ -1455,8 +1466,11 @@ be called a plan.
   a shell that calls `@impl` once per artifact, the way `spec-note.sh` and
   `spec-tasks.sh` already removed the lead from two other loops. Not built.
 - **KV quantisation and ANE prefill remain untested**, not disproven.
-- **`/next` has never run.** M0 built the instrument; no implementation card has
-  been attempted, so the 989 errors have never had a chance to move.
+- **`/next` has run once and closed nothing real.** Its first run marked a card
+  done on code in the parent pom module — zero classes compiled — and was
+  reverted. The gates built since (`impl_module`, `card-done.sh`,
+  `card-commit.sh`, the STATUS and package refusals) have not yet been exercised
+  by a run. The 989 errors have never had a chance to move.
 - **`/tck JKP` completed M0 unaided, from zero, in one round: 165 seconds,
   zero writes by the lead** (2026-09-11 15:02–15:05). The claim "the command
   works from zero" is now a measurement, on one spec. The next spec is the next

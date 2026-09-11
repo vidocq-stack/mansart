@@ -144,8 +144,8 @@ A spec gets a **three-letter code** (`JKP` = Jakarta Persistence). You pass it;
 | --- | --- | --- |
 | `TASKS-XXX.md` | `spec-tasks.sh` | Milestones `M0..Mx`, cards `M0-T001`… Assembled by script from planner fragments; **no model writes this file**. |
 | `docs/spec-src/XXX/milestones.tsv` | you | `<name><TAB><note globs>`, one line per milestone, **in dependency order**. The one judgement the script cannot make. |
-| `docs/spec-src/XXX/module.conf` | you | Where the TCK runner module lives. Proposed by `tck-module.py` from the runners already in the repo, edited by a human, read by everything downstream. |
-| `STATUS-XXX.md` | `lead` + `verify` | Current card, measured counters, one line per finished card. |
+| `docs/spec-src/XXX/module.conf` | you | Three paths, proposed by `tck-module.py` from the repo's layout and edited by a human: `tck_module` (the runner, out of the reactor), `impl_module` (where every `src/main` and `src/test` goes), `impl_package` (never `ee.jakarta.tck.*`). Read by everything downstream; no agent ever composes a path. |
+| `STATUS-XXX.md` | `verify-m0.sh` (M0 rows), `card-done.sh` (M1+ rows), counts computed | One timestamped row per closed card with the numbers the script read. **No agent writes it** — the guard refuses. |
 | `docs/spec-notes/XXX/<chapter>.md` | `noter` | One note per spec chapter, 200 lines max. The only thing read when planning. |
 | `docs/spec-src/XXX/spec-meta.json` | `spec-fetch.py` | Chapter list **and TCK coordinates**. What makes the harness reusable: `/tck` reads it instead of guessing. |
 | `tasks/XXX/<CARD>.md` | `lead`, agents | The per-card work order: what was read, decided, tried. Free form, never generated, never parsed. **This exists because an agent with something to write and no place to put it writes over whatever is nearest** — a lead overwrote the 248-card `TASKS-JKP.md` with a one-card brief. |
@@ -161,10 +161,10 @@ per-spec filtering for free.
 
 | Command | Does |
 | --- | --- |
-| `/spec-add <url\|path> <XXX>` | Fetch → markitdown → split → one note per chapter → derive `TASKS-XXX.md` + empty `STATUS-XXX.md`. |
-| `/tck XXX` | Wire the runner, run the official TCK, report the counter. Loops on `verify-m0.sh` until every card passes. |
+| `/spec-add <url> <XXX>` | `STEP010` → `STEP060` through the scripts: fetch + split, one `noter` per chapter, detect/install the TCK, propose `module.conf`, generate `TASKS`/`STATUS`. The lead writes only `milestones.tsv`. |
+| `/tck XXX` | `STEP030` (installed?) → `STEP040` if not → `STEP070` (detached: five `impl` artifacts, then verify-and-fix rounds) → `STEP071` in bounded waits. Done when `verify-m0.sh` is PASS on all seven M0 cards. The lead writes nothing. |
 | `/refresh XXX` | Re-measure and refresh `TASKS`/`STATUS` from what is true. Writes nothing itself — `verify-m0.sh` does both in one step, because anything generated goes stale the moment something changes and nobody remembers which script to re-run. |
-| `/next XXX` | One card, end to end, then **stop**. |
+| `/next XXX` | One M1+ card: `recon` → `tdd` (in `impl_module/src/test`, names the card) → `impl` (in `impl_module/src/main`) → **`card-done.sh`** (runs the tests, writes the row) → `verify`/sonar → **`card-commit.sh`** → stop. |
 | `/fixbug XXX-Bnnn` | Same engine, entry point is a `BUG.md` id instead of a card. |
 | `/status XXX` | Read-only summary. No model call beyond formatting. |
 | `/push XXX` | Explicit. `/next` commits, it never pushes (see §7). |
@@ -259,10 +259,15 @@ gaps of ten so a step can be inserted without renaming the others.
 | `STEP040_install_tck.sh <XXX>` | `tck-install.py`, then `--refresh-tck` | spec page → jars in the M2 | 5 = no archive linked (WebFetch takes over) · 7 = JavaTest TCK, not Maven |
 | `STEP050_module_path.sh <XXX>` | `tck-module.py` | repo layout → `module.conf` | 0, and **read the file — the name is yours** |
 | `STEP060_plan_tasks.sh <XXX>` | `spec-tasks.sh` | notes + `milestones.tsv` → `TASKS`/`STATUS` | reports ORDER VIOLATION and shape counts |
+| `STEP070_wire_tck.sh <XXX>` | `opencode run --agent impl` ×5, then `verify-m0.sh` rounds | `module.conf` + `spec-meta.json` → parent, runner, resources, run script, implementation module | **detaches** (own session, lock, log); 9 = the agent fallback was detected; the lead never waits on it |
+| `STEP071_wait_tck.sh <XXX>` | reads the lock and log | — | 3 = RUNNING, call again · 0 = M0 COMPLETE · 1 = finished, not complete |
 
-Then the card loop is OpenCode's: `/tck XXX`, then `/next XXX` per card, each of
-those using `scripts/build.sh` and `scripts/sonar.sh` — the two scripts that are
-*not* pipeline steps, because they run inside every card rather than once.
+Then the card loop is OpenCode's: `/next XXX` per card, gated by
+`scripts/card-done.sh` (measures the module's tests, writes the row) and
+`scripts/card-commit.sh` (owns the commit shape), on top of `scripts/build.sh`
+and `scripts/sonar.sh` — scripts that run inside every card rather than once.
+`verify-m0.sh` refuses to run while `STEP070`'s lock is held: one writer per
+module.
 
 Three properties on purpose. **Every step is re-runnable**: notes and fragments
 are cached, `module.conf` is kept unless `--force`, progress in STATUS survives.
@@ -283,31 +288,36 @@ sequenceDiagram
     participant R as recon (80B)
     participant T as tdd (80B)
     participant I as impl (80B)
+    participant D as card-done.sh
     participant V as verify (80B)
+    participant C as card-commit.sh
 
     U->>L: /next JKP
-    L->>L: read TASKS-JKP.md + STATUS-JKP.md, pick next card
-    L->>R: where does this touch? (one question)
-    R-->>L: 3 lines: paths
-    L->>T: write the failing test for M1-T007
-    T-->>L: 3 lines: test path, RED confirmed
-    L->>I: make it pass, do not touch tests
-    I-->>L: 3 lines: files changed
-    L->>V: ./scripts/build.sh <module>
-    V-->>L: 3 lines: tests X/Y, exit code
-    alt build or tests red
-        L->>I: fix (max 2 attempts, then thinker)
+    L->>L: verify-m0.sh must be 7 pass; IMPL/PKG from tck-module.py --impl/--package
+    L->>L: first M1+ card without a STATUS row
+    L->>R: card <id>: which files in IMPL? (3 lines)
+    L->>T: failing JUnit 5 test in IMPL/src/test, package PKG, names the card
+    T-->>L: test path + the failing assertion (RED)
+    L->>I: make it pass in IMPL/src/main, package PKG, no test edits
+    I-->>L: files changed, build, note
+    L->>D: card-done.sh JKP <id>
+    D->>D: build.sh -pl IMPL test; run>0, failures=0, errors=0; a test names the card
+    D-->>L: row written with the numbers it read — or NOT DONE
+    alt not done
+        L->>I: fix (max 2 more rounds, then thinker); else BLOCKED, stop
     end
-    L->>V: ./scripts/sonar.sh <module>
-    V-->>L: 3 lines: new issues by severity
-    alt sonar issues
-        L->>I: fix sonar (max 2 attempts, tests are READ-ONLY here)
-        L->>V: re-scan
-    end
-    L->>L: commit (conventional + card id)
-    L->>L: update STATUS-JKP.md
-    L-->>U: card done — stopped. `/push JKP` when you want.
+    L->>V: sonar.sh IMPL
+    V-->>L: new issues (tests read-only while fixing)
+    L->>C: card-commit.sh JKP <id> feat persistence "<what>"
+    C-->>L: sha — type(scope) + card id, -S -s, trailer, IMPL + STATUS only
+    L-->>U: card, numbers, sha — stopped. /push JKP when you want.
 ```
+
+Where code lives is read, never guessed: `impl_module` and `impl_package` from
+`module.conf`. The parent module is `packaging pom` and compiles nothing —
+`build.sh compile` there exits 0 with zero classes, which is how the first
+`/next` marked a card done on code nobody had built. `ee.jakarta.tck.*` is the
+TCK's package; the guard refuses sources under it.
 
 Three deliberate constraints:
 
@@ -316,8 +326,15 @@ Three deliberate constraints:
 - **Sonar fix cannot touch tests.** The most tempting way to clear an issue is to
   delete the assertion. During the Sonar phase, tests are read-only for everyone.
 - **Two attempts, then `thinker`.** No unbounded fix loops.
+- **A card closes only through `card-done.sh`.** It runs the implementation
+  module's tests itself and writes the STATUS row with the numbers it read
+  (run>0, 0 failures, 0 errors) and the card-naming test it found. The guard
+  refuses any hand edit of `STATUS-*.md`; the counts are computed.
 - **Commit yes, push no.** A commit is local and revertible; a push publishes. An
   unattended command should not publish. `/push XXX` is yours to type.
+  `card-commit.sh` owns the message: `type(scope): what [XXX CARD]`, `-S -s`,
+  the `Co-Authored-By` trailer, and stages only the implementation module and
+  STATUS.
 
 The commit is not free-form. The workspace `CLAUDE.md` mandates: message in
 **English**, **Conventional Commits** + project ticket, **GPG-signed**, DCO
@@ -562,16 +579,26 @@ flowchart TB
 arriving through `rtk`**, and the 75 duplicate searches were spread over three
 spellings — an exact string compare would have caught none of them.
 
-Guard rules: deny direct/piped `mvn`; deny writes into TCK paths; deny a third
-identical search in a session; deny re-reading a file unchanged since last read
-(same mtime+size+window); deny `cat` of a file over 200 lines (use `sed -n`);
-**deny `write`/`edit`/`patch` on a generated file** — `TASKS-*.md` and the
-planner `.fragments/`; and **deny `grep` given a pattern starting with `-`**,
-answering `use grep -e '<pattern>'` — an agent ran `grep "-suite.xml"` twice and
-got `invalid option -- t` twice, two round trips for zero information. That last rule is the first one covering the write tools
-rather than bash: an agent overwrote a 248-card plan with a one-card brief, and
-the refusal now names `tasks/<XXX>/<CARD>.md` as the place to write instead.
-Forbidding is half a fix; offering a destination is the other half.
+Guard rules, as of 2026-09-11 — every one of them exists because a run did the
+thing it forbids:
+
+- **bash**: raw or piped `mvn`/`mvnw` (only `build.sh`); writes into the TCK
+  suite through a shell; listing a jar or dumping bytecode (the alternative is
+  named: the spec notes and `tck-find.py`'s count); `cat`/`read` of a file over
+  200 lines; a third identical search in a session; re-reading a file unchanged
+  since the last read; `grep` given a pattern starting with `-` (answered with
+  `grep -e`); `cat`/`sed`/`grep` of an `OPENCODE_*.md` trace document.
+- **write / edit / patch**: `TASKS-*.md`, `STATUS-*.md`, `spec-meta.json` and
+  the planner `.fragments/` (script-owned — the refusal names where to write
+  instead: `tasks/<XXX>/<CARD>.md`, `card-done.sh`, `--refresh-tck`); any
+  `Client.java` under a runner (it matches the suite's include and counts as a
+  passing test); any source under `src/*/java/ee/jakarta/tck/` (the TCK's
+  package); anything under a **delivered module** — computed at load as the root
+  `<modules>` minus every parent a `module.conf` claims.
+- **read**: the `OPENCODE_*.md` trace documents.
+- **meta**: the third identical refusal in a session says **STOP** and tells the
+  agent to end its turn — a lead once retried a refused `unzip -l` fifty times.
+
 Declared non-strict: **a crash in the guard lets the call through with a
 warning**. A buggy guard must never brick a session; the path denylist stays the
 hard guarantee.
@@ -666,9 +693,9 @@ So the guard is a teaching layer, not just a wall. Everything in §9 stands.
 | `scripts/build.sh` | done — **10/10** on its contract, real failure → exit 1 + 3-line cause, 66-line log → 2 lines of stdout, JDK pinned from `.sdkmanrc` |
 | `scripts/test-build-sh.sh` | done — run it before trusting any change to build.sh |
 | `.sdkmanrc` | added (`java=25.0.3-tem`, `maven=3.9.16`), taken from `ybl/jpa-opencode` |
-| `.opencode/guard-rules.mjs` | done — the six rules as pure functions, **outside `plugin/`** (see traps below) |
+| `.opencode/guard-rules.mjs` | done — every rule of §9 as a pure function, **outside `plugin/`** (see traps below); the plugin computes the frozen-module set at load |
 | `.opencode/plugin/mansart-guard.js` | done — wires the rules into `tool.execute.before` |
-| `scripts/test-guard.mjs` | done — **44/44** |
+| `scripts/test-guard.mjs` | done — **44/44** on the original rules; the later rules are probed one by one (`node --input-type=module`) and each was also refused for real against the model |
 | `scripts/spec-fetch.py` | done — HTML preferred, splits >45 KB chapters, writes `spec-meta.json` with TCK coordinates |
 | `scripts/spec-note.sh` | done — 24 notes, **1 463 lines**, 35 min, 0 reported-but-missing |
 | `scripts/spec-tasks.sh` | done — 11 milestones, **248 cards**, 10/10 groups, M0 generated with no model |
@@ -676,7 +703,9 @@ So the guard is a teaching layer, not just a wall. Everything in §9 stands.
 | `scripts/tck-install.py` | done — discovers, verifies sha256, installs; 4 spec families tested, JavaTest family refused explicitly |
 | `scripts/tck-module.py` | done — reads the repo layout, proposes `module.conf` |
 | `scripts/steps/STEP0*.sh` | done — the six pipeline steps, each printing the next (see §6) |
-| `scripts/verify-m0.sh` | done — six checks against each card's own artifact; refreshes STATUS as part of verifying |
+| `scripts/verify-m0.sh` | done — seven checks against each card's own artifact (T007: the implementation module compiles ≥1 class); runs the suite itself when no counter is on disk; refuses to run under `STEP070`'s lock; refreshes STATUS as part of verifying; SCOPE check on `git status` |
+| `scripts/steps/STEP070_wire_tck.sh` · `STEP071_wait_tck.sh` | done — detached wiring through `impl` (five artifacts, fix rounds), bounded waits; fallback to the default agent is fatal |
+| `scripts/card-done.sh` · `scripts/card-commit.sh` | done — the only writers of an M1+ STATUS row and of a card commit |
 | `scripts/task-file.sh` | done — prints and creates `tasks/<XXX>/<CARD>.md` |
 | `.opencode/command/refresh.md` | done — `/refresh XXX` measures, records, reports four lines |
 | `.opencode/package.json` | `{"type":"module"}`, else Node reparses the plugin on every load |
@@ -717,8 +746,10 @@ commands: `/spec-add`, `/tck`, `/refresh`, `/next`, `/fixbug`, `/status`, `/push
 
 Enforcement is layered, not repeated: `recon`/`verify`/`thinker`/`tck-runner`
 have `tools: {write,edit,patch: false}` so they *cannot* write at all; `tdd`,
-`impl` and `noter` can write, and stay in their lane by instruction plus the
-guard. `noter` is the sharpest case: it is never *handed* an output path, it
+`impl`, `noter` and `planner` can write, and stay in their lane by instruction
+plus the guard. `noter`, `planner` and `impl` are `mode: all` because scripts
+invoke them with `opencode run --agent`: a `subagent` there silently becomes
+the default `build` agent on the lead's model (see §2's correction). `noter` is the sharpest case: it is never *handed* an output path, it
 **derives** it from the chapter path (`spec-src/XXX/f.md` → `spec-notes/XXX/f.md`).
 A note once landed one directory too high, was reported as success, and held the
 count at 8 of 11 for twenty minutes. You cannot mistype a path you never receive.
@@ -739,16 +770,25 @@ things learned running it:
 
 ## 14. Open points
 
+**State on 2026-09-11, evening.** M0 is 7/7 by `/tck` unaided (twice: 6/6 at
+15:05, then the implementation module at 16:40). Counter `991 / 989 errors`,
+calibrated. `/next` has run once, before its gates existed, and produced a false
+done (reverted); the gates — `impl_module`, `card-done.sh`, `card-commit.sh`,
+the STATUS/package/frozen refusals, the STOP on repeated refusals — are in place
+and **have not yet been exercised by a run**. Script-invoked agents now run as
+themselves (`mode: all`), which no earlier run had.
+
 - **Card granularity is unsolved, and prompting will not solve it.** The pipeline
   produces 248 cards shaped like spec sections, 39 of them bundling four or more
   requirements in one done-when. Hardening the planner prompt (verb-first titles,
   one assertion per card, the failed example quoted with its correction) killed
   the duplicate titles (3+ → 0) and trimmed the count (309 → 248) but **left the
   shape untouched** — seven of ten groups returned the identical card count. The
-  control run settles it: the 35B reasoning model produced **12 cards where the
-  80B produced 54**, with the same defect. Two models, two architectures, one
-  conclusion: **generating cards from section-structured notes is a
-  structure-preserving transformation**. The `noter` works because its task is
+  control run *seemed* to settle it — 12 cards against 54 with the same defect —
+  but both arms turned out to be the 35B under the default agent (§2's
+  correction), so the comparison is void. The hypothesis stands untested:
+  **generating cards from section-structured notes may be a structure-preserving
+  transformation** for the 35B; the 80B `planner` has never actually run. The `noter` works because its task is
   line-by-line; ask a model to group and arbitrate and it mirrors its input.
   Remaining options, both untried: a deterministic splitter (one card per note
   line — 1 463 cards, worse), or letting `/next` split a card at execution time.
@@ -760,24 +800,15 @@ things learned running it:
   **274 tok/s** with no cache at all. The role that benefits least from the prefix
   cache was handed to the model that prefills slowest. Testable — same chapter,
   both models — and untested.
-- **`/tck` has run once; `/next` never.** The run built a correct runner module
-  (build.sh test-compile exit 0, verified) but produced **one test, one skipped**
-  — zero official tests, so no counter at all, which is not the same thing as
-  `PASS=0`. M0-T002 was "satisfied" by deleting the TCK dependency; the card now
-  says in its own text that this is not a fix.
-- **The M2 has been purged of the Jakarta Persistence TCK** (41 MB, backed up
-  outside the repository). A harness that only works with the suite pre-installed
-  by hand proves nothing, so M0-T001 is now "install it" and the whole chain is
-  exercised from zero. Nothing about JPA resolves from the local M2 today.
 - **No per-agent enforcement exists — measured, not assumed.** Two probes:
   `tool.execute.before` receives exactly `["tool","sessionID","callID"]`, so the
   guard cannot tell the lead from `@impl`; and a per-path `permission.edit` map
   (`"**/*.java": deny`) is silently ignored — the agent wrote the file and
   reported success. So both "`impl` must not touch tests" and "the lead must not
-  type code" are written rules with no enforcer, which is why the lead does most
-  of the typing itself. The route that remains is structural: a shell calling
-  `@impl` once per artifact, as `spec-note.sh` and `spec-tasks.sh` already did for
-  two other loops. Not built.
+  type code" are written rules with no enforcer. The structural route was taken:
+  `STEP070` calls `impl` once per artifact, and `/next`'s writes go through
+  `card-done.sh`/`card-commit.sh`; the lead has had zero writes in its last three
+  runs. Per-agent path enforcement itself remains impossible in this OpenCode.
 - **Delivered modules are frozen, by the guard.** A `/tck` run "fixed" a junit
   version in `mansart-jakarta-data/pom.xml` and
   `mansart-transactions/mansart-transactions-tests/pom.xml` — two delivered,
