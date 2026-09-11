@@ -130,7 +130,12 @@ export const MansartGuard = async ({ directory }) => {
       } catch (e) {
         if (e instanceof Deny) {
           const subject = input.tool === "bash" ? (output.args?.command ?? "") : (output.args?.filePath ?? output.args?.path ?? "")
-          const stop = repeatedDenialVerdict(String(subject), st)
+          // `st` lives in the try block; reading it here threw "st is not defined",
+          // which replaced EVERY refusal message for a whole session — the model
+          // concluded the shell was broken and retried fifteen times. Re-fetch the
+          // state, and never let the catch itself throw anything but the Deny.
+          let stop = null
+          try { stop = repeatedDenialVerdict(String(subject), stateFor(input.sessionID ?? "default")) } catch {}
           throw new Error(`mansart-guard: ${stop ?? e.message}`)
         }
         console.error(`[mansart-guard] non-fatal: ${e?.message ?? e}`) // fail open, by design
