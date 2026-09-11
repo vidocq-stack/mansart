@@ -873,6 +873,19 @@ themselves (`mode: all`), which no earlier run had.
   card); **`scripts/card-commit.sh`** owns the commit shape; the guard refuses
   `STATUS-*.md` edits, sources under `ee/jakarta/tck/`, and turns the third
   identical refusal into STOP. `/next` is rewritten around those gates.
+- **The guard's wiring had no test, and broke for a whole session.** The
+  repeated-refusal rule read a `try`-scoped `st` from the plugin's `catch`, so
+  every refusal became `ReferenceError: st is not defined` (the call was still
+  blocked, the explanation lost, the STOP never fired). An agent took it for a
+  broken shell. Fixed; `scripts/test-plugin.mjs` drives the real hook — run it
+  with `test-guard.mjs` after any change to the plugin.
+- **`output: 32768` halves the usable context.** Sessions on the 35B compact at
+  33–34k input tokens against a declared 65 536 context: OpenCode appears to
+  reserve the output budget out of the window. The 32 768 was set to stop the
+  lead truncating a TASKS document that `spec-tasks.sh` now writes instead —
+  the reason is gone, the cost stayed. Candidate: `output` back to 8 192.
+- **A free-form prompt runs the `build` agent**, not `lead`: no delegation, no
+  `lead.md`. Only commands pin `agent: lead`.
 - **`/next` closed M1-T001 through the gates** (2026-09-11 16:58): `card-done.sh`
   measured 4 tests / 0 / 0 in the implementation module and wrote the row;
   `card-commit.sh` produced `0ddfa78` in the required shape. Two defects: the

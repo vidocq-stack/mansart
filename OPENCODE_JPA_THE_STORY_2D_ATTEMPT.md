@@ -1432,6 +1432,47 @@ Smaller: `python3 scripts/task-file.sh` (a bash script) → `SyntaxError`; and
 `sonar.sh -pl <module>` where the script takes `<module>` — it scanned
 something, reported "clean", and the something was not the module.
 
+### An hour and three quarters on an IntelliJ problem, and two of the causes were mine
+
+After M1-T002 closed (7 tests, 0 failures, through the gates), the user ran the
+tests in IntelliJ: `InaccessibleObjectException … module io.vidocq.mansart.persistence
+does not "opens io.vidocq.mansart.persistence" to module org.junit.platform.commons`.
+Maven green, IDE red. He asked OpenCode, in a free-form prompt, to fix it
+without touching production code. What followed, 17:38 to 19:23:
+
+- a first fix in the **production** `module-info.java` (rejected by the user);
+- a `src/test/java/module-info.java`, which IntelliJ compiles *instead of* the
+  production one — hence the later *"package jakarta.persistence is not
+  visible"*;
+- `<testModulePaths>` listing eight jars by hand from `${settings.localRepository}`
+  with pinned versions — green in Maven, unportable anywhere else;
+- fifteen `jar tf`/`unzip -l` on JUnit jars answered **"st is not defined"**,
+  which the agent diagnosed as *"a persistent shell issue"*.
+
+That last line was a bug of mine: the repeated-refusal rule read `st` in the
+plugin's `catch`, but `st` was declared inside the `try`. **Every refusal since
+that commit had been replaced by a ReferenceError** — the guard still blocked,
+but it stopped explaining, and the STOP-after-three never fired. The pure rules
+were 44/44 the whole time; the wiring was never tested. Fixed, and
+`scripts/test-plugin.mjs` now drives the real hook (5/5), verified live.
+
+The second was mine too. The session ran the **`build`** agent — OpenCode's
+default, because a free prompt is not a command — so no delegation and none of
+`lead.md`. And it **compacted three times in thirteen minutes**, each time at
+33–34k tokens of input, while the model is declared with a 65 536 context. The
+numbers line up with OpenCode reserving the declared *output* budget out of the
+window: I had raised `output` to 32 768 on the second day, to stop the lead
+truncating a hundred-card TASKS document it no longer writes. That fix silently
+**halved every session's usable context**, and each compaction dropped the
+thread — the user's "no production change" constraint included.
+
+Measured afterwards, with `clean` each time: the committed pom is green in
+Maven (7/0/0); the committed pom plus one surefire `<argLine>--add-opens
+io.vidocq.mansart.persistence/io.vidocq.mansart.persistence=org.junit.platform.commons</argLine>`
+is green too; so is the agent's pom. A first check without `clean` failed on
+`module not found` — stale `target/` from the agent's experiments, the same
+trap that had been feeding it wrong signals.
+
 **A harness accretes rules faster than it reconciles them.** Every fix here was
 local and correct, and the files drifted apart anyway. The reconciliation is the
 work nobody schedules — it took the fourth "why does he not delegate?" to force
