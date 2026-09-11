@@ -248,7 +248,11 @@ elif find "$H/$IMPL/src" -path '*/ee/jakarta/tck/*' 2>/dev/null | grep -q .; the
 else
     ( cd "$H" && "$H/scripts/build.sh" -pl "$IMPL" compile ) >/dev/null 2>&1 \
         && n=$(find "$H/$IMPL/target/classes" -name '*.class' 2>/dev/null | wc -l | tr -d ' ') || n=-1
-    if [ "$n" -lt 0 ]; then d="build.sh -pl $IMPL compile fails"
+    if [ "$n" -lt 0 ]; then
+        # Say WHY. Four fix rounds went by on "compile fails" alone, each a guess.
+        ERR="$(grep -hE '\[ERROR\]' "$(ls -t "$H"/target/build-logs/*.log 2>/dev/null | head -1)" 2>/dev/null \
+              | grep -vE '^\[ERROR\] *$|To see the full|Re-run|For more|Help [0-9]' | head -2 | cut -c1-200 | tr '\n' ' ')"
+        d="build.sh -pl $IMPL compile fails — ${ERR:-see the latest log in target/build-logs/}"
     elif [ "$n" -eq 0 ]; then d="build.sh -pl $IMPL compile exits 0 but produced 0 classes — a green build that builds nothing (is packaging jar? is there a module-info.java?)"
     else r=0; d="$IMPL compiles ($n classes) — this is where src/main and src/test go"; fi
 fi

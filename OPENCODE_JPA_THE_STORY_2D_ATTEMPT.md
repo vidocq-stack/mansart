@@ -1328,6 +1328,21 @@ the card loop:
 
 `/tck` took five reverts to reach one clean run. `/next` has had its first.
 
+### Seven of seven, and a message that said nothing
+
+The re-run of `/tck` after the `/next` fixes: nine lead tool calls, zero writes,
+`STEP070` skipped the four artifacts already there and added the fifth — the
+implementation module — then **M0-T007 failed four times** on a line that read
+*"compile fails"* and nothing else. Three fix rounds changed no file at all: an
+impl told "it fails" with no cause has nothing to act on. The fourth round found
+it by itself. Round five: **7 of 7**, module-info compiled, one class, the parent
+aggregating only the core module, `STATUS` at 250 cards, 7 done.
+
+A FAIL line that names no cause is a FAIL line that costs a round per guess. T007
+now quotes the first `[ERROR]` of the build log — the same rule as every other
+check, forgotten on the newest one. **Every check I add starts life with the
+defect all the previous ones had to be cured of.**
+
 **A harness accretes rules faster than it reconciles them.** Every fix here was
 local and correct, and the files drifted apart anyway. The reconciliation is the
 work nobody schedules — it took the fourth "why does he not delegate?" to force
