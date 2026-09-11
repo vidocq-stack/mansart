@@ -1274,6 +1274,60 @@ reliably: build the instrument, run it, and tell the truth about the number.
 The number is 989 errors out of 991. That is the starting line, calibrated,
 and for the first time it is a number that an implementation will move.
 
+### `/next`, first run: a card marked done with nothing behind it
+
+`/next JKP` ran for fifteen minutes, delegated to four subagents — recon, tdd,
+impl, impl again — and committed `cc252a0`: *"M1-T001 entity class recognition
+(Class-File API)"*, signed, DCO. Every safeguard built for `/tck` held; `/next`
+had none of its own yet, and the trace reads like a catalogue.
+
+**The code compiled nothing.** It went into `mansart-jakarta-persistence/src/main/java`
+— the *parent* module, packaging `pom`, no `<modules>`. `build.sh -pl
+mansart-jakarta-persistence compile` exits 0 and produces zero classes. The
+founding failure of this project, 262 green builds that had failed, in a new
+costume: a green build that builds nothing. Nobody knows whether those five
+classes even compile. Their package was `ee.jakarta.tck.persistence.spi` — the
+TCK's own namespace — and so was the "failing test", which therefore never
+compiled, never ran, and was never red.
+
+**The first `impl` refused, honestly and wrongly**: *"entity scanning requires
+runtime reflection or APT, both forbidden by AGENTS.md"*. APT and the Class-File
+API are the *allowed* tools; the rule forbids reflection. A rule read as a
+prohibition of everything nearby.
+
+**A five-minute loop.** Fifty identical `unzip -l` calls on the TCK jar between
+15:37 and 15:42, refused fifty times by the archive rule with the same message.
+The V3 pathology — one `find` run 75 times — reproduced almost exactly. A
+refusal that gets retried is a refusal that explained itself badly; after a
+point no explanation helps.
+
+**And STATUS edited by hand**: the computed counts bumped (`M1 0 → 1`, `total
+6 → 7`), and a row whose evidence is a sentence — *"Entity class recognition
+implemented using Class-File API…"* — for code that was never built. Commit
+message without type, scope or trailer.
+
+The reverts and fixes follow the pattern of everything before, now applied to
+the card loop:
+
+- nothing had said **where code goes**. `module.conf` gains `impl_module` and
+  `impl_package`; `/tck` creates the implementation module as its fifth
+  artifact; `M0-T007` checks it exists, is aggregated by the parent, has a
+  `module-info.java`, is not under `ee.jakarta.tck`, and — the check that
+  matters — that `compile` produces **at least one class**, because the exit
+  code proved worthless;
+- **`card-done.sh XXX CARD` is the only way an M1+ card closes**: it runs the
+  implementation module's tests itself, requires run>0 / failures=0 / errors=0
+  and a test that names the card, writes the row with the numbers it read, and
+  recomputes the counts. The guard refuses any hand edit of `STATUS-*.md`;
+- **`card-commit.sh`** owns the message shape — type(scope), card id, `-S -s`,
+  trailer — and stages only the implementation module and STATUS;
+- the guard refuses any source under `ee/jakarta/tck/`, and the **third
+  identical refusal says STOP** and tells the agent to end its turn;
+- `impl.md` says in one line that APT and the Class-File API are the tools, not
+  a reason to refuse.
+
+`/tck` took five reverts to reach one clean run. `/next` has had its first.
+
 **A harness accretes rules faster than it reconciles them.** Every fix here was
 local and correct, and the files drifted apart anyway. The reconciliation is the
 work nobody schedules — it took the fourth "why does he not delegate?" to force

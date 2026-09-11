@@ -143,6 +143,14 @@ export function generatedFileVerdict(path) {
       "regeneration, and an agent already destroyed a 248-card plan this way. " +
       "Write the card's work order to tasks/<XXX>/<CARD>.md instead."
     )
+  // STATUS rows are written by verify-m0.sh (M0) and card-done.sh (M1+), the
+  // counts are computed. A lead edited the counts by hand and wrote a sentence as
+  // evidence; the file said "7 done" for code that never compiled.
+  if (/^STATUS-[A-Z]{3}\.md$/.test(base))
+    return (
+      `${base} is written by scripts: verify-m0.sh closes M0 cards, scripts/card-done.sh ` +
+      "<XXX> <CARD> closes M1+ cards after measuring the tests itself. Never edit it."
+    )
   if (path.includes("/.fragments/"))
     return `${path} is planner output, rewritten by scripts/spec-tasks.sh. Do not edit it.`
   // spec-meta.json is written by spec-fetch.py and read by every checker. A fix
@@ -243,6 +251,43 @@ export function traceDocVerdict(path) {
     return (
       `${base} is the humans' trace of this project, not documentation for you. ` +
       "Every rule you need is in AGENTS.md. Nothing in this file changes what to do next."
+    )
+  return null
+}
+
+
+/**
+ * Our code never lives in the TCK's package. An impl wrote the whole
+ * implementation under ee.jakarta.tck.persistence.spi and the "failing test"
+ * under ee.jakarta.tck.persistence.core — the suite's own namespace, where the
+ * surefire include and the TCK jar both look. Nothing of ours belongs there.
+ */
+export function tckPackageVerdict(path) {
+  if (typeof path !== "string") return null
+  if (/\/src\/(main|test)\/java\/ee\/jakarta\/tck\//.test(path))
+    return (
+      "ee.jakarta.tck.* is the official TCK's package. Our implementation and our " +
+      "tests never live there — use the project's own package (io.vidocq.mansart.<spec>)."
+    )
+  return null
+}
+
+/**
+ * A refusal that gets retried is a refusal that did not explain itself well
+ * enough — and after a point, no explanation helps. A lead ran `unzip -l` on
+ * the TCK jar FIFTY times in five minutes, denied every time by the archive
+ * rule, with the same message each time. The third identical denial says STOP.
+ */
+export function repeatedDenialVerdict(cmd, state) {
+  const key = normalise(cmd)
+  state.denied = state.denied ?? new Map()
+  const n = (state.denied.get(key) ?? 0) + 1
+  state.denied.set(key, n)
+  if (n >= 3)
+    return (
+      `STOP. This exact command has been refused ${n} times in this session. It will not ` +
+      "work the next time either. Do not run it again: report what you were trying to " +
+      "learn and end your turn — the human decides."
     )
   return null
 }

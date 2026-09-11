@@ -16,6 +16,8 @@
 
 import {
   normalise,
+  tckPackageVerdict,
+  repeatedDenialVerdict,
   runnerClientVerdict,
   generatedFileVerdict,
   traceDocVerdict,
@@ -78,7 +80,10 @@ export const MansartGuard = async ({ directory }) => {
 
           if (isArchiveDump(cmd))
             throw new Deny(
-              "archive/bytecode dumps belong in docs/spec-notes/, once. If the answer is " +
+              "listing a jar or dumping bytecode is denied: it floods the context and the " +
+                "answer never changes. Which TCK tests exist and what they need is in " +
+                "docs/spec-notes/<XXX>/ and in scripts/tck-find.py's count. " +
+                "Original rule: dumps belong in docs/spec-notes/, once. If the answer is " +
                 "already noted, read the note; if not, write it there after this run.",
             )
 
@@ -110,7 +115,7 @@ export const MansartGuard = async ({ directory }) => {
 
         if (input.tool === "write" || input.tool === "edit" || input.tool === "patch") {
           const path = output.args?.filePath ?? output.args?.path
-          const why = generatedFileVerdict(path) ?? runnerClientVerdict(path) ?? frozenModuleVerdict(path, frozen)
+          const why = generatedFileVerdict(path) ?? runnerClientVerdict(path) ?? tckPackageVerdict(path) ?? frozenModuleVerdict(path, frozen)
           if (why) throw new Deny(why)
         }
 
@@ -122,7 +127,11 @@ export const MansartGuard = async ({ directory }) => {
             throw new Deny(`${path} is unchanged since you read it — it is still in your context.`)
         }
       } catch (e) {
-        if (e instanceof Deny) throw new Error(`mansart-guard: ${e.message}`)
+        if (e instanceof Deny) {
+          const subject = input.tool === "bash" ? (output.args?.command ?? "") : (output.args?.filePath ?? output.args?.path ?? "")
+          const stop = repeatedDenialVerdict(String(subject), st)
+          throw new Error(`mansart-guard: ${stop ?? e.message}`)
+        }
         console.error(`[mansart-guard] non-fatal: ${e?.message ?? e}`) // fail open, by design
       }
     },

@@ -124,6 +124,19 @@ $COMMON"
 have "$(ls "$MOD"/run-official-tck-*.sh 2>/dev/null | head -1)"
 fi
 
+IMPL="$(python3 scripts/tck-module.py "$CODE" --impl 2>/dev/null)"; PKG="$(python3 scripts/tck-module.py "$CODE" --package 2>/dev/null)"
+IMPLNAME="${IMPL##*/}"
+if [ -n "$IMPL" ] && [ ! -f "$IMPL/pom.xml" ]; then
+impl "5-implementation-module" "Create the IMPLEMENTATION module of the $KW $VER spec — the one place where src/main and src/test code will go. Nothing exists there yet; this is the skeleton.
+READ FIRST: $REFPARENT/pom.xml and the pom of its first submodule listed in <modules> — copy that submodule's shape.
+WRITE 1: $IMPL/pom.xml — <parent> io.vidocq.mansart:$PARENT (relativePath ../pom.xml), artifactId $IMPLNAME, packaging jar, maven.compiler.release 25; dependencies: jakarta.persistence:jakarta.persistence-api:3.2.0 (provided), org.junit.jupiter:junit-jupiter (test). NOTHING ELSE.
+WRITE 2: $IMPL/src/main/java/module-info.java — module $PKG { requires jakarta.persistence; }
+EDIT 3: $PARENT/pom.xml — add <modules><module>$IMPLNAME</module></modules> (only this module; NEVER the -tck runner).
+Package for everything under this module, now and later: $PKG. NEVER ee.jakarta.tck.* — that is the TCK's own package; a run put the implementation there, inside the parent pom, and compiled nothing.
+$COMMON"
+have "$IMPL/pom.xml"; have "$IMPL/src/main/java/module-info.java"
+fi
+
 echo
 for r in $(seq 1 "$ROUNDS"); do
     echo "== verify round $r/$ROUNDS"
@@ -140,6 +153,7 @@ KNOWN-GOOD VALUES — do not change any of these while fixing:
 - system properties platform.mode=standalone, persistence.unit.name=JPATCK
 - persistence.xml: units JPATCK and JPATCK2, RESOURCE_LOCAL, no <provider>
 - NO java source in the runner, no class named Client, NO dependency on any io.vidocq.mansart module (none exists yet), reference runner $REF.
+- implementation module: $IMPL (packaging jar, listed in $PARENT/pom.xml <modules>, module-info.java, package $PKG — never ee.jakarta.tck.*).
 $COMMON"
 done
 echo; echo "== M0 NOT complete after $ROUNDS rounds — last verify output above; logs in $LOGD/"

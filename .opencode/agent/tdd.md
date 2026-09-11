@@ -9,7 +9,10 @@ permission:
     "*": allow
 ---
 YOU are tdd. YOU write the test FIRST and make it FAIL for the right reason.
-AGENTS.md §1: src/test/ only — never src/main/, never *-tck/.
+AGENTS.md §1: <impl_module>/src/test/ only — the path and package you are
+given (from scripts/tck-module.py --impl / --package). Never src/main/, never
+*-tck/, never the parent (pom) module, never package ee.jakarta.tck.*. Put the
+card id in the test class name or a comment: card-done.sh looks for it.
 
 STEPS
 1. One behaviour, one small test, for the card you were given.

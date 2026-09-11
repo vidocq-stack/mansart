@@ -230,6 +230,30 @@ else
 fi
 ck M0-T006 "the counter measures the implementation, not the harness" $r "$d"
 
+# T007 — an IMPLEMENTATION MODULE exists and compiles something.
+# Nothing said where code goes, so an impl put the implementation into the
+# parent module — packaging pom, no <modules> — where `build.sh compile`
+# exits 0 and compiles ZERO classes, under the TCK's own package. A green
+# build that builds nothing is the founding failure of this project; here the
+# count of .class files is the check, not the exit code.
+r=1; d=""
+IMPL="$(python3 "$H/scripts/tck-module.py" "$CODE" --impl 2>/dev/null)"
+PKG="$(python3 "$H/scripts/tck-module.py" "$CODE" --package 2>/dev/null)"
+IMPLNAME="${IMPL##*/}"
+if [ -z "$IMPL" ]; then d="module.conf has no impl_module — re-run scripts/tck-module.py $CODE --force"
+elif [ ! -f "$H/$IMPL/pom.xml" ]; then d="$IMPL/pom.xml missing — the implementation module does not exist yet"
+elif ! grep -q "<module>$IMPLNAME</module>" "$H/$PARENT/pom.xml" 2>/dev/null; then d="$IMPL is not listed in $PARENT/pom.xml <modules> — the parent aggregates, the submodule compiles"
+elif [ ! -f "$H/$IMPL/src/main/java/module-info.java" ]; then d="$IMPL/src/main/java/module-info.java missing (strict Java Modules)"
+elif find "$H/$IMPL/src" -path '*/ee/jakarta/tck/*' 2>/dev/null | grep -q .; then d="$IMPL has sources under ee/jakarta/tck — that is the TCK's package, ours is $PKG"
+else
+    ( cd "$H" && "$H/scripts/build.sh" -pl "$IMPL" compile ) >/dev/null 2>&1 \
+        && n=$(find "$H/$IMPL/target/classes" -name '*.class' 2>/dev/null | wc -l | tr -d ' ') || n=-1
+    if [ "$n" -lt 0 ]; then d="build.sh -pl $IMPL compile fails"
+    elif [ "$n" -eq 0 ]; then d="build.sh -pl $IMPL compile exits 0 but produced 0 classes — a green build that builds nothing (is packaging jar? is there a module-info.java?)"
+    else r=0; d="$IMPL compiles ($n classes) — this is where src/main and src/test go"; fi
+fi
+ck M0-T007 "implementation module exists and compiles something" $r "$d"
+
 # SCOPE — did this work stay in its lane? A run edited two delivered modules'
 # poms on its way here. Anything modified outside the parent module, the root
 # pom, the harness files and the spec's own docs is a violation, and it fails

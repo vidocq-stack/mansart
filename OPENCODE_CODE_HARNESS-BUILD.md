@@ -813,6 +813,17 @@ things learned running it:
   `spec-meta.json`; `verify-m0.sh` requires `org.junit.jupiter:junit-jupiter`
   (or `org.testng:testng`) accordingly and quotes the `Using auto detected
   provider` line when it is wrong; `STEP070` states it in the wiring prompt.
+- **`/next` has run once, and produced a card marked done with nothing behind
+  it** — code in the parent (pom) module compiling zero classes under the
+  TCK's package, a test never run, STATUS counts edited by hand, a fifty-call
+  `unzip -l` loop. Fixes: `impl_module`/`impl_package` in `module.conf`;
+  `/tck` creates the implementation module (fifth artifact) and **M0-T007**
+  verifies it compiles *at least one class* (the exit code is worthless for a
+  pom module); **`scripts/card-done.sh`** is the only writer of M1+ rows and
+  measures the tests itself (run>0, failures=0, errors=0, a test naming the
+  card); **`scripts/card-commit.sh`** owns the commit shape; the guard refuses
+  `STATUS-*.md` edits, sources under `ee/jakarta/tck/`, and turns the third
+  identical refusal into STOP. `/next` is rewritten around those gates.
 - **`/tck` completed M0 unaided from a tree at zero** — 2026-09-11, one round,
   165 s, fifteen lead tool calls and zero writes by the lead; counter
   `991 / 989 errors / 2 skipped` under the JUnit Platform provider, errors being

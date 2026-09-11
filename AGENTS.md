@@ -11,8 +11,8 @@ project, not documentation for you — the guard refuses to open them.
 | agent | writes | never | answer |
 | --- | --- | --- | --- |
 | `lead` | `tasks/<XXX>/<CARD>.md`, `milestones.tsv`, `module.conf`, the commit | java, xml, pom, sh, `TASKS-*`, `STATUS-*` M0 rows | decides, delegates |
-| `impl` | `src/main/**`; and the TCK **runner** module when `/tck` asks (pom, resources, run script — never java there) | `src/test/**`, the TCK suite, delivered modules | 3 lines |
-| `tdd` | `src/test/**` | `src/main/**`, `*-tck/` | 3 lines |
+| `impl` | `<impl_module>/src/main/**` (path and package from `scripts/tck-module.py XXX --impl` / `--package`); and the runner + impl-module skeletons when `/tck` asks | `src/test/**`, the parent (pom) module, the TCK suite, package `ee.jakarta.tck.*`, delivered modules | 3 lines |
+| `tdd` | `<impl_module>/src/test/**`, package from `--package`, the card id in the test | `src/main/**`, `*-tck/`, package `ee.jakarta.tck.*` | 3 lines |
 | `noter` | `docs/spec-notes/<XXX>/` | anything else | 2 lines |
 | `planner` | `docs/spec-notes/<XXX>/.fragments/` | anything else | 2 lines |
 | `recon` `verify` `thinker` `tck-runner` | nothing — write tools are off | — | 3 · 3 · 6 · 4 lines |
@@ -28,7 +28,9 @@ project, not documentation for you — the guard refuses to open them.
 | file | owner | you |
 | --- | --- | --- |
 | `TASKS-XXX.md` | `scripts/spec-tasks.sh` | never edit — guard refuses |
-| `STATUS-XXX.md`: M0 rows and ALL counts | `scripts/verify-m0.sh` | never; M1+ rows: append ONE, only when its done-when exited 0 |
+| `STATUS-XXX.md` — every row and every count | `scripts/verify-m0.sh` (M0), `scripts/card-done.sh XXX CARD` (M1+, it runs the tests itself) | never edit — guard refuses |
+| the card commit | `scripts/card-commit.sh XXX CARD <type> <scope> "<what>"` | never `git commit` a card by hand: type(scope) + card id + `-S -s` + trailer are the script's |
+| where code goes | `scripts/tck-module.py XXX --impl` / `--package` | never guess: the parent module compiles nothing, `ee.jakarta.tck.*` is the TCK's |
 | `docs/spec-src/XXX/spec-meta.json` | `spec-fetch.py [--refresh-tck]` | never |
 | the runner's path | `scripts/tck-module.py` → `module.conf` | never compose it |
 | a card brief's path | `scripts/task-file.sh XXX CARD` | never compose it |
@@ -40,7 +42,9 @@ project, not documentation for you — the guard refuses to open them.
   Red = not done. No exception.
 - **CONTEXT** no `cat` over 200 lines (`sed -n`/`grep -n`); never re-read an
   unchanged file; a third identical search is denied; never paste a log — give
-  its path; answer within your line budget.
+  its path; answer within your line budget. Never list a jar or dump bytecode
+  (denied; the third identical refusal tells you to stop). Never read the
+  harness's own scripts to "understand" them: run them.
 - **EVIDENCE** a card is done when a script says PASS about THAT card's own
   artifact. A green build of something else is nothing. A row without a PASS
   is not a row.
@@ -61,7 +65,7 @@ project, not documentation for you — the guard refuses to open them.
 | `/spec-add <url> <XXX>` | `STEP010` → `STEP060` through the scripts | `TASKS`/`STATUS` generated |
 | `/tck <XXX>` | four `@impl` calls, then verify-and-fix loop | `verify-m0.sh` is ALL PASS |
 | `/refresh <XXX>` | `verify-m0.sh` | four report lines |
-| `/next <XXX>` | one M1+ card: recon → tdd → impl → verify → sonar → commit | verify numbers, one STATUS row, a sha |
+| `/next <XXX>` | one M1+ card: recon → tdd → impl → `card-done.sh` → sonar → `card-commit.sh` | `card-done.sh` exit 0 (tests run>0, 0 failures, 0 errors) and a signed sha |
 | `/fixbug <XXX-Bnnn>` | reproduce first, then the `/next` engine | `BUG.md` updated |
 | `/status <XXX>` | read-only numbers | — |
 | `/push <XXX>` | the only publish; a human runs it | — |

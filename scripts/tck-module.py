@@ -61,11 +61,11 @@ def propose(code, keyword):
     return f"{kw}-tck", "single-spec (no root pom)", runners
 
 
-def read_conf(path):
+def read_conf(path, key="tck_module"):
     with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.split("#", 1)[0].strip()
-            if line.startswith("tck_module"):
+            if line.startswith(key) and "=" in line:
                 return line.split("=", 1)[1].strip()
     return None
 
@@ -80,11 +80,15 @@ def main():
     d = os.path.join(ROOT, "docs", "spec-src", code)
     conf = os.path.join(d, "module.conf")
 
+    want = "impl_module" if "--impl" in sys.argv else "impl_package" if "--package" in sys.argv else "tck_module"
     if os.path.isfile(conf) and not force:
-        m = read_conf(conf)
+        m = read_conf(conf, want)
         if m:
             print(m)
             return 0
+        if want != "tck_module":
+            print(f"{want} missing in {conf} — re-run with --force to regenerate the proposal (keeps nothing else)", file=sys.stderr)
+            return 3
 
     keyword = code.lower()
     meta = os.path.join(d, "spec-meta.json")
@@ -101,6 +105,14 @@ def main():
         for r in runners:
             f.write(f"# existing runner: {r}\n")
         f.write(f"tck_module = {path}\n")
+        # Where the IMPLEMENTATION goes. Nothing said so, and an impl put the whole
+        # implementation into the parent module — packaging pom, compiles nothing —
+        # under the TCK's own package. The parent aggregates; code lives in a
+        # submodule, mirroring mansart-jakarta-data/mansart-data-core.
+        parent = path.split("/")[0] if "/" in path else None
+        impl = f"{parent}/{parent}-core" if parent else f"{kw}-core"
+        f.write(f"impl_module = {impl}\n")
+        f.write(f"impl_package = io.vidocq.mansart.{kw.replace('-', '.')}\n")
     print(path, file=sys.stdout)
     print(f"proposed in docs/spec-src/{code}/module.conf ({shape}) — edit it if wrong",
           file=sys.stderr)

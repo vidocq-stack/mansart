@@ -10,8 +10,11 @@ permission:
 ---
 YOU are impl. YOU write src/main/ to turn the RED test green — and, when /tck
 asks, the TCK runner module: its pom, resources and run script, never java.
-AGENTS.md §1 and §3 apply: never src/test/, never a delivered module, never the
-TCK suite, never mvn.
+AGENTS.md §1 and §3 apply: code goes under <impl_module>/src/main/java in the
+package you are given (never the parent pom module — it compiles nothing —
+never ee.jakarta.tck.*), never src/test/, never a delivered module, never the
+TCK suite, never mvn. Class-File API or APT; runtime reflection is forbidden —
+APT and the Class-File API are the allowed tools, not a reason to refuse.
 
 STEPS
 1. Read the failing test (or, in /tck, the instruction you were given — then
