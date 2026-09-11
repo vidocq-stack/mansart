@@ -218,7 +218,7 @@ so, rather than breaking the card loop.
 | --- | --- | --- | --- |
 | `lead` (primary) | Qwen3.6 | TASKS / STATUS / notes | Decides, never types. Cheapest prefill. |
 | `recon` | 80B Instruct | **nothing** | Answers one question in 3 lines |
-| `noter` | 80B Instruct | `docs/spec-notes/` | Reads one chapter, writes one note |
+| `noter` | 80B Instruct *(see §8, "Retraction": until 2026-09-11 the scripts ran `build`/35B instead)* | `docs/spec-notes/` | Reads one chapter, writes one note |
 | `tdd` | 80B Instruct | `src/test/` | The failing test, first |
 | `impl` | 80B Instruct | `src/main/` | Makes it pass, never touches tests |
 | `verify` | 80B Instruct | **nothing** | Runs things, reports numbers |
@@ -517,7 +517,9 @@ xml 8. A substantially rewritten prompt changed nothing about how the work was
 carved up.
 
 So I ran the control: the same chapter through the **35B reasoning model**. It
-produced **12 cards where the 80B produced 54** — and the identical defect,
+produced **12 cards where the "80B" produced 54** — and the identical defect,
+*(retracted below: both runs were the 35B under the default agent — see
+"Retraction: the subagents that never ran")* —
 `| Entity (name) |`, `| Callback Annotations |`, `| NamedEntityGraph |`. Four
 times less coverage, same flaw.
 
@@ -1342,6 +1344,53 @@ A FAIL line that names no cause is a FAIL line that costs a round per guess. T00
 now quotes the first `[ERROR]` of the build log — the same rule as every other
 check, forgotten on the newest one. **Every check I add starts life with the
 defect all the previous ones had to be cured of.**
+
+### Retraction: the subagents that never ran
+
+Reading the `STEP070` logs for the four wasted rounds, every one of them opened
+with the same header — `> build · Qwen3.6-35B-A3B-MTPLX` — and, a few lines
+above, a warning nobody had read:
+
+```
+! agent "impl" is a subagent, not a primary agent. Falling back to default agent
+```
+
+`opencode run --agent <name>` only runs agents declared `mode: primary` (or
+`all`). Every agent I had made a *subagent* silently fell back to the default
+`build` agent — **on the lead's model, with the generic prompt, and without the
+agent's own instructions**. That covers every script-driven call in this story:
+the 24 notes, the 248 card rows, the five runner artifacts, every fix round. All
+of it was the 35B under `build`, plus whatever the message itself repeated.
+
+What that retracts, precisely:
+
+- *"the noter (80B) writes excellent notes"* — the notes are excellent, and the
+  35B wrote them. The noter's carefully argued prompt (derive the path, never
+  accept one) was never loaded; the path rule survived only because the message
+  repeated the task, which I had done for another reason.
+- *"the 35B reasoning model produced 12 cards where the 80B produced 54, with
+  the same defect"* — both arms were the 35B under `build`. The control run
+  compared a model to itself with a different `--model` flag on a fallback that
+  ignored the agent. The conclusion about card shape may still hold; the
+  evidence for it does not.
+- *"every artifact written by `impl`, not the lead"* — written by `build` on
+  the 35B, not the lead, which was the point that mattered; but not by `impl`.
+
+What it does not retract: the delegations made from inside a session through
+the task tool — `/next`'s recon, tdd and impl calls — did run the real subagents
+(the trace shows `Impl Agent`, and the child sessions exist). Two mechanisms,
+one silent.
+
+Fixed by declaring `noter`, `planner` and `impl` as `mode: all`, verified by the
+header each now prints (`> impl · Qwen3-Next-80B`), and by making the fallback
+warning **fatal** in `STEP070`: a script that runs the wrong agent now stops
+with the reason instead of finishing with the wrong author. And the roster
+table above should be read with this in mind: it describes the design, and for
+three days the design was not what ran.
+
+The "Let me me me me" that filled three of those rounds is a repetition
+collapse of the 35B on a prompt written for another model. It produced nothing,
+returned exit 0, and cost a round each time. Silent, again.
 
 **A harness accretes rules faster than it reconciles them.** Every fix here was
 local and correct, and the files drifted apart anyway. The reconciliation is the

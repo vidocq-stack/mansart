@@ -1,6 +1,6 @@
 ---
 description: Turns ONE group of spec notes into implementation card rows. Rows only.
-mode: subagent
+mode: all
 model: omlx/Qwen3-Next-80B-A3B-Instruct-4bit
 temperature: 0.1
 permission:

@@ -1,6 +1,6 @@
 ---
 description: Writes production code to make the failing test pass. Never touches tests.
-mode: subagent
+mode: all
 model: omlx/Qwen3-Next-80B-A3B-Instruct-4bit
 temperature: 0.2
 permission:

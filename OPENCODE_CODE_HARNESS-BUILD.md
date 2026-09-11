@@ -78,6 +78,18 @@ Same quality, opposite cost profiles. Hence:
 | `thinker` | Qwen3.6 | nothing | Only after two failed attempts. Native thinking. |
 | `tck-runner` | Instruct 80B | nothing | Runs the official TCK, reports the counter, fixes nothing. |
 
+> **Correction, 2026-09-11.** `opencode run --agent <name>` runs only agents
+> declared `mode: primary` or `all`; a `subagent` silently falls back to the
+> default `build` agent on the lead's model, with a warning in the output. Every
+> script-driven call in this project until that date — `spec-note.sh`,
+> `spec-tasks.sh`, `STEP070` — ran `build`/35B, not the agent named. Notes,
+> cards and runner artifacts were produced by the 35B; the agents' own prompts
+> were never loaded for them; the "35B vs 80B" card comparison compared the
+> same model. Task-tool delegation from inside a session (`/next`) did run the
+> real subagents. `noter`, `planner` and `impl` are now `mode: all` (verified by
+> the `> impl · Qwen3-Next-80B` header) and `STEP070` fails on the fallback
+> warning. The table below is the design; what ran before the fix was not.
+
 The 8B vision model is **not** in the roster, and neither is a PDF converter.
 This section originally claimed oMLX exposed markitdown for spec PDFs — it does
 not, and no converter exists on this machine. Jakarta publishes every spec as
@@ -813,6 +825,12 @@ things learned running it:
   `spec-meta.json`; `verify-m0.sh` requires `org.junit.jupiter:junit-jupiter`
   (or `org.testng:testng`) accordingly and quotes the `Using auto detected
   provider` line when it is wrong; `STEP070` states it in the wiring prompt.
+- **Script-invoked agents must be `mode: all`, and the fallback is now fatal.**
+  See the correction under §2: for three days every `opencode run --agent`
+  call ran `build` on the 35B. The model attributions in §2, §5 and §8 for
+  script-driven work are retracted; the mechanisms and rules stand. Any new
+  agent a script calls must be `mode: all` — `STEP070` stops with exit 9 if it
+  sees the fallback warning.
 - **`/next` has run once, and produced a card marked done with nothing behind
   it** — code in the parent (pom) module compiling zero classes under the
   TCK's package, a test never run, STATUS counts edited by hand, a fifty-call

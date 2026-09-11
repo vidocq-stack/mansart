@@ -76,6 +76,14 @@ impl() { # impl <label> <prompt>
     printf '  [%s] %-38s ' "$(date +%H:%M:%S)" "$1"
     if timeout "$TIMEOUT" opencode run --agent impl "$2" </dev/null >"$LOGD/$1.log" 2>&1; then echo "returned"
     else rc=$?; [ $rc -eq 124 ] && echo "TIMEOUT ${TIMEOUT}s" || echo "exit $rc"; fi
+    # `opencode run --agent <subagent>` silently falls back to the default
+    # primary agent (build, on the lead's model). Nine calls of a whole run
+    # did, each log carrying the warning nobody read. An agent file must be
+    # mode: all to be runnable here. Make the fallback fatal, not a footnote.
+    if grep -q 'is a subagent, not a primary agent' "$LOGD/$1.log"; then
+        echo "        FATAL: opencode ran the DEFAULT agent instead of impl — set 'mode: all' in .opencode/agent/impl.md"; exit 9
+    fi
+    printf '        agent: %s\n' "$(grep -m1 -oE '^> [a-z]+ · [A-Za-z0-9.-]+' "$LOGD/$1.log" | cut -c3-)"
 }
 have() { [ -e "$1" ] && printf '        ok   %s\n' "$1" || printf '        MISSING %s\n' "$1"; }
 

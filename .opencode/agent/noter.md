@@ -1,6 +1,6 @@
 ---
 description: Reads ONE spec chapter and writes ONE note file. Notes only.
-mode: subagent
+mode: all
 model: omlx/Qwen3-Next-80B-A3B-Instruct-4bit
 temperature: 0.1
 permission:
