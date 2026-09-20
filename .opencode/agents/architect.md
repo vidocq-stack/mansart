@@ -11,6 +11,8 @@ permission:
   webfetch: deny
   websearch: deny
   ctx_*: deny
+  external_directory:
+    "/Users/yblazart/.m2/repository/**": allow
 ---
 You are Mansart's architecture agent. Analyze only the requested card. Read its
 local task brief, cited normative specification sections, adjacent production

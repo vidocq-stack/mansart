@@ -18,6 +18,8 @@ permission:
   webfetch: deny
   websearch: deny
   ctx_*: deny
+  external_directory:
+    "/Users/yblazart/.m2/repository/**": allow
 ---
 You are Mansart's implementation agent. Implement exactly one approved card.
 Read the card and architecture contract first. Start from a relevant failing

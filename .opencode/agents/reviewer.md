@@ -11,6 +11,8 @@ permission:
   webfetch: deny
   websearch: deny
   ctx_*: deny
+  external_directory:
+    "/Users/yblazart/.m2/repository/**": allow
 ---
 You are Mansart's independent reviewer. Do not modify files. Review the current
 diff for the named card against its cited local specification text, architecture

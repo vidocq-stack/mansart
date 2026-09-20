@@ -55,6 +55,9 @@
           "reviewer": "allow"
         },
         "ctx_*": "deny"
+        ,"external_directory": {
+          "/Users/yblazart/.m2/repository/**": "allow"
+        }
       }
     }
   }
