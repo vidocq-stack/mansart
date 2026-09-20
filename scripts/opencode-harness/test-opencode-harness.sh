@@ -13,6 +13,7 @@ jq -e '.agent.lead.steps == 24 and .agent.lead.permission["ctx_*"] == "deny"' op
 jq -e '.agent.lead.permission.external_directory["/Users/yblazart/.m2/repository/**"] == "allow"' opencode.json >/dev/null
 test -x scripts/opencode-harness/opencode-card.sh
 test -x scripts/opencode-harness/opencode-plan.sh
+test -x scripts/opencode-harness/ingest-spec-pdf.sh
 
 for agent in architect implementer reviewer; do
     test -s ".opencode/agents/$agent.md"
