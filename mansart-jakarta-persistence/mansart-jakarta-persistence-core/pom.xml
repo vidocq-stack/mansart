@@ -16,6 +16,17 @@
         <maven.compiler.release>25</maven.compiler.release>
     </properties>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>--add-opens io.vidocq.mansart.persistence/io.vidocq.mansart.persistence=org.junit.platform.commons --add-reads io.vidocq.mansart.persistence=org.junit.jupiter.api</argLine>                                      </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
     <dependencies>
         <dependency>
             <groupId>jakarta.persistence</groupId>
