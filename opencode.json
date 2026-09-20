@@ -3,23 +3,43 @@
   "provider": {
     "omlx": {
       "models": {
-        "Qwen3.6-35B-A3B-MTPLX-Optimized-Speed": {
-          "name": "Qwen3.6 35B (lead)",
+        "Qwen3.8-27B-oQ4e-mtp": {
+          "name": "Qwen3.8 27B MTP (local)",
           "limit": {
             "context": 65536,
-            "output": 32768
-          }
-        },
-        "Qwen3-Next-80B-A3B-Instruct-4bit": {
-          "name": "Qwen3-Next 80B Instruct (workers)",
-          "limit": {
-            "context": 65536,
-            "output": 32768
+            "output": 16384
           }
         }
       }
     }
   },
-  "model": "omlx/Qwen3.6-35B-A3B-MTPLX-Optimized-Speed",
-  "small_model": "omlx/Qwen3-Next-80B-A3B-Instruct-4bit"
+  "model": "omlx/Qwen3.8-27B-oQ4e-mtp",
+  "small_model": "omlx/Qwen3.8-27B-oQ4e-mtp",
+  "agent": {
+    "lead": {
+      "description": "Orchestrates one verified, reviewable change at a time",
+      "mode": "primary",
+      "model": "omlx/Qwen3.8-27B-oQ4e-mtp",
+      "temperature": 0.2,
+      "steps": 80,
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "allow",
+          "git commit*": "deny",
+          "git push*": "deny",
+          "git reset*": "deny",
+          "git clean*": "deny",
+          "git restore*": "deny",
+          "git checkout*": "deny"
+        },
+        "task": {
+          "*": "deny",
+          "architect": "allow",
+          "implementer": "allow",
+          "reviewer": "allow"
+        }
+      }
+    }
+  }
 }
