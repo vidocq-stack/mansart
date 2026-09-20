@@ -17,6 +17,7 @@ permission:
   task: deny
   webfetch: deny
   websearch: deny
+  ctx_*: deny
 ---
 You are Mansart's implementation agent. Implement exactly one approved card.
 Read the card and architecture contract first. Start from a relevant failing

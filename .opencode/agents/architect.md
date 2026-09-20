@@ -10,6 +10,7 @@ permission:
   task: deny
   webfetch: deny
   websearch: deny
+  ctx_*: deny
 ---
 You are Mansart's architecture agent. Analyze only the requested card. Read its
 local task brief, cited normative specification sections, adjacent production
