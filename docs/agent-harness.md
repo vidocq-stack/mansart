@@ -30,7 +30,7 @@ Start OpenCode from the repository root and select `lead`, or run a command:
 For unattended execution:
 
 ```shell
-./scripts/opencode-card.sh JKP/M1-T001
+./scripts/opencode-harness/opencode-card.sh JKP/M1-T001
 ```
 
 The project config intentionally declares no credential or endpoint. The local
