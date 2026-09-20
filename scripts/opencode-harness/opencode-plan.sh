@@ -16,4 +16,4 @@ if [[ ! -d "$ROOT/docs/spec-src/$SPEC" ]]; then
 fi
 
 cd "$ROOT"
-exec timeout --foreground "$TIMEOUT" opencode run --agent lead --command spec-plan "$SPEC"
+exec timeout --foreground "$TIMEOUT" opencode run --print-logs --log-level INFO --agent lead --command spec-plan "$SPEC"

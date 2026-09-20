@@ -39,6 +39,10 @@ The project config intentionally declares no credential or endpoint. The local
 `omlx` provider must be configured globally and point at the oMLX OpenAI-compatible
 endpoint. The resolved config can be checked with `opencode debug config`.
 
+The wrappers pass `--print-logs --log-level INFO`, so delegation, tool calls and
+agent progress remain visible during a run. They do not request private thinking
+blocks; the observable transcript is the useful audit trail.
+
 ## Context policy
 
 OpenCode sees a 65,536-token model window even though oMLX accepts 131,072. The

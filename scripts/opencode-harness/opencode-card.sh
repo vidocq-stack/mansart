@@ -11,4 +11,4 @@ if [[ ! "$CARD" =~ ^[A-Z]{3}/M[0-9]+-T[0-9]{3}$ ]]; then
 fi
 
 cd "$ROOT"
-exec timeout --foreground "$TIMEOUT" opencode run --agent lead --command card "$CARD"
+exec timeout --foreground "$TIMEOUT" opencode run --print-logs --log-level INFO --agent lead --command card "$CARD"
