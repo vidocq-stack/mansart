@@ -12,6 +12,7 @@ jq -e '.provider.omlx.models["Qwen3-VL-8B-Instruct-MLX-5bit"].limit.output == 20
 jq -e '.agent.lead.steps == 24 and .agent.lead.permission["ctx_*"] == "deny"' opencode.json >/dev/null
 jq -e '.agent.lead.permission.external_directory["/Users/yblazart/.m2/repository/**"] == "allow"' opencode.json >/dev/null
 test -x scripts/opencode-harness/opencode-card.sh
+test -x scripts/opencode-harness/opencode-plan.sh
 
 for agent in architect implementer reviewer; do
     test -s ".opencode/agents/$agent.md"

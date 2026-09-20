@@ -31,6 +31,7 @@ For unattended execution:
 
 ```shell
 ./scripts/opencode-harness/opencode-card.sh JKP/M1-T001
+./scripts/opencode-harness/opencode-plan.sh JKP
 ```
 
 The project config intentionally declares no credential or endpoint. The local
