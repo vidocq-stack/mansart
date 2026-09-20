@@ -1,7 +1,7 @@
 ---
 description: Implements one approved card with tests and bounded scope
 mode: subagent
-model: omlx/Qwen3.8-27B-oQ4e-mtp
+model: omlx/Qwen3-Coder-Next-MLX-4bit
 temperature: 0.2
 steps: 48
 permission:

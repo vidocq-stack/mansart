@@ -1,15 +1,15 @@
 # Local agent harness
 
-The harness uses one local `Qwen3.8-27B-oQ4e-mtp` model through oMLX, but gives
-each responsibility a separate OpenCode session. This bounds context and makes
+The harness uses local models through oMLX and gives each responsibility a
+separate OpenCode session. This bounds context and makes
 architecture, implementation, and review independently inspectable.
 
 ## Roles
 
 - `lead` orchestrates one card and is the interactive primary agent.
 - `architect` is read-only and produces a bounded implementation contract.
-- `implementer` edits and tests one approved card.
-- `reviewer` is read-only and challenges the resulting diff and evidence.
+- `implementer` uses Qwen3-Coder-Next 4-bit to edit and test one approved card.
+- `reviewer` uses Qwen3-VL 8B and challenges the resulting diff and evidence.
 
 No agent may commit or rewrite Git state. After review and verification, the
 human or outer orchestrator creates one atomic commit. This makes rollback a

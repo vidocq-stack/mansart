@@ -38,6 +38,9 @@ relevant test executed is not evidence.
   contracts, not code to duplicate inside Persistence.
 - Do not introduce platform threads, common-pool blocking, or assumptions that
   break virtual-thread execution.
+- JDK 25 includes JEP 491: blocking while holding a `synchronized` monitor no
+  longer pins a virtual thread. Remaining pinning cases include native and
+  foreign-function calls; do not repeat pre-JDK-24 monitor guidance.
 - Do not modify delivered sibling modules unless the card explicitly describes
   a cross-module contract.
 
