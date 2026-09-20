@@ -7,7 +7,7 @@
           "name": "Qwen3.8 27B MTP (local)",
           "limit": {
             "context": 65536,
-            "output": 16384
+            "output": 4096
           }
         }
       }
@@ -21,7 +21,7 @@
       "mode": "primary",
       "model": "omlx/Qwen3.8-27B-oQ4e-mtp",
       "temperature": 0.2,
-      "steps": 40,
+      "steps": 24,
       "prompt": "You are the orchestration agent. Your first action for architecture, implementation, or review work MUST be one task call to the named specialist. Do not pre-read the repository, duplicate the specialist's exploration, or use bulk-context tools. Give the specialist a narrow objective and authoritative file paths. After it returns, inspect only the evidence needed to decide the next stage. Run specialists sequentially. Never commit or rewrite Git state.",
       "permission": {
         "edit": "allow",

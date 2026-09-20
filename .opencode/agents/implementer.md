@@ -3,7 +3,7 @@ description: Implements one approved card with tests and bounded scope
 mode: subagent
 model: omlx/Qwen3.8-27B-oQ4e-mtp
 temperature: 0.2
-steps: 64
+steps: 48
 permission:
   edit: allow
   bash:
@@ -28,3 +28,4 @@ commit or discard work.
 
 Finish with changed files, test/build commands and counts, normative sections
 implemented, plus anything uncertain or deliberately deferred.
+Keep the final report under 600 words and never dump full build logs.

@@ -3,7 +3,7 @@ description: Reviews a card diff against its spec, architecture, and test eviden
 mode: subagent
 model: omlx/Qwen3.8-27B-oQ4e-mtp
 temperature: 0.1
-steps: 32
+steps: 16
 permission:
   edit: deny
   bash: allow
@@ -21,3 +21,4 @@ List findings first, ordered by severity, with paths and concrete fixes. Detect
 false-green tests, invented requirements, unrelated changes, runtime reflection
 that should be generated, and missing negative or boundary cases. If no defect
 is found, say so explicitly and state residual risks. Do not delegate.
+Use at most 600 words and never dump full build logs.

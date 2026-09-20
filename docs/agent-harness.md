@@ -29,7 +29,7 @@ Start OpenCode from the repository root and select `lead`, or run a command:
 For unattended execution:
 
 ```shell
-opencode run --agent lead --command card JKP/M1-T001
+./scripts/opencode-card.sh JKP/M1-T001
 ```
 
 The project config intentionally declares no credential or endpoint. The local
@@ -42,3 +42,7 @@ OpenCode sees a 65,536-token model window even though oMLX accepts 131,072. The
 lower operational ceiling encourages compaction before the cold-prefill cost
 becomes excessive. Agents read only the card, its cited spec chapters, and the
 affected module. A new card starts a new implementation session.
+
+Each model turn is capped at 4,096 output tokens. The unattended wrapper also
+enforces a 30-minute wall-clock timeout so a looping session cannot monopolize
+the local inference server indefinitely.
