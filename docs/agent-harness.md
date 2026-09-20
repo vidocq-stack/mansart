@@ -23,6 +23,7 @@ Start OpenCode from the repository root and select `lead`, or run a command:
 ```text
 /spec-plan JKP
 /card JKP/M1-T001
+/design-card JKP/M2-T001
 /review-card JKP/M1-T001
 ```
 
@@ -43,6 +44,10 @@ lower operational ceiling encourages compaction before the cold-prefill cost
 becomes excessive. Agents read only the card, its cited spec chapters, and the
 affected module. A new card starts a new implementation session.
 
-Each model turn is capped at 4,096 output tokens. The unattended wrapper also
+`/card` uses the 27B implementer followed by the local 8B reviewer. Use
+`/design-card` when a card creates or changes a module boundary, public API/SPI,
+cross-module contract, or requires non-obvious interpretation of the spec.
+
+The 27B model is capped at 4,096 output tokens and the reviewer at 2,048. The unattended wrapper also
 enforces a 30-minute wall-clock timeout so a looping session cannot monopolize
 the local inference server indefinitely.

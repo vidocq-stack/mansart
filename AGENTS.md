@@ -15,7 +15,8 @@ whole specification when a cited chapter is sufficient.
 
 Use this sequence:
 
-1. Ask `architect` for a bounded plan and affected invariants.
+1. For a new module boundary, public API/SPI, cross-module contract, or unclear
+   normative requirement, ask `architect` for a bounded plan and invariants.
 2. Ask `implementer` for one test-driven change.
 3. Run the narrow test, then the affected module build.
 4. Ask `reviewer` to inspect the diff and verification evidence.

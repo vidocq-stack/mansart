@@ -1,7 +1,7 @@
 ---
 description: Reviews a card diff against its spec, architecture, and test evidence
 mode: subagent
-model: omlx/Qwen3.8-27B-oQ4e-mtp
+model: omlx/Qwen3-VL-8B-Instruct-MLX-5bit
 temperature: 0.1
 steps: 16
 permission:
