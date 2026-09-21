@@ -34,6 +34,7 @@ For unattended execution:
 ./scripts/opencode-harness/opencode-plan.sh JKP
 ./scripts/opencode-harness/ingest-spec-pdf.sh JKP
 ./scripts/opencode-harness/review-plan.sh JKP
+./scripts/opencode-harness/review-cards.sh JKP
 ```
 
 The project config intentionally declares no credential or endpoint. The local

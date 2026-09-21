@@ -15,6 +15,7 @@ test -x scripts/opencode-harness/opencode-card.sh
 test -x scripts/opencode-harness/opencode-plan.sh
 test -x scripts/opencode-harness/ingest-spec-pdf.sh
 test -x scripts/opencode-harness/review-plan.sh
+test -x scripts/opencode-harness/review-cards.sh
 
 for agent in architect implementer reviewer; do
     test -s ".opencode/agents/$agent.md"
