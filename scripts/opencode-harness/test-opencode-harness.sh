@@ -21,6 +21,7 @@ for agent in architect implementer reviewer; do
     test -s ".opencode/agents/$agent.md"
     opencode debug agent "$agent" >/dev/null
 done
+opencode debug agent plan-corrector >/dev/null
 
 opencode debug agent lead >/dev/null
 printf 'OpenCode harness: PASS\n'

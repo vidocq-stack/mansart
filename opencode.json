@@ -52,7 +52,8 @@
           "*": "deny",
           "architect": "allow",
           "implementer": "allow",
-          "reviewer": "allow"
+          "reviewer": "allow",
+          "plan-corrector": "allow"
         },
         "ctx_*": "deny"
         ,"external_directory": {
