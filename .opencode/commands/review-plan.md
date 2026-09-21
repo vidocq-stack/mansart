@@ -18,6 +18,11 @@ the source PDF, extracted specification material, generated TASKS files, or
 Git state. Do not invent requirements: cite the API jar, source section, or
 repository path for every correction.
 
+You MUST apply every BLOCKER finding before finishing. If the reviewer reports
+an API signature mismatch, edit the affected card and add the `javap` command
+and result to its cited requirements or acceptance notes. You may not report
+"no correction" while a claimed method is absent from the inspected API class.
+
 Finish with a report listing: corrected files, rejected findings with reasons,
 remaining gaps, and a proposed next card. If no correction is justified, leave
 the cards unchanged and say so.
