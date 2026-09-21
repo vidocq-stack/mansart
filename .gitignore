@@ -14,5 +14,6 @@ mansart-transactions/.tck-cache/
 
 # spec pipeline intermediates (regenerable)
 docs/spec-notes/*/.fragments/
+docs/spec-src/*
 __pycache__/
 *.pyc

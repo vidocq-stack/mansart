@@ -10,8 +10,8 @@ if [[ ! "$SPEC" =~ ^[A-Z]{3}$ ]]; then
     exit 2
 fi
 
-if [[ ! -d "$ROOT/docs/spec-src/$SPEC" ]]; then
-    echo "specification material not found: docs/spec-src/$SPEC" >&2
+if [[ ! -d "$ROOT/docs/spec-src/$SPEC/chapters" ]]; then
+    echo "split specification material not found: docs/spec-src/$SPEC/chapters" >&2
     exit 3
 fi
 

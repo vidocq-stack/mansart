@@ -16,6 +16,7 @@ test -x scripts/opencode-harness/opencode-plan.sh
 test -x scripts/opencode-harness/ingest-spec-pdf.sh
 test -x scripts/opencode-harness/review-plan.sh
 test -x scripts/opencode-harness/review-cards.sh
+test -x scripts/opencode-harness/update-status.sh
 
 for agent in architect implementer reviewer; do
     test -s ".opencode/agents/$agent.md"
@@ -24,4 +25,5 @@ done
 opencode debug agent plan-corrector >/dev/null
 
 opencode debug agent lead >/dev/null
+test -s .opencode/commands/spec-plan.md
 printf 'OpenCode harness: PASS\n'
