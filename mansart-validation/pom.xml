@@ -3,19 +3,19 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.vidocq</groupId>
-        <artifactId>vidocq-parent</artifactId>
+        <groupId>io.vidocq.mansart</groupId>
+        <artifactId>mansart-root</artifactId>
         <version>0.4.0-SNAPSHOT</version>
-        <relativePath/>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>io.vidocq.mansart</groupId>
-    <artifactId>mansart-root</artifactId>
+    <artifactId>mansart-validation</artifactId>
     <version>0.4.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
-    <name>Mansart Root</name>
-    <description>Mansart is a reference implementation for the Jakarta EE platform, focused on Java Modules, virtual threads, and clean architecture.</description>
+    <name>Mansart :: Validation</name>
+    <description>Jakarta Validation 3.1 (Bean Validation) implementation for the Vidocq ecosystem.</description>
     <url>https://codefloe.com/Vidocq/mansart</url>
 
     <scm>
@@ -61,26 +61,25 @@
         </license>
     </licenses>
 
-    <modules>
-        <module>mansart-pool</module>
-        <module>mansart-transactions</module>
-        <module>mansart-jakarta-data</module>
-        <module>mansart-persistence</module>
-        <module>mansart-validation</module>
-    </modules>
-
     <properties>
-        <maven.compiler.source>25</maven.compiler.source>
-        <maven.compiler.target>25</maven.compiler.target>
+        <maven.deploy.skip>false</maven.deploy.skip>
+        <jakarta.validation.version>3.1.1</jakarta.validation.version>
     </properties>
+
+    <!--
+        Implementation modules (mansart-validation-core, mansart-validation-processor,
+        mansart-validation-el, ...) are added milestone by milestone, each one with its
+        first failing test — see ROADMAP.md. The TCK runner (mansart-validation-tck) is
+        never listed here: it is out of the reactor, like mansart-data-tck and
+        mansart-transactions-tck.
+    -->
 
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.assertj</groupId>
-                <artifactId>assertj-core</artifactId>
-                <version>3.27.0</version>
-                <scope>test</scope>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>${jakarta.validation.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
