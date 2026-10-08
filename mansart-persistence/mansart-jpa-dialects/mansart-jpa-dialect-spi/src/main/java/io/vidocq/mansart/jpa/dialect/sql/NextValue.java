@@ -19,23 +19,23 @@
  */
 package io.vidocq.mansart.jpa.dialect.sql;
 
-import java.util.List;
+import java.util.Objects;
 
 /**
- * A SQL statement of Mansart JPA, rendered by a {@code Dialect}. Statements carry no value: each column of their lists
- * is one JDBC parameter, bound in the order the statement documents. The hierarchy grows with the milestones (queries,
- * locks, DDL).
+ * The next value of a sequence (identifier generation, §11.1.51): one row, one column, no parameter.
+ *
+ * @param schema the schema, or {@code null}
+ * @param catalog the catalog, or {@code null}
  */
-public sealed interface Statement permits Insert, Update, Delete, Select, NextValue, Increment {
+public record NextValue(Identifier name, Identifier schema, Identifier catalog) implements Statement {
 
-    /** The table the statement works on. */
-    Table table();
+    public NextValue {
+        Objects.requireNonNull(name, "name");
+    }
 
-    static List<Identifier> copy(List<Identifier> columns, String what, boolean required) {
-        List<Identifier> copy = List.copyOf(columns);
-        if (required && copy.isEmpty()) {
-            throw new IllegalArgumentException("A statement needs " + what);
-        }
-        return copy;
+    /** The sequence, qualified as a table is. */
+    @Override
+    public Table table() {
+        return new Table(name, schema, catalog);
     }
 }

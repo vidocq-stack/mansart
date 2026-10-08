@@ -19,23 +19,18 @@
  */
 package io.vidocq.mansart.jpa.dialect.sql;
 
-import java.util.List;
+import java.util.Objects;
 
 /**
- * A SQL statement of Mansart JPA, rendered by a {@code Dialect}. Statements carry no value: each column of their lists
- * is one JDBC parameter, bound in the order the statement documents. The hierarchy grows with the milestones (queries,
- * locks, DDL).
+ * {@code UPDATE table SET value = value + ? WHERE key = ?}: the row of a table generator (§11.1.52) moves forward by the
+ * first parameter, in place, so that concurrent generators never read the same value; the second parameter selects
+ * the row.
  */
-public sealed interface Statement permits Insert, Update, Delete, Select, NextValue, Increment {
+public record Increment(Table table, Identifier value, Identifier key) implements Statement {
 
-    /** The table the statement works on. */
-    Table table();
-
-    static List<Identifier> copy(List<Identifier> columns, String what, boolean required) {
-        List<Identifier> copy = List.copyOf(columns);
-        if (required && copy.isEmpty()) {
-            throw new IllegalArgumentException("A statement needs " + what);
-        }
-        return copy;
+    public Increment {
+        Objects.requireNonNull(table, "table");
+        Objects.requireNonNull(value, "value");
+        Objects.requireNonNull(key, "key");
     }
 }
