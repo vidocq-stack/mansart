@@ -17,17 +17,29 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Jakarta Validation 3.1 provider for the Vidocq ecosystem. The provider is published through
- * {@link java.util.ServiceLoader}; the validation engine itself is built milestone by milestone
- * (see {@code ROADMAP.md}).
- */
-module io.vidocq.mansart.validation.core {
-    requires transitive jakarta.validation;
-    requires java.xml;
+package io.vidocq.mansart.validation.core;
 
-    exports io.vidocq.mansart.validation.core;
+import jakarta.validation.ParameterNameProvider;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+import java.util.List;
 
-    provides jakarta.validation.spi.ValidationProvider
-        with io.vidocq.mansart.validation.core.MansartValidationProvider;
+/** Default {@link ParameterNameProvider}: the names reported by the JDK ({@code arg0}, ... without {@code -parameters}). */
+final class DefaultParameterNameProvider implements ParameterNameProvider {
+
+    @Override
+    public List<String> getParameterNames(Constructor<?> constructor) {
+        return names(constructor);
+    }
+
+    @Override
+    public List<String> getParameterNames(Method method) {
+        return names(method);
+    }
+
+    private static List<String> names(Executable executable) {
+        return Arrays.stream(executable.getParameters()).map(p -> p.getName()).toList();
+    }
 }

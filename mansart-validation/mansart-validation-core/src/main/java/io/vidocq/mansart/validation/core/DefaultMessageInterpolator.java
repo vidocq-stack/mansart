@@ -17,17 +17,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Jakarta Validation 3.1 provider for the Vidocq ecosystem. The provider is published through
- * {@link java.util.ServiceLoader}; the validation engine itself is built milestone by milestone
- * (see {@code ROADMAP.md}).
- */
-module io.vidocq.mansart.validation.core {
-    requires transitive jakarta.validation;
-    requires java.xml;
+package io.vidocq.mansart.validation.core;
 
-    exports io.vidocq.mansart.validation.core;
+import jakarta.validation.MessageInterpolator;
+import java.util.Locale;
 
-    provides jakarta.validation.spi.ValidationProvider
-        with io.vidocq.mansart.validation.core.MansartValidationProvider;
+/** Placeholder until milestone V5 (message interpolation): the template is returned unchanged. */
+final class DefaultMessageInterpolator implements MessageInterpolator {
+
+    @Override
+    public String interpolate(String messageTemplate, Context context) {
+        return messageTemplate;
+    }
+
+    @Override
+    public String interpolate(String messageTemplate, Context context, Locale locale) {
+        return messageTemplate;
+    }
 }

@@ -17,17 +17,26 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Jakarta Validation 3.1 provider for the Vidocq ecosystem. The provider is published through
- * {@link java.util.ServiceLoader}; the validation engine itself is built milestone by milestone
- * (see {@code ROADMAP.md}).
- */
-module io.vidocq.mansart.validation.core {
-    requires transitive jakarta.validation;
-    requires java.xml;
+package io.vidocq.mansart.validation.core;
 
-    exports io.vidocq.mansart.validation.core;
+import jakarta.validation.ClockProvider;
+import jakarta.validation.ConstraintValidatorFactory;
+import jakarta.validation.MessageInterpolator;
+import jakarta.validation.ParameterNameProvider;
+import jakarta.validation.TraversableResolver;
+import jakarta.validation.valueextraction.ValueExtractor;
+import java.util.Set;
 
-    provides jakarta.validation.spi.ValidationProvider
-        with io.vidocq.mansart.validation.core.MansartValidationProvider;
+/** The pluggable components a factory (or a validator context) works with. */
+record Components(
+        MessageInterpolator messageInterpolator,
+        TraversableResolver traversableResolver,
+        ConstraintValidatorFactory constraintValidatorFactory,
+        ParameterNameProvider parameterNameProvider,
+        ClockProvider clockProvider,
+        Set<ValueExtractor<?>> valueExtractors) {
+
+    Components {
+        valueExtractors = Set.copyOf(valueExtractors);
+    }
 }

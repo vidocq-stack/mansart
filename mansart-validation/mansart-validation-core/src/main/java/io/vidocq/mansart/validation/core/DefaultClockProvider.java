@@ -17,17 +17,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Jakarta Validation 3.1 provider for the Vidocq ecosystem. The provider is published through
- * {@link java.util.ServiceLoader}; the validation engine itself is built milestone by milestone
- * (see {@code ROADMAP.md}).
- */
-module io.vidocq.mansart.validation.core {
-    requires transitive jakarta.validation;
-    requires java.xml;
+package io.vidocq.mansart.validation.core;
 
-    exports io.vidocq.mansart.validation.core;
+import jakarta.validation.ClockProvider;
+import java.time.Clock;
 
-    provides jakarta.validation.spi.ValidationProvider
-        with io.vidocq.mansart.validation.core.MansartValidationProvider;
+/** Default {@link ClockProvider}: the system clock in the default time zone. */
+final class DefaultClockProvider implements ClockProvider {
+
+    @Override
+    public Clock getClock() {
+        return Clock.systemDefaultZone();
+    }
 }

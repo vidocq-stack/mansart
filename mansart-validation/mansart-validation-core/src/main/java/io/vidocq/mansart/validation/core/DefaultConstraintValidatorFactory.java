@@ -17,17 +17,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * Jakarta Validation 3.1 provider for the Vidocq ecosystem. The provider is published through
- * {@link java.util.ServiceLoader}; the validation engine itself is built milestone by milestone
- * (see {@code ROADMAP.md}).
- */
-module io.vidocq.mansart.validation.core {
-    requires transitive jakarta.validation;
-    requires java.xml;
+package io.vidocq.mansart.validation.core;
 
-    exports io.vidocq.mansart.validation.core;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorFactory;
 
-    provides jakarta.validation.spi.ValidationProvider
-        with io.vidocq.mansart.validation.core.MansartValidationProvider;
+/** Default {@link ConstraintValidatorFactory}: the no-arg constructor of the validator class. */
+final class DefaultConstraintValidatorFactory implements ConstraintValidatorFactory {
+
+    @Override
+    public <T extends ConstraintValidator<?, ?>> T getInstance(Class<T> key) {
+        return Instantiator.create(key);
+    }
+
+    @Override
+    public void releaseInstance(ConstraintValidator<?, ?> instance) {
+        // Nothing is pooled: the instance is simply dropped.
+    }
 }
