@@ -17,14 +17,16 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-/**
- * The SQL of Mansart JPA (decision D4): a sealed AST ({@code io.vidocq.mansart.jpa.dialect.sql}) built by the provider,
- * and the dialect SPI that renders it ({@code io.vidocq.mansart.jpa.dialect}), implemented by one module per database.
- */
-module io.vidocq.mansart.jpa.dialect.spi {
-    // the SPI speaks JDBC: SQLException in isDuplicateKey
-    requires transitive java.sql;
+package io.vidocq.mansart.jpa.core.session;
 
-    exports io.vidocq.mansart.jpa.dialect;
-    exports io.vidocq.mansart.jpa.dialect.sql;
+import java.sql.Connection;
+
+/** What an entity manager does at the boundaries of its resource-local transaction. */
+interface TransactionListener {
+
+    /** Before the commit, on the connection of the transaction: the flush (§3.2.4). */
+    void beforeCommit(Connection connection);
+
+    /** After a rollback, or a commit that failed: the instances of the persistence context become detached (§3.3.2). */
+    void afterRollback();
 }
