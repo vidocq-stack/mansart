@@ -17,19 +17,27 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.jdbc.type;
+package io.vidocq.mansart.jpa.core.model.build.fixtures;
 
-import io.vidocq.mansart.jpa.dialect.Dialect;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
 
-/** Writes the value of a basic attribute to a statement parameter, and reads it back from a result column. */
-public interface ValueBinder {
+/** Refuses to write "refused" and to read "UNREADABLE": §3.9 wraps what a converter throws. */
+@Converter
+public class StrictConverter implements AttributeConverter<String, String> {
+    @Override
+    public String convertToDatabaseColumn(String value) {
+        if ("refused".equals(value)) {
+            throw new IllegalArgumentException("refused cannot be written");
+        }
+        return value;
+    }
 
-    /** Binds {@code value}, {@code null} included, to the parameter {@code index}, as {@code dialect} stores it. */
-    void bind(Dialect dialect, PreparedStatement statement, int index, Object value) throws SQLException;
-
-    /** The attribute value of the column {@code column}; SQL {@code NULL} gives the default value of a primitive. */
-    Object read(ResultSet results, int column) throws SQLException;
+    @Override
+    public String convertToEntityAttribute(String value) {
+        if ("UNREADABLE".equals(value)) {
+            throw new IllegalStateException("UNREADABLE cannot be read");
+        }
+        return value;
+    }
 }

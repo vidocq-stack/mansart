@@ -17,19 +17,23 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.jdbc.type;
+package io.vidocq.mansart.jpa.core.model.build.fixtures;
 
-import io.vidocq.mansart.jpa.dialect.Dialect;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.persistence.MappedSuperclass;
 
-/** Writes the value of a basic attribute to a statement parameter, and reads it back from a result column. */
-public interface ValueBinder {
+/** A mapped superclass whose entity converts an inherited attribute. */
+@MappedSuperclass
+public abstract class Signed {
+    private String signature;
 
-    /** Binds {@code value}, {@code null} included, to the parameter {@code index}, as {@code dialect} stores it. */
-    void bind(Dialect dialect, PreparedStatement statement, int index, Object value) throws SQLException;
+    protected Signed() {
+    }
 
-    /** The attribute value of the column {@code column}; SQL {@code NULL} gives the default value of a primitive. */
-    Object read(ResultSet results, int column) throws SQLException;
+    protected Signed(String signature) {
+        this.signature = signature;
+    }
+
+    public String signature() {
+        return signature;
+    }
 }

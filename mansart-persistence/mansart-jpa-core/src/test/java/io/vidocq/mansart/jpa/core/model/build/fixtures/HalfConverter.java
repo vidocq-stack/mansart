@@ -17,19 +17,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.jdbc.type;
+package io.vidocq.mansart.jpa.core.model.build.fixtures;
 
-import io.vidocq.mansart.jpa.dialect.Dialect;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import jakarta.persistence.AttributeConverter;
+import jakarta.persistence.Converter;
 
-/** Writes the value of a basic attribute to a statement parameter, and reads it back from a result column. */
-public interface ValueBinder {
+/** Stores half the value. */
+@Converter
+public class HalfConverter implements AttributeConverter<Double, Double> {
+    @Override
+    public Double convertToDatabaseColumn(Double value) {
+        return value == null ? null : value / 2;
+    }
 
-    /** Binds {@code value}, {@code null} included, to the parameter {@code index}, as {@code dialect} stores it. */
-    void bind(Dialect dialect, PreparedStatement statement, int index, Object value) throws SQLException;
-
-    /** The attribute value of the column {@code column}; SQL {@code NULL} gives the default value of a primitive. */
-    Object read(ResultSet results, int column) throws SQLException;
+    @Override
+    public Double convertToEntityAttribute(Double value) {
+        return value == null ? null : value * 2;
+    }
 }
