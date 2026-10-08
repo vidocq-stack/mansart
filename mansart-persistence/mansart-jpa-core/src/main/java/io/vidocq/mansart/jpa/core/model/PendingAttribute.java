@@ -19,17 +19,13 @@
  */
 package io.vidocq.mansart.jpa.core.model;
 
-/** A persistent attribute of an entity or an embeddable (§2.2). */
-public sealed interface AttributeModel permits BasicAttribute, EmbeddedAttribute, AssociationAttribute, ElementCollectionAttribute,
-        PendingAttribute {
-
-    String name();
-
-    /** The declared type of the field, or the return type of the getter. */
-    Class<?> javaType();
-
-    AccessKind access();
-
-    /** The class that declares the field or the getter: the entity, an embeddable or a mapped superclass. */
-    Class<?> declaringClass();
+/**
+ * An attribute the annotations leave unmapped in a unit that has mapping files (§8.2.1.6.2, ch. 12): its mapping is
+ * given by the {@code orm.xml}, which the XML descriptor milestone reads. Without mapping files such an attribute is a
+ * mapping error.
+ *
+ * @param genericSignature the generic signature of the field or getter, or {@code null}
+ */
+public record PendingAttribute(String name, Class<?> javaType, AccessKind access, Class<?> declaringClass,
+        String genericSignature) implements AttributeModel {
 }

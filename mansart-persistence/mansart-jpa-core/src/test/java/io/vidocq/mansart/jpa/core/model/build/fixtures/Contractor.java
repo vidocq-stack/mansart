@@ -17,19 +17,21 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.model;
+package io.vidocq.mansart.jpa.core.model.build.fixtures;
 
-/** A persistent attribute of an entity or an embeddable (§2.2). */
-public sealed interface AttributeModel permits BasicAttribute, EmbeddedAttribute, AssociationAttribute, ElementCollectionAttribute,
-        PendingAttribute {
+import jakarta.persistence.*;
 
-    String name();
+/** @Access on the entity applies to the entity alone (§2.3.2): its superclass keeps the hierarchy default. */
+@Entity
+@Access(AccessType.PROPERTY)
+public class Contractor extends Staff {
+    private float rate;
 
-    /** The declared type of the field, or the return type of the getter. */
-    Class<?> javaType();
+    public float getRate() {
+        return rate;
+    }
 
-    AccessKind access();
-
-    /** The class that declares the field or the getter: the entity, an embeddable or a mapped superclass. */
-    Class<?> declaringClass();
+    public void setRate(float rate) {
+        this.rate = rate;
+    }
 }

@@ -17,19 +17,30 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.model;
+package io.vidocq.mansart.jpa.core.model.build.fixtures;
 
-/** A persistent attribute of an entity or an embeddable (§2.2). */
-public sealed interface AttributeModel permits BasicAttribute, EmbeddedAttribute, AssociationAttribute, ElementCollectionAttribute,
-        PendingAttribute {
+import jakarta.persistence.*;
 
-    String name();
+/** Property access through accessors whose suffix is not capitalised (getdescription), as some TCK entities do. */
+@Entity
+public class Lowercase {
+    private int id;
+    private String description;
 
-    /** The declared type of the field, or the return type of the getter. */
-    Class<?> javaType();
+    @Id
+    public int getId() {
+        return id;
+    }
 
-    AccessKind access();
+    public void setId(int id) {
+        this.id = id;
+    }
 
-    /** The class that declares the field or the getter: the entity, an embeddable or a mapped superclass. */
-    Class<?> declaringClass();
+    public String getdescription() {
+        return description;
+    }
+
+    public void setdescription(String description) {
+        this.description = description;
+    }
 }

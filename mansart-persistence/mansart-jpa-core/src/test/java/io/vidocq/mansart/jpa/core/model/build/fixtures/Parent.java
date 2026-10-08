@@ -17,19 +17,13 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.model;
+package io.vidocq.mansart.jpa.core.model.build.fixtures;
 
-/** A persistent attribute of an entity or an embeddable (§2.2). */
-public sealed interface AttributeModel permits BasicAttribute, EmbeddedAttribute, AssociationAttribute, ElementCollectionAttribute,
-        PendingAttribute {
+import jakarta.persistence.*;
 
-    String name();
-
-    /** The declared type of the field, or the return type of the getter. */
-    Class<?> javaType();
-
-    AccessKind access();
-
-    /** The class that declares the field or the getter: the entity, an embeddable or a mapped superclass. */
-    Class<?> declaringClass();
+/** The parent of derived identities. */
+@Entity
+public class Parent {
+    @Id
+    private long id;
 }
