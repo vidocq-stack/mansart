@@ -17,16 +17,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.session;
+package io.vidocq.mansart.jpa.core.context;
 
-/** The exception of an operation a later milestone of the roadmap delivers: it says which, instead of misbehaving. */
-public final class NotYet {
+import java.util.Objects;
 
-    private NotYet() {
-    }
+/**
+ * The identity of an entity in a persistence context: the root class of its hierarchy and its identifier (§2.4, a
+ * {@code CompositeId} for a composite one).
+ */
+public record EntityKey(Class<?> root, Object id) {
 
-    public static UnsupportedOperationException milestone(String milestone, String operation) {
-        return new UnsupportedOperationException("Mansart JPA does not support " + operation + " yet (milestone " + milestone
-            + " of mansart-persistence/ROADMAP.md)");
+    public EntityKey {
+        Objects.requireNonNull(root, "root");
+        Objects.requireNonNull(id, "id");
     }
 }
