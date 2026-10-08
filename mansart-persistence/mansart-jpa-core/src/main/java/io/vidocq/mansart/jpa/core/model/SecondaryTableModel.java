@@ -20,25 +20,17 @@
 package io.vidocq.mansart.jpa.core.model;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
- * An entity (§2.1) as mapped: name, table, access type, identifier and persistent attributes, those of its mapped
- * superclasses and entity superclasses first.
+ * A secondary table of an entity (§11.1.46): its rows hold the columns mapped to it, joined to the primary row by the
+ * primary key.
  *
- * @param superEntity the closest entity superclass, if any (its mapping strategy is milestone P6)
- * @param secondaryTables the secondary tables of the entity (§11.1.46), in declaration order
+ * @param joinColumns the names of its key columns, in the order of the primary key columns; empty when they are named
+ *        as the primary key columns (§11.1.43 defaults)
  */
-public record EntityModel(Class<?> javaType, String entityName, TableModel table, AccessKind access, IdModel id,
-        List<AttributeModel> attributes, Optional<BasicAttribute> version, Optional<Class<?>> superEntity,
-        List<SecondaryTableModel> secondaryTables) {
+public record SecondaryTableModel(TableModel table, List<String> joinColumns) {
 
-    public EntityModel {
-        attributes = List.copyOf(attributes);
-        secondaryTables = List.copyOf(secondaryTables);
-    }
-
-    public Optional<AttributeModel> attribute(String name) {
-        return attributes.stream().filter(a -> a.name().equals(name)).findFirst();
+    public SecondaryTableModel {
+        joinColumns = List.copyOf(joinColumns);
     }
 }
