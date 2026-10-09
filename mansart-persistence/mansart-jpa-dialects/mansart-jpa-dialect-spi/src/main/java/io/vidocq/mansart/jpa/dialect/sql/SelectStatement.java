@@ -21,22 +21,8 @@ package io.vidocq.mansart.jpa.dialect.sql;
 
 import java.util.List;
 
-/**
- * A SQL statement of Mansart JPA, rendered by a {@code Dialect}. Statements carry no value: each column of their lists
- * is one JDBC parameter, bound in the order the statement documents. The hierarchy grows with the milestones (queries,
- * locks, DDL).
- */
-public sealed interface Statement permits Insert, Update, Delete, Select, NextValue, Increment, SelectStatement, UpdateQuery,
-        DeleteQuery {
+/** A SQL select, either a single query or a set operation; its parameters in logical order. */
+public sealed interface SelectStatement extends Statement permits Query, SetQuery {
 
-    /** The table the statement works on. */
-    Table table();
-
-    static List<Identifier> copy(List<Identifier> columns, String what, boolean required) {
-        List<Identifier> copy = List.copyOf(columns);
-        if (required && copy.isEmpty()) {
-            throw new IllegalArgumentException("A statement needs " + what);
-        }
-        return copy;
-    }
+    List<Expression.Parameter> parameters();
 }
