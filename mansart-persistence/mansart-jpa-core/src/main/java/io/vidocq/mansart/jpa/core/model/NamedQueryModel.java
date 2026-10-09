@@ -17,39 +17,23 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.model.build.fixtures.rel;
+package io.vidocq.mansart.jpa.core.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.NamedQuery;
-import jakarta.persistence.QueryHint;
+import java.util.Map;
 
-/** The target of many-to-one relationships; it declares a named query (§10.4) with a hint. */
-@Entity
-@NamedQuery(name = "Dept.byName", query = "SELECT d FROM Dept d WHERE d.name = :name",
-    hints = @QueryHint(name = "jakarta.persistence.query.timeout", value = "5000"))
-public class Dept {
-    @Id
-    private long id;
-    private String name;
+/**
+ * A named query a managed class declares (§10.4.1 {@code @NamedQuery}, {@code @NamedNativeQuery}): names are global to
+ * the persistence unit.
+ *
+ * @param nativeQuery whether it is SQL rather than the query language
+ * @param resultClass its {@code resultClass}, or {@code null}
+ * @param lockMode the name of its {@code LockModeType} ({@code NONE} for a native query)
+ * @param resultSetMapping the {@code resultSetMapping} of a native query, or {@code null}
+ */
+public record NamedQueryModel(String name, String query, boolean nativeQuery, Class<?> resultClass, String lockMode,
+        Map<String, String> hints, String resultSetMapping) {
 
-    protected Dept() {
-    }
-
-    public Dept(long id, String name) {
-        this.id = id;
-        this.name = name;
-    }
-
-    public long id() {
-        return id;
-    }
-
-    public String name() {
-        return name;
-    }
-
-    public void name(String name) {
-        this.name = name;
+    public NamedQueryModel {
+        hints = Map.copyOf(hints);
     }
 }

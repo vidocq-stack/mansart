@@ -17,39 +17,22 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR EUPL-1.2 OR GPL-2.0-or-later
  */
-package io.vidocq.mansart.jpa.core.model.build.fixtures.rel;
+package io.vidocq.mansart.jpa.dialect.sql;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.NamedQuery;
-import jakarta.persistence.QueryHint;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
-/** The target of many-to-one relationships; it declares a named query (§10.4) with a hint. */
-@Entity
-@NamedQuery(name = "Dept.byName", query = "SELECT d FROM Dept d WHERE d.name = :name",
-    hints = @QueryHint(name = "jakarta.persistence.query.timeout", value = "5000"))
-public class Dept {
-    @Id
-    private long id;
-    private String name;
+/** A bulk delete: {@code DELETE FROM table AS alias [WHERE where]}. */
+public record DeleteQuery(Table table, String alias, Expression where) implements Statement {
 
-    protected Dept() {
+    public DeleteQuery {
+        Objects.requireNonNull(table, "table");
+        Objects.requireNonNull(alias, "alias");
     }
 
-    public Dept(long id, String name) {
-        this.id = id;
-        this.name = name;
-    }
-
-    public long id() {
-        return id;
-    }
-
-    public String name() {
-        return name;
-    }
-
-    public void name(String name) {
-        this.name = name;
+    /** The parameters of the condition. */
+    public List<Expression.Parameter> parameters() {
+        return Query.parametersOf(Arrays.asList(where));
     }
 }
