@@ -92,7 +92,7 @@ Entities use the **standard `jakarta.persistence` annotations**: `@Entity`, `@Ta
 | `@Insert`, `@Update`, `@Delete`, `@Save`
 | Lifecycle annotations — parameter = entity, collection or varargs; return `void`/`T`/`Iterable<T>`/`int`/`long`/`boolean`.
 
-| `OrderBy<Attr><Asc|Desc>` (method-name infix)
+| `OrderBy<Attr><Asc\|Desc>` (method-name infix)
 | Static order on a derived finder; dynamic order via `Sort`/`Order`/`Limit` call parameters.
 
 | `@Repository(dataStore = "name")`
